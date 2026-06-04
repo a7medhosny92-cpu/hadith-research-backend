@@ -3,3 +3,13 @@ uvicorn[standard]>=0.30
 pydantic>=2.7
 Pillow>=10.0
 pytest>=8.0
+
+# Voce neurale offline (consigliata). Fallback automatico a espeak-ng se assente.
+piper-tts>=1.2
+
+# Immagini AI realistiche (opzionale, consigliata una GPU CUDA).
+# Decommentare per abilitare lo stile "ai":
+# torch
+# diffusers>=0.27
+# transformers
+# accelerate

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Viral Video Generator</title>
+<style>
+  :root { --bg:#0f0f17; --card:#1a1a26; --accent:#7c3aed; --accent2:#ec4899;
+          --text:#f1f1f5; --muted:#9a9ab0; --ok:#22c55e; --err:#ef4444; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg);
+         color:var(--text); min-height:100vh; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 2rem; margin:0 0 4px;
+       background: linear-gradient(90deg,var(--accent),var(--accent2));
+       -webkit-background-clip:text; background-clip:text; color:transparent; }
+  p.sub { color:var(--muted); margin-top:0; }
+  .card { background:var(--card); border:1px solid #26263a; border-radius:16px;
+          padding:22px; margin-bottom:22px; }
+  label { display:block; font-size:.85rem; color:var(--muted); margin:12px 0 6px; }
+  input, select { width:100%; padding:12px 14px; border-radius:10px;
+          border:1px solid #33334d; background:#12121c; color:var(--text); font-size:1rem; }
+  .row { display:flex; gap:14px; flex-wrap:wrap; }
+  .row > div { flex:1; min-width:140px; }
+  button { margin-top:18px; width:100%; padding:14px; border:none; border-radius:12px;
+          font-size:1.05rem; font-weight:600; color:#fff; cursor:pointer;
+          background: linear-gradient(90deg,var(--accent),var(--accent2)); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .bar { height:10px; background:#26263a; border-radius:99px; overflow:hidden; margin-top:8px; }
+  .bar > div { height:100%; width:0; background:linear-gradient(90deg,var(--accent),var(--accent2));
+          transition: width .3s; }
+  .status { font-size:.9rem; color:var(--muted); margin-top:10px; }
+  .hidden { display:none; }
+  video { width:100%; max-width:340px; border-radius:14px; display:block; margin:0 auto; }
+  .sb img { width:100%; border-radius:12px; }
+  .links a { color:var(--accent2); margin-right:14px; font-size:.9rem; }
+  .badge { display:inline-block; font-size:.72rem; padding:3px 8px; border-radius:99px;
+           background:#26263a; color:var(--muted); margin-left:8px; }
+  .warn { color:#fbbf24; font-size:.85rem; margin-top:8px; }
+  .caps { font-size:.8rem; color:var(--muted); margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎬 Viral Video Generator</h1>
+  <p class="sub">Da un argomento a un video verticale pronto per i social — tutto offline.</p>
+
+  <div class="card">
+    <label>Argomento</label>
+    <input id="topic" placeholder="es. la produttività, il caffè, lo spazio…" value="la produttività" />
+    <div class="row">
+      <div>
+        <label>Punti chiave</label>
+        <select id="points">
+          <option>1</option><option>2</option><option selected>3</option>
+          <option>4</option><option>5</option>
+        </select>
+      </div>
+      <div>
+        <label>Lingua</label>
+        <select id="lang">
+          <option value="it" selected>Italiano</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <div>
+        <label>Stile visivo</label>
+        <select id="style">
+          <option value="slide" selected>Slide (gradienti)</option>
+          <option value="ai">AI (Stable Diffusion)</option>
+        </select>
+      </div>
+    </div>
+    <button id="go">Genera video</button>
+    <div class="caps" id="caps"></div>
+  </div>
+
+  <div class="card hidden" id="progressCard">
+    <strong>Generazione in corso…</strong> <span class="badge" id="stage">—</span>
+    <div class="bar"><div id="barFill"></div></div>
+    <div class="status" id="status">In coda…</div>
+  </div>
+
+  <div class="card hidden" id="resultCard">
+    <strong id="resultTitle">Video pronto 🎉</strong>
+    <div id="warnings"></div>
+    <div class="row" style="margin-top:16px; align-items:flex-start;">
+      <div style="flex:1.1;"><div id="player"></div></div>
+      <div style="flex:1;" class="sb"><div id="storyboard"></div></div>
+    </div>
+    <div class="links" id="links" style="margin-top:14px;"></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+async function loadCaps() {
+  try {
+    const r = await fetch('/health');
+    const j = await r.json();
+    const c = j.capabilities || {};
+    $('caps').textContent =
+      `Motori: voce ${c.tts ? '✅' : '❌'} · video ${c.ffmpeg ? '✅' : '❌'} · AI immagini ${c.stable_diffusion ? '✅' : '❌ (serve GPU)'}`;
+  } catch (e) {}
+}
+loadCaps();
+
+$('go').addEventListener('click', startJob);
+
+async function startJob() {
+  $('go').disabled = true;
+  $('resultCard').classList.add('hidden');
+  $('progressCard').classList.remove('hidden');
+  setProgress('queued', 0.02, 'In coda…');
+
+  const body = {
+    topic: $('topic').value.trim(),
+    num_points: parseInt($('points').value, 10),
+    lang: $('lang').value,
+    style: $('style').value,
+  };
+  const r = await fetch('/videos', {
+    method: 'POST', headers: {'content-type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) { setProgress('error', 0, 'Errore nella richiesta'); $('go').disabled = false; return; }
+  const job = await r.json();
+  poll(job.id);
+}
+
+function setProgress(stage, pct, msg) {
+  $('stage').textContent = stage;
+  $('barFill').style.width = Math.round(pct * 100) + '%';
+  $('status').textContent = msg;
+}
+
+async function poll(id) {
+  const r = await fetch('/videos/' + id);
+  const j = await r.json();
+  const labels = {script:'Scrivo lo script…', tts:'Genero la voce…',
+    frames:'Creo i fotogrammi…', subtitles:'Aggiungo i sottotitoli…',
+    assemble:'Monto il video…', done:'Completato'};
+  setProgress(j.stage || j.state, j.progress || 0, labels[j.stage] || j.state);
+
+  if (j.state === 'done') return showResult(id, j);
+  if (j.state === 'error') return setProgress('error', 0, j.error || 'Errore');
+  setTimeout(() => poll(id), 1000);
+}
+
+function showResult(id, j) {
+  $('progressCard').classList.add('hidden');
+  $('resultCard').classList.remove('hidden');
+  $('go').disabled = false;
+  const a = j.artifacts || {};
+
+  $('player').innerHTML = a.video
+    ? `<video controls autoplay muted loop src="${a.video}"></video>`
+    : `<p class="warn">Nessun .mp4 prodotto (manca FFmpeg/voce).</p>`;
+  $('storyboard').innerHTML = a.storyboard
+    ? `<img src="${a.storyboard}" alt="storyboard" />` : '';
+
+  const w = (j.warnings || []).map(x => `<div class="warn">⚠️ ${x}</div>`).join('');
+  $('warnings').innerHTML = w;
+
+  const links = [];
+  if (a.video) links.push(`<a href="${a.video}" download>⬇️ Video</a>`);
+  if (a.subtitles) links.push(`<a href="${a.subtitles}" download>⬇️ Sottotitoli</a>`);
+  if (a.script) links.push(`<a href="${a.script}" target="_blank">📄 Script</a>`);
+  $('links').innerHTML = links.join('');
+}
+</script>
+</body>
+</html>

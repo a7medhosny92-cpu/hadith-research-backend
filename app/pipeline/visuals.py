@@ -74,10 +74,33 @@ def _text_with_shadow(draw, xy, text, font, fill, anchor="mm"):
     draw.text((x, y), text, font=font, fill=fill, anchor=anchor)
 
 
+def _fit_cover(im: Image.Image) -> Image.Image:
+    """Resize/crop an arbitrary image to exactly WIDTHxHEIGHT (cover)."""
+    src_ratio = im.width / im.height
+    dst_ratio = WIDTH / HEIGHT
+    if src_ratio > dst_ratio:
+        new_h = HEIGHT
+        new_w = int(new_h * src_ratio)
+    else:
+        new_w = WIDTH
+        new_h = int(new_w / src_ratio)
+    im = im.resize((new_w, new_h))
+    left = (new_w - WIDTH) // 2
+    top = (new_h - HEIGHT) // 2
+    return im.crop((left, top, left + WIDTH, top + HEIGHT))
+
+
 def render_scene(kind: str, text: str, overlay: str, out_path: Path,
-                 index: int = 0, total: int = 1) -> Path:
+                 index: int = 0, total: int = 1,
+                 background: Path | None = None) -> Path:
     top, bottom, accent = _PALETTES.get(kind, _PALETTES["point"])
-    img = _vertical_gradient(top, bottom)
+    if background and Path(background).exists():
+        # AI/photo background, darkened for text legibility
+        img = _fit_cover(Image.open(background).convert("RGB"))
+        scrim = Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0))
+        img = Image.blend(img, scrim, 0.45)
+    else:
+        img = _vertical_gradient(top, bottom)
     draw = ImageDraw.Draw(img)
 
     margin = 90

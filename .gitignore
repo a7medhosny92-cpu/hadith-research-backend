@@ -11,5 +11,9 @@ output/
 *.mp4
 *.wav
 
+# Downloaded model weights (Piper voices, SD checkpoints)
+models/
+*.onnx
+
 # OS
 .DS_Store

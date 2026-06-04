@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, List, Optional
 
-from . import tts, assembler
+from . import tts, assembler, image_gen
 from .script_gen import generate_script, Script
 from .subtitles import build_srt
 from .visuals import render_scene, storyboard
@@ -58,6 +58,7 @@ def create_video(
     lang: str = "it",
     music: Optional[Path] = None,
     seed: Optional[int] = None,
+    style: str = "slide",
     progress: ProgressFn = _noop,
 ) -> PipelineResult:
     workdir = Path(workdir)
@@ -69,7 +70,7 @@ def create_video(
 
     # 1) voice-over per scene (sets the real per-scene duration)
     progress("tts", 0.20)
-    if tts.available():
+    if tts.available(lang):
         for s in script.scenes:
             wav = workdir / f"voice_{s.index:02d}.wav"
             tts.synthesize(s.text, wav, lang=lang)
@@ -78,13 +79,27 @@ def create_video(
     else:
         result.warnings.append("TTS non disponibile: uso durate stimate, nessun audio.")
 
-    # 2) frames
+    # 2) optional AI backgrounds (Stable Diffusion), then frames
     progress("frames", 0.45)
+    use_ai = style == "ai"
+    if use_ai and not image_gen.available():
+        result.warnings.append(
+            "Stile 'ai' richiesto ma Stable Diffusion non disponibile "
+            "(serve torch+diffusers e preferibilmente una GPU): uso le slide.")
+        use_ai = False
+
     for s in script.scenes:
+        bg = None
+        if use_ai:
+            bg = image_gen.generate(
+                topic, s.text, s.kind,
+                out_path=workdir / f"bg_{s.index:02d}.png",
+                seed=None if seed is None else seed + s.index)
         frame = render_scene(
             kind=s.kind, text=s.text, overlay=s.overlay,
             out_path=workdir / f"frame_{s.index:02d}.png",
             index=s.index, total=len(script.scenes),
+            background=bg,
         )
         result.frames.append(frame)
 

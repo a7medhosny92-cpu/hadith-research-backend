@@ -17,6 +17,8 @@ def main() -> None:
     ap.add_argument("--points", type=int, default=3, help="Numero di punti chiave (1-5)")
     ap.add_argument("--lang", default="it", help="Lingua TTS (it, en, ...)")
     ap.add_argument("--seed", type=int, default=None, help="Seed riproducibile")
+    ap.add_argument("--style", choices=["slide", "ai"], default="slide",
+                    help="Stile visivo: slide (gradienti) o ai (Stable Diffusion)")
     ap.add_argument("--music", default=None, help="File audio di sottofondo (opzionale)")
     ap.add_argument("--out", default="output/cli", help="Cartella di output")
     args = ap.parse_args()
@@ -27,7 +29,8 @@ def main() -> None:
     music = Path(args.music) if args.music else None
     result = create_video(
         topic=args.topic, workdir=Path(args.out), num_points=args.points,
-        lang=args.lang, music=music, seed=args.seed, progress=progress,
+        lang=args.lang, music=music, seed=args.seed, style=args.style,
+        progress=progress,
     )
 
     print("\n  TITOLO :", result.script.title)

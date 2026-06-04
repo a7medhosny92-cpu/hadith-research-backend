@@ -17,7 +17,9 @@ from fastapi.responses import FileResponse
 from . import config
 from .models import VideoRequest, JobStatus
 from .jobs import JobStore
-from .pipeline import tts, assembler
+from .pipeline import tts, assembler, image_gen
+
+STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(
     title="Viral Video Backend",
@@ -29,13 +31,19 @@ store = JobStore(config.OUTPUT_ROOT, max_workers=config.MAX_WORKERS)
 
 
 @app.get("/")
-def root() -> dict:
+def ui() -> FileResponse:
+    return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/health")
+def health() -> dict:
     return {
         "service": "viral-video-backend",
         "status": "ok",
         "capabilities": {
             "tts": tts.available(),
             "ffmpeg": assembler.available(),
+            "stable_diffusion": image_gen.available(),
         },
         "note": "Senza ffmpeg/espeak-ng la pipeline produce comunque script, "
                 "frame, storyboard e sottotitoli.",
@@ -44,7 +52,7 @@ def root() -> dict:
 
 @app.post("/videos", response_model=JobStatus, status_code=202)
 def create_video_job(req: VideoRequest) -> JobStatus:
-    job = store.submit(req.topic, req.num_points, req.lang, req.seed)
+    job = store.submit(req.topic, req.num_points, req.lang, req.seed, req.style)
     return _status(job)
 
 
