@@ -103,9 +103,18 @@ def create_video(
             "B-roll richiesto ma nessuna clip in assets/broll: uso le immagini.")
         use_broll = False
 
-    # With animated karaoke captions the text is rendered by the subtitle track,
-    # so the still frame should not also bake the caption in.
-    bake_caption = not animate
+    # Animated karaoke is rendered by libass (ASS subtitle track) and the still
+    # frame stays caption-free. But libass lays out \k karaoke left-to-right and
+    # ignores bidi, so RTL languages (Arabic) would come out word-reversed —
+    # for those we bake the correctly-shaped caption into the frame instead and
+    # keep motion + crossfade.
+    rtl = i18n.is_rtl(lang)
+    karaoke = animate and not rtl
+    bake_caption = not karaoke
+    if animate and rtl:
+        result.warnings.append(
+            "Lingua RTL: uso didascalie statiche corrette invece del karaoke "
+            "(libass non supporta l'ordine RTL nel karaoke).")
 
     broll_clips: List[Optional[Path]] = []
     for s in script.scenes:
@@ -147,11 +156,8 @@ def create_video(
         for i in range(n)
     ]
     result.subtitles = build_srt_timed(events, workdir / "captions.srt")
-    if animate:
-        # libass shapes/bidis RTL natively, it just needs an Arabic-capable font
-        ass_font = "Noto Naskh Arabic" if i18n.is_rtl(lang) else "DejaVu Sans"
-        result.subtitles_ass = build_ass_timed(events, workdir / "captions.ass",
-                                               font=ass_font)
+    if karaoke:
+        result.subtitles_ass = build_ass_timed(events, workdir / "captions.ass")
     (workdir / "script.json").write_text(
         json.dumps(script.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
 

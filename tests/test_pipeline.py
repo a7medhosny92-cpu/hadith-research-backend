@@ -150,6 +150,15 @@ def test_arabic_script_is_rtl_and_localized():
     assert _is_arabic(s.narration)
 
 
+def test_rtl_bakes_caption_instead_of_karaoke(tmp_path: Path):
+    # libass can't lay out RTL karaoke, so Arabic must NOT get an ASS track even
+    # when animating; the caption is baked into the frame instead.
+    result = create_video("الإنتاجية", workdir=tmp_path, num_points=2, seed=3,
+                          lang="ar", animate=True)
+    assert result.subtitles_ass is None
+    assert any("RTL" in w for w in result.warnings)
+
+
 def test_voice_selector_lists_only_downloaded(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(tts, "PIPER_DATA_DIR", tmp_path)
     monkeypatch.setattr(tts, "PIPER_VOICES",

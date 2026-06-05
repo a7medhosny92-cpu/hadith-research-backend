@@ -68,7 +68,9 @@ L'immagine include FFmpeg, espeak-ng e la voce Piper italiana.
 Lo script viene scritto nella lingua scelta (pacchetti completi `it`, `en`, `es`,
 `ar` in `app/pipeline/i18n.py`; le altre usano testi inglesi come fallback).
 L'**arabo** è RTL: viene reso con shaping e ordine bidi corretti (via libraqm in
-Pillow per i frame, e libass per i sottotitoli karaoke).
+Pillow). Poiché libass impagina il karaoke `\k` da sinistra a destra ignorando il
+bidi (invertendo le parole), per le lingue RTL la didascalia viene "bakeata" nel
+fotogramma — corretta e statica — mantenendo comunque movimento e crossfade.
 
 Ogni lingua può avere più voci neurali Piper, selezionabili (`--voice`, campo
 `voice` nell'API, menu nel frontend). `GET /voices` elenca quelle scaricate. Se
