@@ -33,7 +33,7 @@ def get_index() -> HadithIndex:
 @router.get("/search")
 def search(
     q: str = Query(..., min_length=1, description="Arabic query (diacritics optional)"),
-    field: str = Query("matn", pattern="^(matn|isnad|both)$"),
+    field: str = Query("all", pattern="^(all|matn|isnad)$"),
     collection: int | None = Query(None, description="restrict to a collection (book id)"),
     grade: str | None = Query(None, description="restrict to an authenticity grade"),
     limit: int = Query(20, ge=1, le=100),

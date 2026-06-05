@@ -31,7 +31,7 @@ _FTS_SPECIAL = str.maketrans({c: " " for c in '"*()^:-'})
 
 _SCHEMA = """
 CREATE VIRTUAL TABLE IF NOT EXISTS hadith USING fts5(
-    matn_norm, isnad_norm,
+    matn_norm, chapter_norm, isnad_norm,
     book_id     UNINDEXED,
     collection  UNINDEXED,
     number      UNINDEXED,
@@ -44,6 +44,10 @@ CREATE VIRTUAL TABLE IF NOT EXISTS hadith USING fts5(
     tokenize = 'unicode61 remove_diacritics 2'
 );
 """
+
+#: bm25 column weights (matn_norm, chapter_norm, isnad_norm): the matn matters most,
+#: the chapter heading helps topical queries, the chain least.
+_HADITH_WEIGHTS = "10.0, 4.0, 1.0"
 
 _SHARH_SCHEMA = """
 CREATE VIRTUAL TABLE IF NOT EXISTS sharh USING fts5(
@@ -98,6 +102,27 @@ def _tokens(query: str) -> list[str]:
     return [t for t in normalize_for_search(query.translate(_FTS_SPECIAL)).split() if t]
 
 
+def _chunks(text: str, size: int = 1400) -> list[str]:
+    """Split long commentary into ~``size``-char pieces at sentence/space boundaries,
+    so retrieval returns a focused passage (one hadith's شرح can run to tens of KB)."""
+    text = " ".join(text.split())
+    if len(text) <= size:
+        return [text] if text else []
+    out, i, n = [], 0, len(text)
+    while i < n:
+        end = min(i + size, n)
+        if end < n:
+            cut = max(
+                text.rfind("۔", i, end), text.rfind(". ", i, end),
+                text.rfind("؟", i, end), text.rfind(" ", i, end),
+            )
+            if cut > i:
+                end = cut + 1
+        out.append(text[i:end].strip())
+        i = end
+    return [c for c in out if c]
+
+
 class HadithIndex:
     """An FTS5-backed hadith index. Use :meth:`build_from_processed` to load the
     parsed JSONL corpus, or :meth:`add` to insert records directly (tests)."""
@@ -118,6 +143,7 @@ class HadithIndex:
             rows.append(
                 (
                     normalize_for_search(matn),
+                    normalize_for_search(r.get("chapter") or ""),
                     normalize_for_search(isnad),
                     book_id,
                     COLLECTION_NAMES.get(book_id, str(book_id)),
@@ -131,8 +157,8 @@ class HadithIndex:
                 )
             )
         self._con.executemany(
-            "INSERT INTO hadith (matn_norm, isnad_norm, book_id, collection, number, "
-            "matn, isnad, grade, chapter, page, volume) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO hadith (matn_norm, chapter_norm, isnad_norm, book_id, collection, "
+            "number, matn, isnad, grade, chapter, page, volume) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             rows,
         )
         self._con.commit()
@@ -155,19 +181,19 @@ class HadithIndex:
         limit: int = 20,
         collection_id: int | None = None,
         grade: str | None = None,
-        field: str = "matn",
+        field: str = "all",
     ) -> list[SearchHit]:
         """Rank hadith by relevance to ``query``.
 
         Tries an all-terms (AND) match first for precision, then falls back to
-        any-term (OR) for recall. ``field`` selects what to search: ``matn`` (the
-        text), ``isnad`` (the chain), or ``both``.
+        any-term (OR) for recall. ``field`` selects what to search: ``all`` (matn +
+        chapter + chain, matn weighted highest), ``matn``, or ``isnad``.
         """
         terms = _tokens(query)
         if not terms:
             return []
         col = {"matn": "matn_norm", "isnad": "isnad_norm"}.get(field)
-        prefix = f"{col}:" if col else ""  # column filter, or whole-row for "both"
+        prefix = f"{col}:" if col else ""  # column filter, or whole-row for "all"
 
         filters, params = ["hadith MATCH ?"], [""]
         if collection_id is not None:
@@ -178,7 +204,7 @@ class HadithIndex:
             params.append(grade)
         sql = (
             "SELECT rowid, book_id, collection, number, matn, isnad, grade, chapter, "
-            "page, volume, -bm25(hadith) AS score, "
+            f"page, volume, -bm25(hadith, {_HADITH_WEIGHTS}) AS score, "
             "snippet(hadith, 0, '«', '»', '…', 12) AS snip "
             f"FROM hadith WHERE {' AND '.join(filters)} ORDER BY score DESC LIMIT ?"
         )
@@ -259,15 +285,12 @@ class SharhIndex:
     def add(self, passages: Iterable[dict]) -> int:
         rows = []
         for p in passages:
-            text = p.get("text") or ""
-            rows.append(
-                (
-                    normalize_for_search(text),
-                    p.get("book_id"), p.get("sharh"), p.get("base_id"),
-                    p.get("base_name"), p.get("hadith_number"), p.get("chapter"),
-                    p.get("page"), p.get("page_id"), text,
-                )
+            meta = (
+                p.get("book_id"), p.get("sharh"), p.get("base_id"), p.get("base_name"),
+                p.get("hadith_number"), p.get("chapter"), p.get("page"), p.get("page_id"),
             )
+            for chunk in _chunks(p.get("text") or ""):
+                rows.append((normalize_for_search(chunk), *meta, chunk))
         self._con.executemany(
             "INSERT INTO sharh (text_norm, book_id, sharh_name, base_id, base_name, "
             "hadith_number, chapter, page, page_id, text) VALUES (?,?,?,?,?,?,?,?,?,?)",

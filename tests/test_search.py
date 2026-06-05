@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.routers.search import get_index
-from app.search import HadithIndex
+from app.search import HadithIndex, SharhIndex
 
 SAMPLE = [
     {
@@ -80,6 +80,27 @@ def test_get_and_missing(index):
     first = index.search("الأعمال")[0]
     assert index.get(first.id).number == 1
     assert index.get(999999) is None
+
+
+def test_search_matches_chapter_not_just_matn(index):
+    # the topical term lives in the bab heading, not the matn
+    index.add([{
+        "book_id": 1284, "number": 99, "matn": "حديثٌ بلا اللفظ المقصود",
+        "isnad": "إسناد", "grade": "صحيح", "chapter": "باب فضل الصدقة",
+        "page": 5, "volume": "1",
+    }])
+    assert any(h.number == 99 for h in index.search("الصدقة"))
+
+
+def test_sharh_index_chunks_long_passages():
+    si = SharhIndex()
+    si.add([{
+        "book_id": 1673, "sharh": "فتح الباري", "base_id": 1284,
+        "base_name": "صحيح البخاري", "hadith_number": 1, "chapter": None,
+        "page": 1, "page_id": 1, "text": "هذه جملة شرحٍ مطوّلة. " * 400,  # ~8k chars
+    }])
+    assert si.count() > 1  # one long passage → several chunks
+    assert all(h.hadith_number == 1 for h in si.by_hadith(1284, 1, limit=20))
 
 
 # ── API ─────────────────────────────────────────────────────────────────────
