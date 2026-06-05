@@ -16,10 +16,9 @@ venv/
 .coverage
 htmlcov/
 
-# Data (downloaded corpus, models, local DB) — never commit the corpus
-/data/raw/
-/data/processed/
-/data/models/
+# Data dir is entirely runtime: downloaded corpus, processed output, logs, local DB.
+# Never commit any of it (the corpus is turath.io's, not ours to redistribute).
+/data/
 *.db
 *.sqlite3
 
