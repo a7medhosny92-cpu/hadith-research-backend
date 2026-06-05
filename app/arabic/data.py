@@ -50,3 +50,7 @@ def nahw() -> dict:
 
 def verbs() -> dict:
     return _load("verbs")
+
+
+def exercises() -> dict:
+    return _load("exercises")

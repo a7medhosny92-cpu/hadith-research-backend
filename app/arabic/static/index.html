@@ -58,6 +58,7 @@
     <button data-tab="iraab">الإعراب · Iʿrāb</button>
     <button data-tab="levels">المستويات · Livelli</button>
     <button data-tab="vocab">المفردات · Lessico</button>
+    <button data-tab="quiz">التمارين · Esercizi</button>
   </div>
 
   <!-- LETTERS -->
@@ -113,6 +114,19 @@
 
   <!-- VOCAB -->
   <div class="panel" id="vocab"><div class="card" id="vcOut">…</div></div>
+
+  <!-- QUIZ -->
+  <div class="panel" id="quiz">
+    <div class="card">
+      <div class="row">
+        <div><label>Tipo di esercizio</label><select id="qType"></select></div>
+        <div style="display:flex;align-items:flex-end"><button class="go" onclick="newQuiz()">Nuovo esercizio</button></div>
+        <div style="display:flex;align-items:flex-end;justify-content:flex-end">
+          <span class="muted">Punteggio: <b id="qScore">0 / 0</b></span></div>
+      </div>
+    </div>
+    <div class="card" id="qCard" style="display:none"></div>
+  </div>
 </div>
 
 <script>
@@ -126,6 +140,7 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
   b.classList.add('active'); $('#'+b.dataset.tab).classList.add('active');
   if(b.dataset.tab==='levels') loadLevels();
   if(b.dataset.tab==='vocab') loadVocab();
+  if(b.dataset.tab==='quiz') initQuiz();
 });
 
 api('/api/health').then(h=>{
@@ -221,6 +236,49 @@ function loadVocab(){ if($('#vcOut').dataset.loaded) return;
       <span class="muted">${r.core} · ${r.count}</span></div>
       <div class="ar">${r.derivatives.map(x=>`<span class="pill">${x.w} <span class="muted">${x.g}</span></span>`).join('')}</div></div>`).join('');
     $('#vcOut').innerHTML=fw+'<h3>Radici ad alta frequenza</h3>'+roots;
+  });
+}
+
+// --- quiz ---
+let QZ={cur:null,score:0,total:0,answered:false};
+function initQuiz(){ if($('#qType').dataset.loaded) return;
+  api('/api/exercise/types').then(d=>{ $('#qType').dataset.loaded=1;
+    $('#qType').innerHTML='<option value="random">🎲 Misto</option>'+
+      d.types.map(t=>`<option value="${t.key}">${t.label}</option>`).join('');
+    newQuiz();
+  });
+}
+function newQuiz(){
+  api('/api/exercise?type='+encodeURIComponent($('#qType').value)).then(e=>{
+    QZ.cur=e; QZ.answered=false; renderQuiz();
+  });
+}
+function renderQuiz(){
+  const e=QZ.cur, c=$('#qCard'); c.style.display='block';
+  c.innerHTML=`<div style="margin-bottom:6px">${e.prompt}</div>
+    <div class="ar big" style="margin:10px 0 16px;font-size:1.6rem">${e.content}</div>
+    <div id="qChoices">${e.choices.map((ch,i)=>
+      `<button class="qch" data-i="${i}" style="display:block;width:100%;text-align:start;
+        margin:6px 0;padding:11px 14px;border-radius:10px;border:1px solid var(--line);
+        background:#12141d;color:var(--text);cursor:pointer" onclick="answerQuiz(${i})">
+        <span class="ar big">${ch}</span></button>`).join('')}</div>
+    <div id="qFb"></div>`;
+}
+function answerQuiz(i){
+  if(QZ.answered) return; QZ.answered=true;
+  api('/api/check',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({id:QZ.cur.id,choice:i})}).then(r=>{
+    QZ.total++; if(r.correct) QZ.score++;
+    $('#qScore').textContent=`${QZ.score} / ${QZ.total}`;
+    document.querySelectorAll('.qch').forEach(b=>{
+      const idx=+b.dataset.i; b.style.pointerEvents='none';
+      if(idx===r.answer){b.style.borderColor='var(--ok)';b.style.background='#0e2a1c';}
+      else if(idx===i){b.style.borderColor='var(--err)';b.style.background='#2a1212';}
+    });
+    $('#qFb').innerHTML=`<div style="margin-top:12px">
+      <b class="${r.correct?'ok':'err'}">${r.correct?'✓ Corretto':'✗ Sbagliato'}</b>
+      <span class="ar" style="margin-inline-start:8px">${r.explanation}</span></div>
+      <button class="go" style="margin-top:12px" onclick="newQuiz()">Prossimo →</button>`;
   });
 }
 </script>

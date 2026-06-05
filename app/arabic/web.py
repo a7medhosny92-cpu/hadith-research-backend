@@ -16,7 +16,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from . import data, phonology, tajweed, morphology, iraab
+from . import data, phonology, tajweed, morphology, iraab, exercises
 
 STATIC = Path(__file__).parent / "static"
 
@@ -104,6 +104,35 @@ def analyze_iraab(body: SentenceIn) -> dict:
 @app.get("/api/levels")
 def levels() -> dict:
     return data.levels()
+
+
+# --- exercises / quiz -------------------------------------------------------
+
+class CheckIn(BaseModel):
+    id: str
+    choice: int = Field(..., ge=0, le=10)
+
+
+@app.get("/api/exercise/types")
+def exercise_types() -> dict:
+    return {"types": [{"key": t, "label": exercises.TYPE_LABELS[t]}
+                      for t in exercises.TYPES]}
+
+
+@app.get("/api/exercise")
+def exercise(type: str = "random") -> dict:
+    try:
+        return exercises.generate(type).public()
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
+
+@app.post("/api/check")
+def check_answer(body: CheckIn) -> dict:
+    try:
+        return exercises.check(body.id, body.choice)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
 
 
 @app.get("/api/vocabulary")

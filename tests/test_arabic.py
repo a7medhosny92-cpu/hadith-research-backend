@@ -6,7 +6,7 @@ import unicodedata
 
 import pytest
 
-from app.arabic import data, phonology, tajweed, morphology, iraab
+from app.arabic import data, phonology, tajweed, morphology, iraab, exercises
 
 
 def _n(s: str) -> str:
@@ -281,3 +281,44 @@ def test_web_conjugate_rejects_weak_verb():
     from app.arabic import web
     with pytest.raises(HTTPException):
         web.conjugate(web.ConjugateIn(root="قول", form=1))
+
+
+# --- quiz / exercises -------------------------------------------------------
+
+@pytest.mark.parametrize("ex_type", exercises.TYPES)
+def test_exercise_generator_is_self_consistent(ex_type):
+    for seed in range(40):
+        e = exercises.generate(ex_type, seed=seed)
+        assert e.type == ex_type
+        assert 0 <= e.answer < len(e.choices)
+        assert len(set(e.choices)) == len(e.choices)          # no duplicate options
+        # the right answer is graded correct, a different one is graded wrong
+        assert exercises.check(e.id, e.answer)["correct"] is True
+        other = (e.answer + 1) % len(e.choices)
+        assert exercises.check(e.id, other)["correct"] is False
+
+
+def test_exercise_public_view_hides_answer():
+    e = exercises.generate("letter", seed=1)
+    assert "answer" not in e.public() and "explanation" not in e.public()
+
+
+def test_check_unknown_id_raises():
+    with pytest.raises(KeyError):
+        exercises.check("does-not-exist", 0)
+
+
+def test_iraab_quiz_answer_matches_engine():
+    # the iʿrāb quiz answer must equal the analyzer's expected case
+    e = exercises.generate("iraab", seed=7)
+    assert e.choices[e.answer] in ("رفع", "نصب", "جر")
+
+
+def test_web_exercise_endpoints():
+    from app.arabic import web
+    types = [t["key"] for t in web.exercise_types()["types"]]
+    assert set(types) == set(exercises.TYPES)
+    pub = web.exercise(type="vocabulary")
+    assert "choices" in pub and "answer" not in pub
+    res = web.check_answer(web.CheckIn(id=pub["id"], choice=0))
+    assert "correct" in res and "explanation" in res
