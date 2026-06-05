@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tutor di Arabo Classico / Coranico</title>
+<style>
+  :root{--bg:#0f1117;--card:#1a1d28;--line:#2a2e3d;--text:#eceef5;--muted:#9aa0b4;
+        --accent:#34d399;--accent2:#22d3ee;--ok:#22c55e;--err:#ef4444;--warn:#fbbf24;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
+  .ar{font-family:"Noto Naskh Arabic","Amiri","Scheherazade New",serif;direction:rtl}
+  .wrap{max-width:980px;margin:0 auto;padding:26px 18px 80px}
+  h1{font-size:1.6rem;margin:0 0 2px;background:linear-gradient(90deg,var(--accent),var(--accent2));
+     -webkit-background-clip:text;background-clip:text;color:transparent}
+  p.sub{color:var(--muted);margin:0 0 18px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+  .tabs button{background:var(--card);border:1px solid var(--line);color:var(--muted);
+     padding:9px 16px;border-radius:10px;cursor:pointer;font-size:.95rem}
+  .tabs button.active{color:#06281f;background:linear-gradient(90deg,var(--accent),var(--accent2));
+     border-color:transparent;font-weight:600}
+  .panel{display:none}.panel.active{display:block}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+  label{display:block;font-size:.82rem;color:var(--muted);margin:6px 0 6px}
+  input,select,textarea{width:100%;padding:11px 13px;border-radius:9px;border:1px solid #33384a;
+     background:#12141d;color:var(--text);font-size:1.05rem}
+  textarea{min-height:90px;resize:vertical}
+  button.go{margin-top:14px;padding:11px 18px;border:none;border-radius:10px;font-weight:600;
+     color:#06281f;background:linear-gradient(90deg,var(--accent),var(--accent2));cursor:pointer}
+  .row{display:flex;gap:12px;flex-wrap:wrap}.row>div{flex:1;min-width:90px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:8px}
+  .grid button{font-size:1.7rem;padding:10px 0;background:#12141d;border:1px solid var(--line);
+     border-radius:10px;color:var(--text);cursor:pointer}
+  .grid button:hover{border-color:var(--accent)}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{text-align:start;padding:7px 9px;border-bottom:1px solid var(--line);font-size:.98rem}
+  th{color:var(--muted);font-weight:600;font-size:.8rem}
+  .big{font-size:1.25rem}
+  .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:.78rem;background:#23283a;color:var(--muted);margin:2px}
+  .ok{color:var(--ok)}.err{color:var(--err)}.muted{color:var(--muted)}
+  .finding{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .tag{font-size:.74rem;padding:2px 8px;border-radius:6px;background:#23283a;color:var(--accent2)}
+  .lvl{border-inline-start:3px solid var(--accent);padding-inline-start:12px;margin-bottom:14px}
+  .cols2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:640px){.cols2{grid-template-columns:1fr}}
+  .hint{color:var(--muted);font-size:.85rem;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🕌 Tutor di Arabo Classico / Coranico</h1>
+  <p class="sub">Motore offline: fonetica · tajwīd · صرف · إعراب — <span id="status" class="muted"></span></p>
+
+  <div class="tabs">
+    <button data-tab="letters" class="active">الحروف · Lettere</button>
+    <button data-tab="tajweed">التجويد · Tajwīd</button>
+    <button data-tab="sarf">الصرف · Coniugazione</button>
+    <button data-tab="iraab">الإعراب · Iʿrāb</button>
+    <button data-tab="levels">المستويات · Livelli</button>
+    <button data-tab="vocab">المفردات · Lessico</button>
+  </div>
+
+  <!-- LETTERS -->
+  <div class="panel active" id="letters">
+    <div class="card"><div class="grid ar" id="letterGrid"></div></div>
+    <div class="card" id="letterCard" style="display:none"></div>
+  </div>
+
+  <!-- TAJWEED -->
+  <div class="panel" id="tajweed">
+    <div class="card">
+      <label>Testo arabo vocalizzato</label>
+      <textarea id="tjText" class="ar big">بِسْمِ اللَّهِ الرَّحْمٰنِ الرَّحِيمِ</textarea>
+      <button class="go" onclick="runTajweed()">Analizza tajwīd</button>
+      <div class="hint">Rileva: nūn/mīm sākina, qalqala, madd, lām shamsiyya/qamariyya.</div>
+    </div>
+    <div class="card" id="tjOut" style="display:none"></div>
+  </div>
+
+  <!-- SARF -->
+  <div class="panel" id="sarf">
+    <div class="card">
+      <div class="row">
+        <div><label>Radice (3 lettere)</label><input id="root" class="ar big" value="كتب" maxlength="3"></div>
+        <div><label>Forma (الوزن)</label>
+          <select id="form">
+            <option value="1">I — فَعَلَ</option><option value="2">II — فَعَّلَ</option>
+            <option value="3">III — فَاعَلَ</option><option value="4">IV — أَفْعَلَ</option>
+            <option value="5">V — تَفَعَّلَ</option><option value="6">VI — تَفَاعَلَ</option>
+            <option value="7">VII — اِنْفَعَلَ</option><option value="8">VIII — اِفْتَعَلَ</option>
+            <option value="10">X — اِسْتَفْعَلَ</option>
+          </select></div>
+      </div>
+      <button class="go" onclick="runConjugate()">Coniuga</button>
+      <div class="hint">Solo verbi sani (niente lettere deboli/hamza, R2≠R3).</div>
+    </div>
+    <div class="card" id="cjOut" style="display:none"></div>
+  </div>
+
+  <!-- IRAAB -->
+  <div class="panel" id="iraab">
+    <div class="card">
+      <label>Frase araba vocalizzata</label>
+      <textarea id="irText" class="ar big">إِنَّ اللَّهَ غَفُورٌ رَحِيمٌ</textarea>
+      <button class="go" onclick="runIraab()">Analizza l'iʿrāb</button>
+      <div class="hint">Assegna caso e funzione; ✓/✗ confronta i diacritici con la sintassi (correzione).</div>
+    </div>
+    <div class="card" id="irOut" style="display:none"></div>
+  </div>
+
+  <!-- LEVELS -->
+  <div class="panel" id="levels"><div class="card" id="lvOut">…</div></div>
+
+  <!-- VOCAB -->
+  <div class="panel" id="vocab"><div class="card" id="vcOut">…</div></div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = (u,o) => fetch(u,o).then(r=>r.json());
+
+// tabs
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); $('#'+b.dataset.tab).classList.add('active');
+  if(b.dataset.tab==='levels') loadLevels();
+  if(b.dataset.tab==='vocab') loadVocab();
+});
+
+api('/api/health').then(h=>{
+  const c=h.capabilities; $('#status').textContent =
+    `tutor LLM ${c.llm_tutor?'✅':'⏳ (offline)'}`;
+});
+
+// --- letters ---
+api('/api/letters').then(d=>{
+  const g=$('#letterGrid');
+  d.letters.forEach(L=>{const b=document.createElement('button');
+    b.textContent=L.letter; b.onclick=()=>showLetter(L); g.appendChild(b);});
+});
+function showLetter(L){
+  const c=$('#letterCard'); c.style.display='block';
+  c.innerHTML=`<div style="display:flex;gap:18px;align-items:center">
+    <div class="ar" style="font-size:3.4rem">${L.letter}</div>
+    <div><div class="big">${L.name} · ${L.translit} <span class="muted">/${L.ipa}/</span></div>
+    <div class="muted">المخرج: <b class="ar">${L.region_label}</b> ·
+      ${L.heavy?'مفخّمة (pesante)':'مرققة (leggera)'} ·
+      ${L.sun?'حرف شمسي':'حرف قمري'}${L.madd?' · حرف مد':''}</div></div></div>
+    <div style="margin-top:12px">${L.sifat.map(s=>`<span class="pill ar">${s}</span>`).join('')}</div>`;
+}
+
+// --- tajweed ---
+function runTajweed(){
+  api('/api/tajweed',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({text:$('#tjText').value})}).then(d=>{
+    const o=$('#tjOut'); o.style.display='block';
+    if(!d.findings.length){o.innerHTML='<span class="muted">Nessuna regola rilevata.</span>';return;}
+    o.innerHTML=d.findings.map(f=>`<div class="finding">
+      <span><span class="tag">${f.rule}</span> <b class="ar big">${f.name}</b>
+        <span class="ar muted">${f.letters}</span></span>
+      <span class="muted">${f.explanation}</span></div>`).join('');
+  });
+}
+
+// --- conjugation ---
+const PR_ORDER=['3ms','3fs','3md','3fd','3mp','3fp','2ms','2fs','2d','2mp','2fp','1s','1p'];
+function runConjugate(){
+  api('/api/conjugate',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({root:$('#root').value,form:parseInt($('#form').value)})})
+   .then(d=>{
+    const o=$('#cjOut'); o.style.display='block';
+    if(d.detail){o.innerHTML=`<span class="err">${d.detail}</span>`;return;}
+    const lbl=Object.fromEntries(d.pronouns.map(p=>[p.key,p.label]));
+    const tbl=(title,obj)=>`<h3 class="ar">${title}</h3><table>`+
+      PR_ORDER.map(k=>`<tr><td class="muted ar">${lbl[k]}</td><td class="ar big">${obj[k]}</td></tr>`).join('')+'</table>';
+    const amr=`<h3 class="ar">الأمر</h3><table>`+['2ms','2fs','2d','2mp','2fp']
+      .map(k=>`<tr><td class="muted ar">${lbl[k]}</td><td class="ar big">${d.amr[k]}</td></tr>`).join('')+'</table>';
+    const mush=`<h3 class="ar">المشتقّات</h3><table>`+Object.entries(d.mushtaqqat)
+      .map(([k,v])=>`<tr><td class="muted ar">${k}</td><td class="ar big">${v}</td></tr>`).join('')+'</table>';
+    o.innerHTML=`<div class="cols2"><div>${tbl('الماضي',d.madi)}</div>
+      <div>${tbl('المضارع',d.mudari)}</div></div>
+      <div class="cols2"><div>${amr}</div><div>${mush}</div></div>`;
+  });
+}
+
+// --- iraab ---
+function runIraab(){
+  api('/api/iraab',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({sentence:$('#irText').value})}).then(d=>{
+    const o=$('#irOut'); o.style.display='block';
+    let rows=d.words.map(w=>{
+      let chk='', cls='';
+      if(w.ok===true){chk='✓';cls='ok';}
+      else if(w.ok===false){chk='✗ '+(w.expected_case||'');cls='err';}
+      return `<tr><td class="ar big">${w.text}</td><td class="muted">${w.pos}</td>
+        <td class="ar">${w.function}</td><td class="ar">${w.read_case||'—'}</td>
+        <td class="${cls}">${chk}</td></tr>`;
+    }).join('');
+    o.innerHTML=`<div class="ar muted" style="margin-bottom:8px">${d.kind}</div>
+      <table><tr><th>الكلمة</th><th>tipo</th><th>الإعراب</th><th>الحالة</th><th>verifica</th></tr>${rows}</table>`;
+  });
+}
+
+// --- levels ---
+function loadLevels(){ if($('#lvOut').dataset.loaded) return;
+  api('/api/levels').then(d=>{ $('#lvOut').dataset.loaded=1;
+    $('#lvOut').innerHTML=d.levels.map(l=>`<div class="lvl">
+      <div class="big">${l.id} <span class="muted">(${l.cefr})</span> — <span class="ar">${l.matn}</span></div>
+      <div class="muted">${l.focus.map(f=>`<span class="pill ar">${f}</span>`).join('')}</div>
+      <div style="margin-top:6px">🎯 <span class="ar">${l.objectives.join(' · ')}</span></div></div>`).join('');
+  });
+}
+
+// --- vocab ---
+function loadVocab(){ if($('#vcOut').dataset.loaded) return;
+  api('/api/vocabulary').then(d=>{ $('#vcOut').dataset.loaded=1;
+    const fw=`<h3>Parole-funzione</h3><div>${d.function_words.map(w=>
+      `<span class="pill ar">${w.word} <span class="muted">${w.gloss} · ${w.count}</span></span>`).join('')}</div>`;
+    const roots=d.roots.map(r=>`<div class="lvl"><div class="big ar">${r.root}
+      <span class="muted">${r.core} · ${r.count}</span></div>
+      <div class="ar">${r.derivatives.map(x=>`<span class="pill">${x.w} <span class="muted">${x.g}</span></span>`).join('')}</div></div>`).join('');
+    $('#vcOut').innerHTML=fw+'<h3>Radici ad alta frequenza</h3>'+roots;
+  });
+}
+</script>
+</body>
+</html>

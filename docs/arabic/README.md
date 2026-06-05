@@ -9,26 +9,31 @@ costruiamo l'app-tutor interattiva per imparare l'arabo classico/coranico.
   tipici, disaccordi tra scuole). Sintesi di una ricerca multi-fonte verificata.
 - **`sources.md`** — elenco delle fonti consultate (متون classici + accademiche moderne).
 
-## Come questa base alimenta l'app (fasi successive)
+## Stato delle fasi
 
 ```
-docs/arabic/knowledge-base.md   (sapere umano-leggibile, questa fase)
-        │
-        ▼
-[Fase 2] dati strutturati  →  app/arabic/knowledge/*.json|yaml
-   (lettere, makhārij, ṣifāt, awzān, regole di iʿrāb, livelli, lessico per radice…)
-        │
-        ▼
-[Fase 3] motore linguistico  →  app/arabic/engine/
-   (diacritizzazione, analisi morfologica/iʿrāb, correzione — riusa nahw.py, tts.py)
-        │
-        ▼
-[Fase 4] cervello ibrido  →  base di conoscenza (RAG) + LLM tutor (con fallback offline)
-        │
-        ▼
-[Fase 5] finestra interattiva  →  studio · scrittura+correzione · parlato+pronuncia ·
-                                   autovalutazione · chat col tutor
+[Fase 1] ✅ base di conoscenza        → docs/arabic/*.md
+[Fase 2] ✅ dati strutturati          → app/arabic/knowledge/*.json
+[Fase 3] ✅ motore linguistico        → app/arabic/{phonology,tajweed,morphology,iraab}.py
+[Fase 4] ⏳ cervello ibrido           → predisposto offline; aggancio LLM da fare
+[Fase 5] 🔄 finestra interattiva      → app/arabic/web.py + static/index.html (avviata)
 ```
+
+## Avviare il tutor (finestra interattiva)
+
+```bash
+pip install -r requirements.txt
+uvicorn app.arabic.web:app --reload      # poi apri http://localhost:8000
+# CLI equivalente:
+python3 arabic_cli.py iraab "إِنَّ اللَّهَ غَفُورٌ"
+python3 arabic_cli.py conjugate ك ت ب 1
+python3 arabic_cli.py tajweed "بِسْمِ اللَّهِ"
+python3 arabic_cli.py letter ض
+```
+
+La finestra ha 6 sezioni: **الحروف** (lettere: makhraj+ṣifāt), **التجويد** (analizzatore),
+**الصرف** (coniugatore I–X + mushtaqqāt), **الإعراب** (analisi + correzione ✓/✗),
+**المستويات** (curriculum), **المفردات** (lessico per radice).
 
 ## Principi guida (dalla ricerca)
 - **Iʿrāb come spina dorsale**: l'analisi dei casi attraversa ogni livello.

@@ -224,3 +224,34 @@ def test_iraab_flags_wrong_case():
 def test_madi_verb_is_mabni_no_case():
     a = iraab.analyze("ذَهَبَ الْوَلَدُ")
     assert a.words[0].pos == "فعل" and a.words[0].read_case is None
+
+
+# --- web API layer (called directly; no HTTP server needed) -----------------
+
+def test_web_endpoints():
+    from app.arabic import web
+
+    assert web.health()["capabilities"]["iraab"] is True
+    assert len(web.letters()["letters"]) == 29
+    assert web.letter("ض")["heavy"] is True
+
+    tj = web.analyze_tajweed(web.TextIn(text="مِنْ بَعْدِ"))
+    assert "iqlab" in [f["key"] for f in tj["findings"]]
+
+    cj = web.conjugate(web.ConjugateIn(root="كتب", form=1))
+    assert cj["madi"]["3ms"] == _n("كَتَبَ")
+    assert "pronouns" in cj
+
+    ir = web.analyze_iraab(web.SentenceIn(sentence="الْوَلَدُ مُجْتَهِدٌ"))
+    assert ir["kind"] == "جملة اسمية"
+    assert ir["words"][0]["function"] == "مبتدأ"
+
+    assert len(web.levels()["levels"]) == 6
+    assert "roots" in web.vocabulary()
+
+
+def test_web_conjugate_rejects_weak_verb():
+    from fastapi import HTTPException
+    from app.arabic import web
+    with pytest.raises(HTTPException):
+        web.conjugate(web.ConjugateIn(root="قول", form=1))
