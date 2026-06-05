@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import unicodedata
+
 import pytest
 
-from app.arabic import data, phonology, tajweed
+from app.arabic import data, phonology, tajweed, morphology
+
+
+def _n(s: str) -> str:
+    return unicodedata.normalize("NFC", s)
 
 
 # --- knowledge base loads ---------------------------------------------------
@@ -95,3 +101,64 @@ def test_findings_have_spans_into_text():
     for f in tajweed.analyze(text):
         s, e = f.span
         assert 0 <= s < e <= len(text)
+
+
+# --- morphology (ṣarf) ------------------------------------------------------
+
+@pytest.mark.parametrize("root,form,madi,mudari,amr", [
+    ("كتب", 1, "كَتَبَ", "يَكْتُبُ", "اُكْتُبْ"),
+    ("علم", 2, "عَلَّمَ", "يُعَلِّمُ", "عَلِّمْ"),
+    ("قتل", 3, "قَاتَلَ", "يُقَاتِلُ", "قَاتِلْ"),
+    ("خرج", 4, "أَخْرَجَ", "يُخْرِجُ", "أَخْرِجْ"),
+    ("علم", 5, "تَعَلَّمَ", "يَتَعَلَّمُ", "تَعَلَّمْ"),
+    ("كتب", 6, "تَكَاتَبَ", "يَتَكَاتَبُ", "تَكَاتَبْ"),
+    ("كسر", 7, "اِنْكَسَرَ", "يَنْكَسِرُ", "اِنْكَسِرْ"),
+    ("جمع", 8, "اِجْتَمَعَ", "يَجْتَمِعُ", "اِجْتَمِعْ"),
+    ("غفر", 10, "اِسْتَغْفَرَ", "يَسْتَغْفِرُ", "اِسْتَغْفِرْ"),
+])
+def test_conjugation_anchors(root, form, madi, mudari, amr):
+    c = morphology.conjugate(list(root), form)
+    assert c.madi["3ms"] == _n(madi)
+    assert c.mudari["3ms"] == _n(mudari)
+    assert c.amr["2ms"] == _n(amr)
+
+
+@pytest.mark.parametrize("root,expected", [
+    ("صبر", "اِصْطَبَرَ"),   # ص → infix ط
+    ("زهر", "اِزْدَهَرَ"),   # ز → infix د
+    ("طلع", "اِطَّلَعَ"),    # ط → idghām
+])
+def test_form8_assimilation(root, expected):
+    assert morphology.conjugate(list(root), 8).madi["3ms"] == _n(expected)
+
+
+def test_madi_paradigm_spot_checks():
+    c = morphology.conjugate(list("كتب"), 1)        # mud_v2 = ḍamma
+    assert c.madi["3mp"] == _n("كَتَبُوا")          # silent alif after wāw
+    assert c.madi["1s"] == _n("كَتَبْتُ")
+    assert c.mudari["2fs"] == _n("تَكْتُبِينَ")
+    assert c.mudari["3fp"] == _n("يَكْتُبْنَ")
+
+
+def test_mushtaqqat():
+    assert morphology.conjugate(list("كتب"), 1).mushtaqqat == {
+        "اسم الفاعل": _n("كَاتِب"), "اسم المفعول": _n("مَكْتُوب"), "المصدر": "سماعي"}
+    m2 = morphology.conjugate(list("علم"), 2).mushtaqqat
+    assert m2["اسم الفاعل"] == _n("مُعَلِّم")
+    assert m2["اسم المفعول"] == _n("مُعَلَّم")
+    assert m2["المصدر"] == _n("تَعْلِيم")
+    assert morphology.conjugate(list("غفر"), 10).mushtaqqat["المصدر"] == _n("اِسْتِغْفَار")
+
+
+def test_unsupported_weak_verb_is_rejected():
+    assert morphology.is_sound(list("قول")) is False   # ق-و-ل has a weak و
+    with pytest.raises(morphology.UnsupportedVerb):
+        morphology.conjugate(list("قول"), 1)
+
+
+def test_identify_candidates():
+    assert {"form": 10, "root": ["غ", "ف", "ر"]} in morphology.identify("استغفر")["candidates"]
+    assert {"form": 8, "root": ["ز", "ه", "ر"]} in morphology.identify("ازدهر")["candidates"]
+    # a bare 3-letter skeleton is ambiguous between Forms I and II
+    forms = {c["form"] for c in morphology.identify("كتب")["candidates"]}
+    assert {1, 2} <= forms
