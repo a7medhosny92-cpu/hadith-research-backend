@@ -1,4 +1,4 @@
-# review-backend — بحث وتحقيق الحديث
+# hadith-research-backend — بحث وتحقيق الحديث
 
 Backend for **searching, studying and verifying ḥadīth** (the sayings of the
 Prophet Muḥammad ﷺ) entirely in **Classical Arabic (الفصحى)**, built as a

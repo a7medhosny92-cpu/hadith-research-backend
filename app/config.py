@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     turath_max_retries: int = 4
     turath_timeout: float = 30.0
     turath_user_agent: str = (
-        "HadithResearchBot/0.1 (+https://github.com/a7medhosny92-cpu/review-backend)"
+        "HadithResearchBot/0.1 (+https://github.com/a7medhosny92-cpu/hadith-research-backend)"
     )
 
     # ── Storage ─────────────────────────────────────────────────────────────

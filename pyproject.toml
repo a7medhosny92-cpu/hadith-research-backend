@@ -1,5 +1,5 @@
 [project]
-name = "review-backend"
+name = "hadith-research-backend"
 version = "0.1.0"
 description = "Hadith research, study and verification backend (RAG, Classical Arabic) over the turath.io corpus"
 readme = "README.md"

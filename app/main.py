@@ -26,7 +26,7 @@ app.include_router(verify_isnad.router)
 @app.get("/", tags=["root"])
 def root() -> dict:
     return {
-        "name": "review-backend",
+        "name": "hadith-research-backend",
         "version": __version__,
         "docs": "/docs",
         "endpoints": ["/search", "/hadith/{id}", "/ask", "/takhrij", "/verify-isnad"],
