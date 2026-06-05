@@ -11,10 +11,10 @@ def test_health():
     assert response.json()["status"] == "ok"
 
 
-def test_root_lists_planned_endpoints():
-    response = client.get("/")
-    assert response.status_code == 200
-    assert "/search" in response.json()["endpoints_planned"]
+def test_root_lists_endpoints():
+    body = client.get("/").json()
+    assert "/search" in body["endpoints"]          # now live
+    assert "/ask" in body["endpoints_planned"]     # still to come
 
 
 def test_ingestion_status_shape():

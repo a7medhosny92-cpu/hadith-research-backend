@@ -51,6 +51,16 @@ class Settings(BaseSettings):
         """Directory holding the downloaded raw turath corpus."""
         return self.data_dir / "raw" / "turath"
 
+    @property
+    def processed_dir(self) -> Path:
+        """Directory holding parsed hadith/sharh JSONL (output of scripts.parse)."""
+        return self.data_dir / "processed"
+
+    @property
+    def index_path(self) -> Path:
+        """sqlite FTS index built by scripts.index (dev lexical search backend)."""
+        return self.data_dir / "index.db"
+
 
 @lru_cache
 def get_settings() -> Settings:

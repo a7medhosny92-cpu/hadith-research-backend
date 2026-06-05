@@ -8,7 +8,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from app import __version__
-from app.routers import health
+from app.routers import health, search
 
 app = FastAPI(
     title="Hadith Research Backend",
@@ -17,6 +17,7 @@ app = FastAPI(
 )
 
 app.include_router(health.router)
+app.include_router(search.router)
 
 
 @app.get("/", tags=["root"])
@@ -25,5 +26,6 @@ def root() -> dict:
         "name": "review-backend",
         "version": __version__,
         "docs": "/docs",
-        "endpoints_planned": ["/search", "/ask", "/takhrij", "/verify-isnad", "/hadith/{id}"],
+        "endpoints": ["/search", "/hadith/{id}"],
+        "endpoints_planned": ["/ask", "/takhrij", "/verify-isnad"],
     }
