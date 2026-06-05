@@ -15,7 +15,7 @@ from app.pipeline.templates import build_script, TEMPLATES
 from app.pipeline.visuals import render_scene, storyboard, WIDTH, HEIGHT
 from app.pipeline.subtitles import build_srt, build_ass, build_srt_timed, build_ass_timed
 from app.pipeline.orchestrator import create_video
-from app.pipeline import tts, assembler, broll, i18n
+from app.pipeline import tts, assembler, broll, i18n, nahw
 
 
 def test_script_structure_is_hook_points_cta():
@@ -158,6 +158,39 @@ def test_arabic_tts_text_is_diacritized_but_display_is_clean():
         # ... but the text fed to TTS keeps it for correct pronunciation
         assert i18n._TASHKEEL.search(sc.speech) is not None
         assert i18n.strip_tashkeel(sc.speech) == sc.text
+
+
+def test_nahw_assigns_topic_case_by_position():
+    # genitive after a preposition, nominative as a mubtadaʾ
+    assert nahw.case_for_topic("أشياء عن {topic} ستذهلك") == "jarr"
+    assert nahw.case_for_topic("{topic} يعمل بشكل أفضل") == "raf"
+
+
+def test_nahw_inflects_definite_topic_and_skips_indefinite():
+    assert nahw.inflect("القهوة", "jarr") == "القهوةِ"
+    assert nahw.inflect("القهوة", "raf") == "القهوةُ"
+    assert nahw.inflect("قهوة", "jarr") == "قهوة"          # indefinite: untouched
+    assert nahw.inflect("الإنتاجية", "jarr") == "الإنتاجيةِ"
+
+
+def test_nahw_liaison_after_an():
+    assert nahw.apply("عَنْ {topic}", "القهوة") == "عَنِ القهوةِ"
+
+
+def test_nahw_keeps_topic_in_genitive_no_agreement():
+    # Every template puts the (gender-unknown) topic in a genitive slot, so a
+    # feminine topic like "القهوة" never becomes the subject of a masculine verb.
+    for template in TEMPLATES:
+        s = build_script("القهوة", template=template, num_points=3, seed=5, lang="ar")
+        speech = " ".join(sc.speech for sc in s.scenes)
+        assert "القهوةِ" in speech         # carries the genitive case ending
+        assert "القهوةُ" not in speech      # never a bare nominative subject
+        # display still strips everything back to the bare topic
+        assert all("القهوة" in sc.text for sc in s.scenes if "قهوة" in sc.text)
+
+
+def test_nahw_is_noop_for_non_arabic():
+    assert nahw.format_text("about {topic} now", "en", topic="coffee") == "about coffee now"
 
 
 def test_strip_tashkeel_removes_all_diacritics():

@@ -15,8 +15,13 @@ from __future__ import annotations
 import random
 from typing import Callable, Dict, List
 
-from . import i18n
+from . import i18n, nahw
 from .script_gen import Scene, Script, _estimate_seconds
+
+
+def _fmt(tmpl: str, lang: str, topic: str, **kw) -> str:
+    """Fill a spoken template, applying Arabic naḥw iʿrāb to the topic."""
+    return nahw.format_text(tmpl, lang, topic=topic, **kw)
 
 # --- color themes: list of (top, bottom, accent) RGB triples ----------------
 _THEMES: Dict[str, List[tuple]] = {
@@ -62,13 +67,13 @@ def _hashtags(lang: str, topic: str, kind: str) -> List[str]:
 def build_classic(topic: str, num_points: int, rng: random.Random, lang: str) -> Script:
     topic = _topic(topic)
     L = i18n.get(lang)
-    hook = rng.choice(L["hooks"]).format(topic=topic)
-    cta = rng.choice(L["ctas"]).format(topic=topic)
+    hook = _fmt(rng.choice(L["hooks"]), lang, topic)
+    cta = _fmt(rng.choice(L["ctas"]), lang, topic)
     points = rng.sample(L["points"], k=min(num_points, len(L["points"])))
 
     scenes = [Scene(0, "hook", hook, overlay=L["labels"]["wait"], palette=_cycle("sunset", 0))]
     for i, tmpl in enumerate(points, start=1):
-        scenes.append(Scene(0, "point", tmpl.format(n=i, topic=topic),
+        scenes.append(Scene(0, "point", _fmt(tmpl, lang, topic, n=i),
                             overlay=f"#{i}", palette=_cycle("sunset", i)))
     scenes.append(Scene(0, "cta", cta, overlay=L["labels"]["follow"],
                         palette=_cycle("sunset", len(scenes))))
@@ -83,17 +88,17 @@ def build_classic(topic: str, num_points: int, rng: random.Random, lang: str) ->
 def build_quiz(topic: str, num_points: int, rng: random.Random, lang: str) -> Script:
     topic = _topic(topic)
     L = i18n.get(lang)
-    scenes = [Scene(0, "intro", L["quiz_intro"].format(topic=topic),
+    scenes = [Scene(0, "intro", _fmt(L["quiz_intro"], lang, topic),
                     overlay=L["labels"]["quiz"], palette=_cycle("ocean", 0))]
     qs = rng.sample(L["quiz_q"], k=min(num_points, len(L["quiz_q"])))
     ans = rng.sample(L["quiz_a"], k=min(num_points, len(L["quiz_a"])))
     for i in range(len(qs)):
-        scenes.append(Scene(0, "question", qs[i].format(topic=topic),
+        scenes.append(Scene(0, "question", _fmt(qs[i], lang, topic),
                             overlay=f"{L['labels']['question'][0]}{i+1}",
                             palette=_cycle("ocean", 1)))
-        scenes.append(Scene(0, "answer", ans[i].format(topic=topic),
+        scenes.append(Scene(0, "answer", _fmt(ans[i], lang, topic),
                             overlay=L["labels"]["answer"], palette=_cycle("gold", i)))
-    scenes.append(Scene(0, "outro", L["quiz_outro"].format(topic=topic),
+    scenes.append(Scene(0, "outro", _fmt(L["quiz_outro"], lang, topic),
                         overlay=L["labels"]["follow"], palette=_cycle("neon", 0)))
     _finalize(scenes)
     return Script(topic=topic, title=L["title"]["quiz"].format(topic=topic),
@@ -106,14 +111,14 @@ def build_top5(topic: str, num_points: int, rng: random.Random, lang: str) -> Sc
     topic = _topic(topic)
     L = i18n.get(lang)
     n = max(2, min(num_points, 5))
-    scenes = [Scene(0, "intro", L["top_intro"].format(n=n, topic=topic),
+    scenes = [Scene(0, "intro", _fmt(L["top_intro"], lang, topic, n=n),
                     overlay=f"{L['labels']['top']} {n}", palette=_cycle("neon", 1))]
     lines = rng.sample(L["rank_lines"], k=min(n, len(L["rank_lines"])))
     for rank in range(n, 0, -1):
         line = lines[(n - rank) % len(lines)]
-        scenes.append(Scene(0, "rank", L["rank"].format(rank=rank, topic=topic, line=line),
+        scenes.append(Scene(0, "rank", _fmt(L["rank"], lang, topic, rank=rank, line=line),
                             overlay=f"#{rank}", palette=_cycle("sunset", rank)))
-    scenes.append(Scene(0, "cta", L["top_cta"].format(topic=topic),
+    scenes.append(Scene(0, "cta", _fmt(L["top_cta"], lang, topic),
                         overlay=L["labels"]["save"], palette=_cycle("ocean", 0)))
     _finalize(scenes)
     return Script(topic=topic, title=L["title"]["top"].format(n=n, topic=topic),
@@ -128,7 +133,7 @@ def build_story(topic: str, num_points: int, rng: random.Random, lang: str) -> S
     themes = ["gold", "ocean", "neon", "sunset"]
     scenes = []
     for i, (kind, text, ov) in enumerate(L["story"]):
-        scenes.append(Scene(0, kind, text.format(topic=topic), overlay=ov,
+        scenes.append(Scene(0, kind, _fmt(text, lang, topic), overlay=ov,
                             palette=_cycle(themes[i % len(themes)], i)))
     _finalize(scenes)
     return Script(topic=topic, title=L["title"]["story"].format(topic=topic),
