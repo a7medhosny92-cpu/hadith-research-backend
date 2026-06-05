@@ -16,7 +16,7 @@ from dataclasses import dataclass, asdict, field
 from typing import Dict, List, Optional
 
 from . import data
-from app.pipeline.i18n import strip_tashkeel
+from .text import strip_tashkeel
 
 # marks
 FATHA, DAMMA, KASRA = "َ", "ُ", "ِ"

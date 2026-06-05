@@ -249,7 +249,7 @@ def identify(word: str) -> dict:
     Arabic morphology is ambiguous without vowels (e.g. Forms I and II share a
     3-consonant skeleton), so this returns candidate forms, not a single answer.
     """
-    from app.pipeline.i18n import strip_tashkeel
+    from .text import strip_tashkeel
     bare = strip_tashkeel(word).strip()
     n = len(bare)
     candidates: List[dict] = []
