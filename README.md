@@ -8,8 +8,10 @@ Nessuna API a pagamento. Include:
 
 - **Frontend web** servito da FastAPI (scrivi argomento → genera → anteprima → download)
 - **4 template**: `classic`, `quiz`, `top5`, `storytelling` (strutture e palette diverse)
-- **Scene dinamiche**: movimento Ken Burns (zoom/pan), dissolvenze e **testo animato
-  karaoke** sincronizzato con la voce
+- **Scene dinamiche**: movimento Ken Burns (zoom/pan), **crossfade veri** tra le scene
+  e **testo animato karaoke** sincronizzato con la voce
+- **Multilingua**: script, sottotitoli e hashtag in `it` / `en` / `es` (altre lingue
+  via TTS), voci neurali per lingua
 - **B-roll**: usa clip video locali (`assets/broll/`) come sfondo in movimento
 - **Voce neurale Piper** (offline, naturale) con fallback automatico a espeak-ng
 - **Immagini AI** opzionali via Stable Diffusion locale (stile `ai`) con fallback a slide
@@ -41,8 +43,8 @@ apt-get install -y ffmpeg espeak-ng
 # dipendenze Python
 pip install -r requirements.txt
 
-# voce neurale Piper (consigliata): scarica una voce italiana
-python3 -m piper.download_voices it_IT-paola-medium --data-dir models/piper
+# voci neurali Piper (consigliate): scarica it, en, es
+python3 scripts/download_voices.py it en es
 ```
 
 > Senza `ffmpeg`/voce la pipeline funziona comunque e produce script,
@@ -58,11 +60,15 @@ docker run -p 8000:8000 viral-video
 
 L'immagine include FFmpeg, espeak-ng e la voce Piper italiana.
 
-### Motore voce (TTS)
+### Lingue e voce (TTS)
 
-Selezione automatica (Piper se disponibile, altrimenti espeak-ng). Override:
+Lo script viene scritto nella lingua scelta (pacchetti completi `it`, `en`, `es`
+in `app/pipeline/i18n.py`; le altre usano testi inglesi come fallback). Per ogni
+lingua viene usata la voce neurale Piper corrispondente; se non è scaricata, si
+ripiega su espeak-ng (che copre molte lingue).
 
 ```bash
+python3 scripts/download_voices.py it en es fr de pt   # scarica le voci
 export TTS_ENGINE=piper            # piper | espeak | auto (default)
 export PIPER_DATA_DIR=models/piper # dove cercare le voci .onnx
 ```
@@ -88,6 +94,11 @@ python3 cli.py "la produttività" --points 3 --lang it --seed 7 --out output/sam
 python3 cli.py "il caffè" --template quiz
 python3 cli.py "lo spazio" --template top5
 python3 cli.py "la disciplina" --template storytelling
+# multilingua (it/en/es completi, altre lingue via TTS):
+python3 cli.py "productivity" --lang en
+python3 cli.py "productividad" --lang es
+# transizioni: crossfade vero (default) o stacco netto:
+python3 cli.py "la produttività" --transition cut
 # scene statiche (niente movimento/karaoke):
 python3 cli.py "la produttività" --no-animate
 # sfondo b-roll (clip in assets/broll/) e immagini AI (richiede GPU):
@@ -97,7 +108,8 @@ python3 cli.py "lo spazio" --style ai
 python3 cli.py "il caffè" --music assets/musica.mp3
 ```
 
-Template disponibili: `classic`, `quiz`, `top5`, `storytelling`.
+Template: `classic`, `quiz`, `top5`, `storytelling`. Lingue complete: `it`, `en`,
+`es` (le altre usano comunque la voce TTS, con testi in inglese come fallback).
 
 ### Web app + API (FastAPI)
 
@@ -110,7 +122,7 @@ uvicorn app.main:app --reload
 |---|---|---|
 | `GET`  | `/` | interfaccia web (frontend) |
 | `GET`  | `/health` | stato + capacità (ffmpeg / tts / stable_diffusion) |
-| `POST` | `/videos` | crea un job: `{"topic":"...","template":"top5","num_points":3,"lang":"it","style":"slide","animate":true,"broll":false}` |
+| `POST` | `/videos` | crea un job: `{"topic":"...","template":"top5","num_points":3,"lang":"en","style":"slide","animate":true,"transition":"crossfade","broll":false}` |
 | `GET`  | `/videos/{id}` | stato del job + link agli artefatti |
 | `GET`  | `/videos/{id}/files/{name}` | scarica un artefatto (es. `video.mp4`) |
 
@@ -138,14 +150,16 @@ app/
 └── pipeline/
     ├── script_gen.py    # argomento → script (hook/punti/cta)
     ├── templates.py     # template: classic / quiz / top5 / storytelling
-    ├── tts.py           # testo → voce (Piper / espeak-ng)
+    ├── i18n.py          # language pack (it / en / es) per gli script
+    ├── tts.py           # testo → voce (Piper / espeak-ng), voci per lingua
     ├── visuals.py       # scena → frame 1080×1920 (Pillow)
     ├── image_gen.py     # sfondi AI opzionali (Stable Diffusion)
     ├── broll.py         # clip b-roll locali come sfondo
-    ├── subtitles.py     # scene → .srt + .ass (karaoke animato)
-    ├── assembler.py     # frame + voce + sottotitoli → .mp4 (ffmpeg, Ken Burns)
+    ├── subtitles.py     # scene → .srt + .ass (karaoke), timeline crossfade
+    ├── assembler.py     # montaggio ffmpeg: Ken Burns + crossfade (xfade)
     └── orchestrator.py  # pipeline end-to-end
 assets/broll/            # metti qui le tue clip b-roll
+scripts/download_voices.py  # scarica le voci Piper per lingua
 cli.py                   # entry point a riga di comando
 demo.py                  # demo offline (senza ffmpeg/tts)
 Dockerfile               # build/run con un comando

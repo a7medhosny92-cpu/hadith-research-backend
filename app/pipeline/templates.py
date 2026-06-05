@@ -1,12 +1,13 @@
 """Video templates: different structures + color themes for the script.
 
 Each template turns a topic into a list of `Scene`s with its own pacing,
-scene kinds and color palette. Selecting a template changes the *structure*
-of the video (e.g. quiz = question/answer pairs, top5 = countdown), while the
-visual motion/animation is controlled separately at render time.
+scene kinds and color palette, in the requested language (see i18n.py).
+Selecting a template changes the *structure* of the video (e.g. quiz =
+question/answer pairs, top5 = countdown); motion/animation is handled at
+render time.
 
 Add a new template by writing a `build_*` function and registering it in
-`TEMPLATES`.
+TEMPLATES (and add its strings to every language pack in i18n.py).
 """
 
 from __future__ import annotations
@@ -14,7 +15,8 @@ from __future__ import annotations
 import random
 from typing import Callable, Dict, List
 
-from .script_gen import Scene, Script, _estimate_seconds, generate_script
+from . import i18n
+from .script_gen import Scene, Script, _estimate_seconds
 
 # --- color themes: list of (top, bottom, accent) RGB triples ----------------
 _THEMES: Dict[str, List[tuple]] = {
@@ -41,110 +43,96 @@ def _finalize(scenes: List[Scene]) -> None:
             s.seconds = _estimate_seconds(s.text)
 
 
-def _hashtags(topic: str, *extra: str) -> List[str]:
+def _topic(topic: str) -> str:
+    return topic.strip().rstrip(".")
+
+
+def _hashtags(lang: str, topic: str, kind: str) -> List[str]:
+    tags = i18n.get(lang)["tags"]
     base = ["#" + "".join(w.capitalize() for w in topic.split()[:3])]
-    return base + list(extra) + ["#perte", "#fyp", "#viral"]
+    return base + tags.get(kind, []) + tags["generic"]
 
 
 # --- classic: hook -> points -> cta ----------------------------------------
 
-def build_classic(topic: str, num_points: int, rng: random.Random) -> Script:
-    script = generate_script(topic, num_points=num_points, seed=rng.randint(0, 1_000_000))
-    for i, s in enumerate(script.scenes):
-        s.palette = _cycle("sunset", i)
-    script.template = "classic"
-    return script
+def build_classic(topic: str, num_points: int, rng: random.Random, lang: str) -> Script:
+    topic = _topic(topic)
+    L = i18n.get(lang)
+    hook = rng.choice(L["hooks"]).format(topic=topic)
+    cta = rng.choice(L["ctas"]).format(topic=topic)
+    points = rng.sample(L["points"], k=min(num_points, len(L["points"])))
+
+    scenes = [Scene(0, "hook", hook, overlay=L["labels"]["wait"], palette=_cycle("sunset", 0))]
+    for i, tmpl in enumerate(points, start=1):
+        scenes.append(Scene(0, "point", tmpl.format(n=i, topic=topic),
+                            overlay=f"#{i}", palette=_cycle("sunset", i)))
+    scenes.append(Scene(0, "cta", cta, overlay=L["labels"]["follow"],
+                        palette=_cycle("sunset", len(scenes))))
+    _finalize(scenes)
+    return Script(topic=topic, title=L["title"]["classic"].format(topic=topic.capitalize()),
+                  template="classic", hashtags=_hashtags(lang, topic, "classic"),
+                  scenes=scenes)
 
 
 # --- quiz: intro -> (question, answer) pairs -> outro ----------------------
 
-_QUIZ_Q = [
-    "Sai davvero questo su {topic}?",
-    "Domanda: cosa succede con {topic}?",
-    "Indovina: qual e' la verita' su {topic}?",
-    "Test: conosci questo lato di {topic}?",
-]
-_QUIZ_A = [
-    "La risposta e' piu' semplice di quanto pensi: parti dalle basi.",
-    "Esatto: la maggior parte delle persone sbaglia proprio qui.",
-    "La verita': bastano pochi giorni per vedere la differenza.",
-    "Sorpresa: e' l'opposto di quello che credevi.",
-]
-
-
-def build_quiz(topic: str, num_points: int, rng: random.Random) -> Script:
-    topic = topic.strip().rstrip(".")
-    scenes = [Scene(0, "intro", f"Quiz lampo su {topic}. Quanti ne indovini?",
-                    overlay="QUIZ", palette=_cycle("ocean", 0))]
-    qs = rng.sample(_QUIZ_Q, k=min(num_points, len(_QUIZ_Q)))
-    ans = rng.sample(_QUIZ_A, k=min(num_points, len(_QUIZ_A)))
+def build_quiz(topic: str, num_points: int, rng: random.Random, lang: str) -> Script:
+    topic = _topic(topic)
+    L = i18n.get(lang)
+    scenes = [Scene(0, "intro", L["quiz_intro"].format(topic=topic),
+                    overlay=L["labels"]["quiz"], palette=_cycle("ocean", 0))]
+    qs = rng.sample(L["quiz_q"], k=min(num_points, len(L["quiz_q"])))
+    ans = rng.sample(L["quiz_a"], k=min(num_points, len(L["quiz_a"])))
     for i in range(len(qs)):
         scenes.append(Scene(0, "question", qs[i].format(topic=topic),
-                            overlay=f"D{i+1}", palette=_cycle("ocean", 1)))
-        scenes.append(Scene(0, "answer", ans[i],
-                            overlay="RISPOSTA", palette=_cycle("gold", i)))
-    scenes.append(Scene(0, "outro", f"Quanti ne hai indovinati su {topic}? "
-                        f"Scrivilo e seguimi!", overlay="SEGUIMI",
-                        palette=_cycle("neon", 0)))
+                            overlay=f"{L['labels']['question'][0]}{i+1}",
+                            palette=_cycle("ocean", 1)))
+        scenes.append(Scene(0, "answer", ans[i].format(topic=topic),
+                            overlay=L["labels"]["answer"], palette=_cycle("gold", i)))
+    scenes.append(Scene(0, "outro", L["quiz_outro"].format(topic=topic),
+                        overlay=L["labels"]["follow"], palette=_cycle("neon", 0)))
     _finalize(scenes)
-    return Script(topic=topic, title=f"Quiz: {topic}", template="quiz",
-                  hashtags=_hashtags(topic, "#quiz", "#indovina"), scenes=scenes)
+    return Script(topic=topic, title=L["title"]["quiz"].format(topic=topic),
+                  template="quiz", hashtags=_hashtags(lang, topic, "quiz"), scenes=scenes)
 
 
 # --- top5: intro -> countdown ranks -> cta ---------------------------------
 
-_RANK_LINES = [
-    "perche' fa davvero la differenza ogni giorno.",
-    "e quasi nessuno lo sfrutta come dovrebbe.",
-    "ed e' il preferito di chi ottiene risultati.",
-    "che cambia tutto se lo applichi subito.",
-    "il segreto che gli esperti tengono per se'.",
-]
-
-
-def build_top5(topic: str, num_points: int, rng: random.Random) -> Script:
-    topic = topic.strip().rstrip(".")
+def build_top5(topic: str, num_points: int, rng: random.Random, lang: str) -> Script:
+    topic = _topic(topic)
+    L = i18n.get(lang)
     n = max(2, min(num_points, 5))
-    scenes = [Scene(0, "intro", f"I {n} migliori trucchi su {topic}. "
-                    f"Il numero 1 ti sorprendera'.",
-                    overlay=f"TOP {n}", palette=_cycle("neon", 1))]
-    lines = rng.sample(_RANK_LINES, k=min(n, len(_RANK_LINES)))
+    scenes = [Scene(0, "intro", L["top_intro"].format(n=n, topic=topic),
+                    overlay=f"{L['labels']['top']} {n}", palette=_cycle("neon", 1))]
+    lines = rng.sample(L["rank_lines"], k=min(n, len(L["rank_lines"])))
     for rank in range(n, 0, -1):
         line = lines[(n - rank) % len(lines)]
-        scenes.append(Scene(0, "rank",
-                            f"Numero {rank}: un consiglio su {topic} {line}",
+        scenes.append(Scene(0, "rank", L["rank"].format(rank=rank, topic=topic, line=line),
                             overlay=f"#{rank}", palette=_cycle("sunset", rank)))
-    scenes.append(Scene(0, "cta", f"Quale useresti per primo? "
-                        f"Salva il video e seguimi per altri su {topic}.",
-                        overlay="SALVA", palette=_cycle("ocean", 0)))
+    scenes.append(Scene(0, "cta", L["top_cta"].format(topic=topic),
+                        overlay=L["labels"]["save"], palette=_cycle("ocean", 0)))
     _finalize(scenes)
-    return Script(topic=topic, title=f"Top {n}: {topic}", template="top5",
-                  hashtags=_hashtags(topic, f"#top{n}", "#classifica"), scenes=scenes)
+    return Script(topic=topic, title=L["title"]["top"].format(n=n, topic=topic),
+                  template="top5", hashtags=_hashtags(lang, topic, "top"), scenes=scenes)
 
 
-# --- storytelling: hook -> setup -> conflict -> resolution -> moral ---------
+# --- storytelling: hook -> beats -> moral ----------------------------------
 
-def build_story(topic: str, num_points: int, rng: random.Random) -> Script:
-    topic = topic.strip().rstrip(".")
-    beats = [
-        ("hook", f"Ti racconto una storia su {topic} che cambia tutto.", "STORIA"),
-        ("beat", f"All'inizio con {topic} sembrava tutto semplice.", "1"),
-        ("beat", f"Poi e' arrivato il problema che nessuno si aspettava.", "2"),
-        ("beat", f"La svolta e' stata capire una cosa su {topic}.", "3"),
-        ("beat", f"Da quel momento e' cambiato tutto, in meglio.", "4"),
-        ("cta", f"La morale? Non mollare con {topic}. Seguimi per la parte 2.", "SEGUIMI"),
-    ]
+def build_story(topic: str, num_points: int, rng: random.Random, lang: str) -> Script:
+    topic = _topic(topic)
+    L = i18n.get(lang)
     themes = ["gold", "ocean", "neon", "sunset"]
     scenes = []
-    for i, (kind, text, ov) in enumerate(beats):
-        scenes.append(Scene(0, kind, text, overlay=ov,
+    for i, (kind, text, ov) in enumerate(L["story"]):
+        scenes.append(Scene(0, kind, text.format(topic=topic), overlay=ov,
                             palette=_cycle(themes[i % len(themes)], i)))
     _finalize(scenes)
-    return Script(topic=topic, title=f"La storia di {topic}", template="storytelling",
-                  hashtags=_hashtags(topic, "#storytime", "#storia"), scenes=scenes)
+    return Script(topic=topic, title=L["title"]["story"].format(topic=topic),
+                  template="storytelling", hashtags=_hashtags(lang, topic, "story"),
+                  scenes=scenes)
 
 
-TEMPLATES: Dict[str, Callable[[str, int, random.Random], Script]] = {
+TEMPLATES: Dict[str, Callable[[str, int, random.Random, str], Script]] = {
     "classic": build_classic,
     "quiz": build_quiz,
     "top5": build_top5,
@@ -153,9 +141,9 @@ TEMPLATES: Dict[str, Callable[[str, int, random.Random], Script]] = {
 
 
 def build_script(topic: str, template: str = "classic", num_points: int = 3,
-                 seed: int | None = None) -> Script:
+                 seed: int | None = None, lang: str = "it") -> Script:
     if template not in TEMPLATES:
         raise ValueError(f"Template sconosciuto: {template}. "
                          f"Disponibili: {', '.join(TEMPLATES)}")
     rng = random.Random(seed)
-    return TEMPLATES[template](topic, num_points, rng)
+    return TEMPLATES[template](topic, num_points, rng, lang)

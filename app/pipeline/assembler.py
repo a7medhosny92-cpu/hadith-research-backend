@@ -64,40 +64,89 @@ def _fades(duration: float) -> str:
     return f"fade=t=in:st=0:d={FADE},fade=t=out:st={out:.3f}:d={FADE}"
 
 
-def _render_clip(clip: Clip, out: Path, index: int, motion: bool) -> None:
-    afade = (f"afade=t=in:st=0:d={FADE},"
-             f"afade=t=out:st={max(0.0, clip.duration-FADE):.3f}:d={FADE}")
+def _render_clip(clip: Clip, out: Path, index: int, motion: bool,
+                 fades: bool = True) -> None:
+    # In crossfade mode (fades=False) transitions are handled by xfade later,
+    # so individual clips must NOT fade to black at their edges.
+    afade = ""
+    if fades:
+        afade = (f"afade=t=in:st=0:d={FADE},"
+                 f"afade=t=out:st={max(0.0, clip.duration-FADE):.3f}:d={FADE}")
     if clip.video and Path(clip.video).exists():
         # b-roll background: loop/trim to duration, cover-crop, darken
         vf = (f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=increase,"
-              f"crop={WIDTH}:{HEIGHT},eq=brightness=-0.18,setsar=1,"
-              f"{_fades(clip.duration)}")
+              f"crop={WIDTH}:{HEIGHT},eq=brightness=-0.18,setsar=1")
+        if fades:
+            vf += f",{_fades(clip.duration)}"
         cmd = [
             FFMPEG, "-y",
             "-stream_loop", "-1", "-i", str(clip.video),
             "-i", str(clip.audio),
             "-t", f"{clip.duration:.3f}",
-            "-vf", vf, "-af", afade,
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(FPS),
-            "-c:a", "aac", "-b:a", "192k", "-ar", "44100",
-            "-map", "0:v", "-map", "1:a", "-shortest",
-            str(out),
+            "-vf", vf,
         ]
     else:
         motion_vf = _ken_burns(clip.duration, index) if motion \
             else f"scale={WIDTH}:{HEIGHT},setsar=1"
-        vf = f"{motion_vf},{_fades(clip.duration)}"
+        vf = motion_vf + (f",{_fades(clip.duration)}" if fades else "")
         cmd = [
             FFMPEG, "-y",
             "-loop", "1", "-framerate", str(FPS), "-t", f"{clip.duration:.3f}",
             "-i", str(clip.image),
             "-i", str(clip.audio),
-            "-vf", vf, "-af", afade,
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(FPS),
-            "-c:a", "aac", "-b:a", "192k", "-ar", "44100",
-            "-shortest", "-t", f"{clip.duration:.3f}",
-            str(out),
+            "-vf", vf,
         ]
+    if afade:
+        cmd += ["-af", afade]
+    cmd += [
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(FPS),
+        "-c:a", "aac", "-b:a", "192k", "-ar", "44100",
+        "-shortest", "-t", f"{clip.duration:.3f}",
+        str(out),
+    ]
+    _run(cmd)
+
+
+def _crossfade(parts: List[Path], durations: List[float], out: Path,
+               transition: float) -> None:
+    """Chain clips with real xfade (video) + acrossfade (audio) transitions."""
+    n = len(parts)
+    t = max(0.05, min(transition, min(durations) / 2))
+    inputs: List[str] = []
+    for p in parts:
+        inputs += ["-i", str(p)]
+
+    # video xfade chain
+    vfilters, alabels = [], []
+    prev_v = "[0:v]"
+    prefix = 0.0
+    for k in range(1, n):
+        prefix += durations[k - 1]
+        offset = prefix - k * t
+        out_v = f"[vx{k}]"
+        vfilters.append(
+            f"{prev_v}[{k}:v]xfade=transition=fade:duration={t:.3f}:"
+            f"offset={offset:.3f}{out_v}")
+        prev_v = out_v
+    # audio acrossfade chain
+    afilters = []
+    prev_a = "[0:a]"
+    for k in range(1, n):
+        out_a = f"[ax{k}]"
+        afilters.append(f"{prev_a}[{k}:a]acrossfade=d={t:.3f}{out_a}")
+        prev_a = out_a
+
+    total = sum(durations) - (n - 1) * t
+    vfilters.append(f"{prev_v}fade=t=in:st=0:d=0.3,"
+                    f"fade=t=out:st={max(0.0, total-0.3):.3f}:d=0.3[vout]")
+    filtergraph = ";".join(vfilters + afilters)
+
+    cmd = [FFMPEG, "-y", *inputs,
+           "-filter_complex", filtergraph,
+           "-map", "[vout]", "-map", prev_a,
+           "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(FPS),
+           "-c:a", "aac", "-b:a", "192k", "-ar", "44100",
+           str(out)]
     _run(cmd)
 
 
@@ -106,28 +155,35 @@ def assemble(clips: List[Clip], out_path: Path,
              subtitles_ass: Optional[Path] = None,
              music: Optional[Path] = None,
              music_volume: float = 0.12,
-             motion: bool = True) -> Path:
+             motion: bool = True,
+             transition: str = "crossfade",
+             transition_seconds: float = 0.4) -> Path:
     if not available():
         raise FFmpegUnavailable("ffmpeg not found. Install with: apt-get install ffmpeg")
     out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    crossfade = transition == "crossfade" and len(clips) > 1
 
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td)
         parts: List[Path] = []
         for i, clip in enumerate(clips):
             part = tmp / f"part_{i:02d}.mp4"
-            _render_clip(clip, part, index=i, motion=motion)
+            _render_clip(clip, part, index=i, motion=motion, fades=not crossfade)
             parts.append(part)
 
-        concat_file = tmp / "concat.txt"
-        concat_file.write_text(
-            "".join(f"file '{p}'\n" for p in parts), encoding="utf-8")
-
         joined = tmp / "joined.mp4"
-        _run([
-            FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file),
-            "-c", "copy", str(joined),
-        ])
+        if crossfade:
+            _crossfade(parts, [c.duration for c in clips], joined,
+                       transition=transition_seconds)
+        else:
+            concat_file = tmp / "concat.txt"
+            concat_file.write_text(
+                "".join(f"file '{p}'\n" for p in parts), encoding="utf-8")
+            _run([
+                FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file),
+                "-c", "copy", str(joined),
+            ])
         current = joined
 
         # optional background music mixed under the narration

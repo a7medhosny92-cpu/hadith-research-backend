@@ -53,7 +53,7 @@ def health() -> dict:
 @app.post("/videos", response_model=JobStatus, status_code=202)
 def create_video_job(req: VideoRequest) -> JobStatus:
     job = store.submit(req.topic, req.num_points, req.lang, req.seed, req.style,
-                       req.template, req.animate, req.broll)
+                       req.template, req.animate, req.broll, req.transition)
     return _status(job)
 
 

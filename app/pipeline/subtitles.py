@@ -17,13 +17,24 @@ def _ts(seconds: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
 
+def _back_to_back(lines: List[tuple[str, float]]) -> List[tuple[str, float, float]]:
+    events, t = [], 0.0
+    for text, dur in lines:
+        events.append((text, t, t + dur))
+        t += dur
+    return events
+
+
 def build_srt(lines: List[tuple[str, float]], out_path: Path) -> Path:
-    """`lines` is a list of (text, duration_seconds)."""
-    out, t = [], 0.0
-    for i, (text, dur) in enumerate(lines, start=1):
-        start, end = t, t + dur
+    """`lines` is a list of (text, duration_seconds), shown back-to-back."""
+    return build_srt_timed(_back_to_back(lines), out_path)
+
+
+def build_srt_timed(events: List[tuple[str, float, float]], out_path: Path) -> Path:
+    """`events` is a list of (text, start_seconds, end_seconds)."""
+    out = []
+    for i, (text, start, end) in enumerate(events, start=1):
         out.append(f"{i}\n{_ts(start)} --> {_ts(end)}\n{text}\n")
-        t = end
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(out), encoding="utf-8")
     return out_path
@@ -55,6 +66,17 @@ def _karaoke_text(text: str, duration: float) -> str:
 def build_ass(lines: List[tuple[str, float]], out_path: Path,
               font: str = "DejaVu Sans", fontsize: int = 64) -> Path:
     """Animated karaoke captions. `lines` is a list of (text, duration_seconds)."""
+    return build_ass_timed(_back_to_back(lines), out_path, font=font, fontsize=fontsize)
+
+
+def build_ass_timed(events: List[tuple[str, float, float]], out_path: Path,
+                    font: str = "DejaVu Sans", fontsize: int = 64) -> Path:
+    """Animated karaoke captions from explicit (text, start, end) events.
+
+    The karaoke fill is spread across each caption's visible window so the words
+    finish filling exactly when the caption ends (important with crossfades,
+    where captions are shorter than the raw narration to avoid overlap).
+    """
     header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {ASS_W}
@@ -68,12 +90,11 @@ Style: Karaoke,{font},{fontsize},&H00FFFFFF,&H00FF7CEC,&H00101010,&H7F000000,-1,
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
-    events, t = [], 0.0
-    for text, dur in lines:
-        start, end = _ass_ts(t), _ass_ts(t + dur)
-        kar = _karaoke_text(text, dur)
-        events.append(f"Dialogue: 0,{start},{end},Karaoke,,0,0,0,,{kar}")
-        t += dur
+    dialogues = []
+    for text, start, end in events:
+        kar = _karaoke_text(text, max(0.1, end - start))
+        dialogues.append(
+            f"Dialogue: 0,{_ass_ts(start)},{_ass_ts(end)},Karaoke,,0,0,0,,{kar}")
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(header + "\n".join(events) + "\n", encoding="utf-8")
+    out_path.write_text(header + "\n".join(dialogues) + "\n", encoding="utf-8")
     return out_path

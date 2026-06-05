@@ -25,6 +25,8 @@ def main() -> None:
                     help="Disattiva movimento e testo animato (frame statici)")
     ap.add_argument("--broll", action="store_true",
                     help="Usa clip b-roll da assets/broll come sfondo")
+    ap.add_argument("--transition", choices=["crossfade", "cut"], default="crossfade",
+                    help="Transizione tra le scene")
     ap.add_argument("--music", default=None, help="File audio di sottofondo (opzionale)")
     ap.add_argument("--out", default="output/cli", help="Cartella di output")
     args = ap.parse_args()
@@ -37,7 +39,7 @@ def main() -> None:
         topic=args.topic, workdir=Path(args.out), num_points=args.points,
         lang=args.lang, music=music, seed=args.seed, style=args.style,
         template=args.template, animate=args.animate, use_broll=args.broll,
-        progress=progress,
+        transition=args.transition, progress=progress,
     )
 
     print("\n  TITOLO :", result.script.title)

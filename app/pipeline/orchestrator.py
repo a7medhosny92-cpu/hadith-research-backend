@@ -16,7 +16,7 @@ from typing import Callable, List, Optional
 from . import tts, assembler, image_gen, broll
 from .script_gen import Script
 from .templates import build_script
-from .subtitles import build_srt, build_ass
+from .subtitles import build_srt_timed, build_ass_timed
 from .visuals import render_scene, storyboard
 
 
@@ -66,13 +66,16 @@ def create_video(
     template: str = "classic",
     animate: bool = True,
     use_broll: bool = False,
+    transition: str = "crossfade",
+    transition_seconds: float = 0.4,
     progress: ProgressFn = _noop,
 ) -> PipelineResult:
     workdir = Path(workdir)
     workdir.mkdir(parents=True, exist_ok=True)
 
     progress("script", 0.05)
-    script = build_script(topic, template=template, num_points=num_points, seed=seed)
+    script = build_script(topic, template=template, num_points=num_points,
+                          seed=seed, lang=lang)
     result = PipelineResult(topic=topic, workdir=workdir, script=script)
 
     # 1) voice-over per scene (sets the real per-scene duration)
@@ -123,12 +126,28 @@ def create_video(
         result.frames.append(frame)
 
     # 3) storyboard + subtitles + script.json
+    # Captions must follow the final timeline. With a real crossfade the clips
+    # overlap, so each scene starts `transition` earlier than the previous end.
     progress("subtitles", 0.65)
     result.storyboard = storyboard(result.frames, workdir / "storyboard.png")
-    timed = [(s.text, s.seconds) for s in script.scenes]
-    result.subtitles = build_srt(timed, workdir / "captions.srt")
+    n = len(script.scenes)
+    use_xfade = transition == "crossfade" and n > 1
+    durations = [s.seconds for s in script.scenes]
+    overlap = min(transition_seconds, (min(durations) / 2) if durations else 0) \
+        if use_xfade else 0.0
+
+    starts, t = [], 0.0
+    for i in range(n):
+        starts.append(t)
+        t += durations[i] - (overlap if i < n - 1 else 0)
+    events = [
+        (script.scenes[i].text, starts[i],
+         starts[i + 1] if i + 1 < n else starts[i] + durations[i])
+        for i in range(n)
+    ]
+    result.subtitles = build_srt_timed(events, workdir / "captions.srt")
     if animate:
-        result.subtitles_ass = build_ass(timed, workdir / "captions.ass")
+        result.subtitles_ass = build_ass_timed(events, workdir / "captions.ass")
     (workdir / "script.json").write_text(
         json.dumps(script.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -148,7 +167,8 @@ def create_video(
             clips, workdir / "video.mp4",
             subtitles=result.subtitles,
             subtitles_ass=result.subtitles_ass,
-            music=music, motion=animate)
+            music=music, motion=animate,
+            transition=transition, transition_seconds=transition_seconds)
     else:
         if not assembler.available():
             result.warnings.append("FFmpeg non disponibile: nessun .mp4 prodotto.")

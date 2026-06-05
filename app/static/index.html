@@ -70,6 +70,7 @@
         <select id="lang">
           <option value="it" selected>Italiano</option>
           <option value="en">English</option>
+          <option value="es">Español</option>
         </select>
       </div>
     </div>
@@ -86,6 +87,13 @@
         <select id="animate">
           <option value="true" selected>Movimento + testo karaoke</option>
           <option value="false">Statico</option>
+        </select>
+      </div>
+      <div>
+        <label>Transizioni</label>
+        <select id="transition">
+          <option value="crossfade" selected>Crossfade</option>
+          <option value="cut">Stacco netto</option>
         </select>
       </div>
       <div>
@@ -147,6 +155,7 @@ async function startJob() {
     template: $('template').value,
     animate: $('animate').value === 'true',
     broll: $('broll').value === 'true',
+    transition: $('transition').value,
   };
   const r = await fetch('/videos', {
     method: 'POST', headers: {'content-type': 'application/json'},

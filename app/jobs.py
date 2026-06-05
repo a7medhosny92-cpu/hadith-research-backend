@@ -27,6 +27,7 @@ class Job:
     template: str = "classic"
     animate: bool = True
     broll: bool = False
+    transition: str = "crossfade"
     state: str = "queued"
     stage: str = ""
     progress: float = 0.0
@@ -45,11 +46,11 @@ class JobStore:
     def submit(self, topic: str, num_points: int, lang: str,
                seed: Optional[int], style: str = "slide",
                template: str = "classic", animate: bool = True,
-               broll: bool = False) -> Job:
+               broll: bool = False, transition: str = "crossfade") -> Job:
         job_id = uuid.uuid4().hex[:12]
         job = Job(id=job_id, topic=topic, num_points=num_points, lang=lang,
                   seed=seed, style=style, template=template, animate=animate,
-                  broll=broll)
+                  broll=broll, transition=transition)
         with self._lock:
             self._jobs[job_id] = job
         self._pool.submit(self._run, job)
@@ -80,6 +81,7 @@ class JobStore:
                 template=job.template,
                 animate=job.animate,
                 use_broll=job.broll,
+                transition=job.transition,
                 progress=progress,
             )
             job.state = "done"

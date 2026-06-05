@@ -13,9 +13,9 @@ import pytest
 from app.pipeline.script_gen import generate_script
 from app.pipeline.templates import build_script, TEMPLATES
 from app.pipeline.visuals import render_scene, storyboard, WIDTH, HEIGHT
-from app.pipeline.subtitles import build_srt, build_ass
+from app.pipeline.subtitles import build_srt, build_ass, build_srt_timed, build_ass_timed
 from app.pipeline.orchestrator import create_video
-from app.pipeline import tts, assembler, broll
+from app.pipeline import tts, assembler, broll, i18n
 
 
 def test_script_structure_is_hook_points_cta():
@@ -94,6 +94,31 @@ def test_build_ass_is_karaoke(tmp_path: Path):
     assert "[V4+ Styles]" in text
     assert "\\kf" in text          # karaoke fill tags
     assert "Dialogue:" in text
+
+
+def test_timed_subtitles_use_explicit_offsets(tmp_path: Path):
+    # crossfade-style overlapping timeline: scene 2 starts before scene 1 ends
+    events = [("uno", 0.0, 2.0), ("due", 1.6, 3.6)]
+    srt = build_srt_timed(events, tmp_path / "c.srt").read_text(encoding="utf-8")
+    assert "00:00:00,000 --> 00:00:02,000" in srt
+    assert "00:00:01,600 --> 00:00:03,600" in srt
+    ass = build_ass_timed(events, tmp_path / "c.ass").read_text(encoding="utf-8")
+    assert "0:00:01.60,0:00:03.60" in ass
+
+
+@pytest.mark.parametrize("lang", i18n.SUPPORTED)
+def test_languages_produce_localized_script(lang):
+    s = build_script("productivity", template="classic", num_points=3,
+                     seed=1, lang=lang)
+    assert len(s.scenes) == 5
+    # follow label of that language appears as the CTA overlay
+    assert s.scenes[-1].overlay == i18n.get(lang)["labels"]["follow"]
+
+
+def test_all_language_packs_share_the_same_keys():
+    ref = set(i18n.get("en").keys())
+    for lang in i18n.SUPPORTED:
+        assert set(i18n.get(lang).keys()) == ref, lang
 
 
 def test_animate_produces_ass(tmp_path: Path):

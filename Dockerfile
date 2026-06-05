@@ -11,10 +11,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Voce neurale Piper (italiano). Commenta per immagini più leggere.
-RUN python3 -m piper.download_voices it_IT-paola-medium --data-dir models/piper
-
 COPY . .
+
+# Voci neurali Piper (it, en, es). Modifica l'elenco per altre lingue.
+RUN python3 scripts/download_voices.py it en es
 
 ENV PIPER_DATA_DIR=/app/models/piper \
     VIDEO_OUTPUT_ROOT=/app/output/jobs

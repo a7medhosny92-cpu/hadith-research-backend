@@ -11,13 +11,15 @@ class VideoRequest(BaseModel):
     topic: str = Field(..., min_length=2, max_length=120,
                        description="Argomento del video, es. 'la produttività'")
     num_points: int = Field(3, ge=1, le=5, description="Numero di punti chiave")
-    lang: str = Field("it", description="Lingua TTS (es. it, en, es)")
+    lang: str = Field("it", description="Lingua (it, en, es full; altre via TTS)")
     style: str = Field("slide", pattern="^(slide|ai)$",
                        description="Stile visivo: 'slide' (gradienti) o 'ai' (Stable Diffusion)")
     template: str = Field("classic", pattern="^(classic|quiz|top5|storytelling)$",
                           description="Template del video")
     animate: bool = Field(True, description="Movimento Ken Burns + testo animato karaoke")
     broll: bool = Field(False, description="Usa clip b-roll da assets/broll come sfondo")
+    transition: str = Field("crossfade", pattern="^(crossfade|cut)$",
+                            description="Transizione tra le scene")
     seed: Optional[int] = Field(None, description="Seed per output riproducibile")
 
 

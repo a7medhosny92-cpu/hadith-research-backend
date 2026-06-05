@@ -24,9 +24,14 @@ from pathlib import Path
 ESPEAK = shutil.which("espeak-ng") or shutil.which("espeak")
 
 # Default Piper voices per language (looked up under PIPER_DATA_DIR).
+# Download with: python3 -m piper.download_voices <voice> --data-dir models/piper
 _PIPER_DEFAULT_VOICE = {
     "it": "it_IT-paola-medium",
     "en": "en_US-amy-medium",
+    "es": "es_ES-davefx-medium",
+    "fr": "fr_FR-siwis-medium",
+    "de": "de_DE-thorsten-medium",
+    "pt": "pt_BR-faber-medium",
 }
 PIPER_DATA_DIR = Path(os.getenv("PIPER_DATA_DIR", "models/piper"))
 
