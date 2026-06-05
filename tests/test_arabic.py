@@ -226,6 +226,32 @@ def test_madi_verb_is_mabni_no_case():
     assert a.words[0].pos == "فعل" and a.words[0].read_case is None
 
 
+# --- quick fixes: Form I vowels + POS lexicon -------------------------------
+
+@pytest.mark.parametrize("root,mudari", [
+    ("جلس", "يَجْلِسُ"), ("علم", "يَعْلَمُ"), ("شرب", "يَشْرَبُ"), ("كتب", "يَكْتُبُ"),
+])
+def test_form1_vowels_from_lexicon(root, mudari):
+    c = morphology.conjugate_auto(list(root), 1)
+    assert c.mudari["3ms"] == _n(mudari)
+    assert "lessico" in c.note
+
+
+def test_unknown_form1_verb_is_flagged():
+    c = morphology.conjugate_auto(list("سطر"), 1)   # not in the lexicon
+    assert "stimata" in c.note
+
+
+def test_pos_lexicon_fixes_classification():
+    # weak-radical verb correctly tagged as a verb (was misread as a noun)
+    a = iraab.analyze("نَامَ الْوَلَدُ")
+    assert a.kind == "جملة فعلية" and a.words[0].pos == "فعل"
+    assert a.words[1].function == "فاعل"
+    # diptote proper noun correctly tagged as a noun (was misread as a verb)
+    b = iraab.analyze("ذَهَبَ عُمَرُ")
+    assert b.words[1].pos == "اسم" and b.words[1].function == "فاعل"
+
+
 # --- web API layer (called directly; no HTTP server needed) -----------------
 
 def test_web_endpoints():

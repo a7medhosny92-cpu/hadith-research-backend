@@ -84,7 +84,7 @@ def analyze_tajweed(body: TextIn) -> dict:
 @app.post("/api/conjugate")
 def conjugate(body: ConjugateIn) -> dict:
     try:
-        c = morphology.conjugate(list(body.root), body.form)
+        c = morphology.conjugate_auto(list(body.root), body.form)
     except morphology.UnsupportedVerb as e:
         raise HTTPException(422, str(e))
     out = c.to_dict()

@@ -46,3 +46,7 @@ def vocabulary() -> dict:
 
 def nahw() -> dict:
     return _load("nahw")
+
+
+def verbs() -> dict:
+    return _load("verbs")

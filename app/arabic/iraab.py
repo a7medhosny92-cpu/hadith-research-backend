@@ -85,6 +85,7 @@ def _sets() -> dict:
         "dem": set(n["demonstratives"]["words"]),
         "pron": set(n["pronouns"]["words"]),
         "verbs": set(n["common_verbs"]["words"]),
+        "nouns": set(n["common_nouns"]["words"]),
     }
 
 
@@ -135,17 +136,18 @@ def _classify(bare: str, marks_have_tanwin: bool, S: dict) -> str:
     if bare in S["jarr"] | S["inna"] | S["nasb_v"] | S["jazm_v"] | S["conj"]:
         # particle (note: some are also nouns/verbs; disambiguated by caller)
         return "حرف"
-    if bare in S["kana"] or bare in S["dhanna"] or bare in S["verbs"]:
-        return "فعل"
-    if bare in S["rel"] | S["dem"] | S["pron"]:
-        return "اسم"
+    # strong noun signals first: the article or tanwīn override the lexicons
     if marks_have_tanwin or bare.startswith("ال"):
         return "اسم"
-    # heuristic verb cues
-    if len(bare) == 3 and not (set(bare) & LONG):
-        return "فعل"                # likely a bare māḍī (e.g. ذهب, كتب)
+    if bare in S["rel"] | S["dem"] | S["pron"] | S["nouns"]:
+        return "اسم"
+    if bare in S["kana"] or bare in S["dhanna"] or bare in S["verbs"]:
+        return "فعل"
+    # heuristic verb cues (only when not in any lexicon)
     if bare and bare[0] in _MUDARI_PREFIX and len(bare) >= 4:
         return "فعل"                # muḍāriʿ-shaped
+    if len(bare) == 3 and not (set(bare) & LONG):
+        return "فعل"                # likely a bare māḍī
     return "اسم"
 
 

@@ -83,15 +83,50 @@ class Conjugation:
     mudari: Dict[str, str] = field(default_factory=dict)
     amr: Dict[str, str] = field(default_factory=dict)
     mushtaqqat: Dict[str, str] = field(default_factory=dict)
+    note: str = ""
 
     def to_dict(self) -> dict:
         return {"root": self.root, "form": self.form, "madi": self.madi,
                 "mudari": self.mudari, "amr": self.amr,
-                "mushtaqqat": self.mushtaqqat}
+                "mushtaqqat": self.mushtaqqat, "note": self.note}
 
 
 def is_sound(root: List[str]) -> bool:
     return (len(root) == 3 and not (set(root) & WEAK) and root[1] != root[2])
+
+
+_VOWEL = {"a": FATHA, "i": KASRA, "u": DAMMA}
+
+
+def form1_vowels(root: List[str]):
+    """Lexical (madi_v2, mud_v2) for a known Form I verb, or None if unknown.
+
+    The Form I stem vowel is سماعي (memorized, not derivable), so we look it up
+    instead of guessing a default that would mis-vocalize the present tense.
+    """
+    from . import data
+    key = "".join(root)
+    for v in data.verbs()["verbs"]:
+        if v["root"] == key:
+            return _VOWEL[v["madi"]], _VOWEL[v["mudari"]]
+    return None
+
+
+def conjugate_auto(root: List[str], form: int = 1) -> "Conjugation":
+    """Conjugate, auto-applying the correct Form I vowels when the verb is known.
+
+    For an unknown Form I verb a note is attached (the present vowel is a guess).
+    """
+    if form == 1:
+        vowels = form1_vowels(root)
+        if vowels:
+            c = conjugate(root, form, madi_v2=vowels[0], mud_v2=vowels[1])
+            c.note = "vocali di Forma I dal lessico"
+            return c
+        c = conjugate(root, form)
+        c.note = "verbo non nel lessico: vocale del presente stimata (ḍamma)"
+        return c
+    return conjugate(root, form)
 
 
 # Form VIII: assimilation of the infix tāʾ (إبدال تاء الافتعال) by first radical.

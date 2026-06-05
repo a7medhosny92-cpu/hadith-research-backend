@@ -56,7 +56,7 @@ def cmd_conjugate(argv) -> None:
     root = argv[:3]
     form = int(argv[3]) if len(argv) > 3 else 1
     try:
-        c = morphology.conjugate(root, form)
+        c = morphology.conjugate_auto(root, form)
     except morphology.UnsupportedVerb as e:
         print(f"  {e}")
         return
@@ -71,6 +71,8 @@ def cmd_conjugate(argv) -> None:
     print("  ── المشتقّات ──")
     for name, val in c.mushtaqqat.items():
         print(f"     {name:12} {val}")
+    if c.note:
+        print(f"  ℹ {c.note}")
     print()
 
 
