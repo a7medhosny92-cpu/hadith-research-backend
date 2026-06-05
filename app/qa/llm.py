@@ -1,7 +1,7 @@
 """Optional LLM synthesis for /ask — grounded, provider-agnostic via litellm.
 
-Disabled by default. When ``settings.llm_enabled`` is set, /ask hands the retrieved
-hadith and شرح to the configured model (local Ollama or any cloud engine) to write a
+Off by default. When an engine other than ``off`` is selected (``local`` Ollama or
+``remote`` cloud), /ask hands the retrieved hadith and شرح to that model to write a
 prose Arabic answer. The prompt is strict: use only the supplied sources, cite the
 collection and number, and say "لا أعلم" when they do not answer — so the output
 stays verifiable against what was actually retrieved. The sources are returned
@@ -40,21 +40,51 @@ def build_prompt(question: str, hadith: list[dict], sharh: list[dict]) -> str:
     return f"{_sources_block(hadith, sharh)}\n\n# السؤال\n{question}\n\n# الجواب\n"
 
 
-def litellm_synthesizer(settings) -> Synthesizer:
-    """A Synthesizer that calls the configured model via litellm (lazy import)."""
+def litellm_synthesizer(
+    model: str, *, api_base: str | None = None, temperature: float = 0.2
+) -> Synthesizer:
+    """A Synthesizer that calls ``model`` via litellm (lazy import).
+
+    ``api_base`` is only meaningful for a local server (Ollama). For a cloud model
+    it must be ``None`` — otherwise litellm would send the request to localhost.
+    """
 
     def synthesize(question: str, hadith: list[dict], sharh: list[dict]) -> str:
         import litellm  # lazy: optional 'llm' extra
 
         response = litellm.completion(
-            model=settings.llm_model,
-            api_base=settings.ollama_api_base or None,
+            model=model,
+            api_base=api_base,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": build_prompt(question, hadith, sharh)},
             ],
-            temperature=settings.llm_temperature,
+            temperature=temperature,
         )
         return response["choices"][0]["message"]["content"].strip()
 
     return synthesize
+
+
+def synthesizer_for_engine(engine: str, settings) -> Synthesizer | None:
+    """Build the synthesizer for an LLM engine; ``"off"`` → ``None`` (extractive).
+
+    ``"local"`` routes to the Ollama model + ``ollama_api_base``; ``"remote"`` routes
+    to the cloud model with no ``api_base``. Each reads its model id from settings,
+    so the engine is a pure config switch (no code changes to swap brains).
+    """
+    if engine == "off":
+        return None
+    if engine == "local":
+        return litellm_synthesizer(
+            settings.llm_local_model,
+            api_base=settings.ollama_api_base,
+            temperature=settings.llm_temperature,
+        )
+    if engine == "remote":
+        return litellm_synthesizer(
+            settings.llm_remote_model,
+            api_base=None,
+            temperature=settings.llm_temperature,
+        )
+    raise ValueError(f"unknown LLM engine: {engine!r}")

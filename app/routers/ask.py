@@ -20,14 +20,16 @@ from app.search import HadithIndex, SharhIndex
 router = APIRouter(tags=["ask"])
 
 
-def get_synthesizer() -> Synthesizer | None:
-    """The LLM synthesizer when enabled in settings, else None (extractive answers)."""
-    settings = get_settings()
-    if not settings.llm_enabled:
-        return None
-    from app.qa.llm import litellm_synthesizer  # lazy: optional 'llm' extra
+def resolve_engine(requested: str, settings) -> str:
+    """Map a requested engine to a concrete one: ``"auto"`` → the configured default."""
+    return settings.llm_default_engine if requested == "auto" else requested
 
-    return litellm_synthesizer(settings)
+
+def build_synthesizer(engine: str, settings) -> Synthesizer | None:
+    """The synthesizer for ``engine`` (``"off"`` → None → an extractive answer)."""
+    from app.qa.llm import synthesizer_for_engine  # lazy: optional 'llm' extra
+
+    return synthesizer_for_engine(engine, settings)
 
 
 @lru_cache(maxsize=1)
@@ -46,11 +48,21 @@ def ask(
     q: str = Query(..., min_length=2, description="question in Arabic"),
     k_hadith: int = Query(5, ge=1, le=20),
     k_sharh: int = Query(3, ge=0, le=10),
+    engine: str = Query(
+        "auto",
+        pattern="^(auto|local|remote|off)$",
+        description="which LLM brain answers: auto (config default) | local (Ollama) "
+        "| remote (cloud, e.g. Claude) | off (extractive, no LLM)",
+    ),
     hadith_index: HadithIndex = Depends(get_index),
     sharh_index: SharhIndex = Depends(get_sharh_index),
-    synthesize: Synthesizer | None = Depends(get_synthesizer),
 ) -> dict:
-    return answer_question(
+    settings = get_settings()
+    resolved = resolve_engine(engine, settings)
+    out = answer_question(
         q, hadith_index, sharh_index,
-        k_hadith=k_hadith, k_sharh=k_sharh, synthesize=synthesize,
+        k_hadith=k_hadith, k_sharh=k_sharh,
+        synthesize=build_synthesizer(resolved, settings),
     )
+    out["engine"] = resolved
+    return out

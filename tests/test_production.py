@@ -7,7 +7,7 @@ import pytest
 
 from app.config import get_settings
 from app.qa.llm import SYSTEM_PROMPT, build_prompt
-from app.routers.ask import get_synthesizer
+from app.routers.ask import build_synthesizer
 from app.search.embeddings import HashingEmbedder, cosine, load_embedder
 
 
@@ -41,9 +41,11 @@ def test_build_prompt_is_grounded_and_cited():
     assert "المصادر المعطاة فقط" in SYSTEM_PROMPT  # the prompt forbids outside knowledge
 
 
-def test_synthesizer_disabled_by_default():
-    # llm_enabled defaults to False → /ask stays extractive
-    assert get_synthesizer() is None
+def test_default_engine_is_off_extractive():
+    # the engine switch ships as "off" → /ask stays extractive (no LLM)
+    s = get_settings()
+    assert s.llm_default_engine == "off"
+    assert build_synthesizer("off", s) is None
 
 
 def test_models_match_storage_schema():

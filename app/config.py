@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -33,10 +34,18 @@ class Settings(BaseSettings):
     # ── Embeddings / LLM ────────────────────────────────────────────────────
     embedding_model: str = "Omartificial-Intelligence-Space/Arabic-Triplet-Matryoshka-V2"
     embedding_dim: int = 768
-    llm_enabled: bool = False  # off by default → /ask is extractive (no LLM needed)
-    llm_model: str = "ollama/qwen2.5:7b"
+
+    # The /ask LLM "brain" is a switch with three positions, selectable per request
+    # (``/ask?engine=local|remote|off``) or defaulted here:
+    #   off    → cited, extractive answer; no LLM, runs anywhere (the default)
+    #   local  → Ollama on this machine (private, free, offline)
+    #   remote → a cloud model (Claude, …) — fast/strong even on a laptop without GPU
+    # Switching is config-only: LiteLLM talks to all of them, no code changes.
+    llm_default_engine: Literal["off", "local", "remote"] = "off"
+    llm_local_model: str = "ollama/qwen2.5:7b"             # the local brain (Ollama)
+    llm_remote_model: str = "anthropic/claude-sonnet-4-6"  # the remote brain (cloud)
     llm_temperature: float = 0.2
-    ollama_api_base: str = "http://localhost:11434"
+    ollama_api_base: str = "http://localhost:11434"        # local Ollama server
 
     # ── Rijal (narrator gradings) ────────────────────────────────────────────
     # /verify-isnad always uses the bundled curated seed; point this at a full

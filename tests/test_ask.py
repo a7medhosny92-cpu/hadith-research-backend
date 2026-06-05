@@ -5,8 +5,11 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from app.config import get_settings
 from app.main import app
 from app.qa import answer_question
+from app.qa.llm import synthesizer_for_engine
+from app.routers import ask as ask_router
 from app.routers.ask import get_sharh_index
 from app.routers.search import get_index
 from app.search import HadithIndex, SharhIndex
@@ -103,3 +106,43 @@ def test_api_ask(client):
 
 def test_api_ask_requires_question(client):
     assert client.get("/ask").status_code == 422
+
+
+# ── LLM engine switch (local ↔ remote ↔ off) ──────────────────────────────────
+def test_synthesizer_for_engine_mapping():
+    s = get_settings()
+    assert synthesizer_for_engine("off", s) is None
+    # local/remote build a callable lazily — no litellm import, no network here
+    assert callable(synthesizer_for_engine("local", s))
+    assert callable(synthesizer_for_engine("remote", s))
+    with pytest.raises(ValueError):
+        synthesizer_for_engine("bogus", s)
+
+
+def test_resolve_engine_auto_follows_default():
+    s = get_settings()  # default engine ships as "off"
+    assert ask_router.resolve_engine("auto", s) == s.llm_default_engine
+    for eng in ("local", "remote", "off"):
+        assert ask_router.resolve_engine(eng, s) == eng
+
+
+def test_api_ask_engine_off_is_extractive(client):
+    body = client.get("/ask", params={"q": "الأعمال بالنيات", "engine": "off"}).json()
+    assert body["mode"] == "extractive"
+    assert body["engine"] == "off"
+
+
+def test_api_ask_engine_routes_to_llm(client, monkeypatch):
+    # Swap in a fake brain so no real model or network is touched.
+    monkeypatch.setattr(
+        ask_router, "build_synthesizer",
+        lambda engine, settings: (lambda q, h, s: f"[{engine}] {q}"),
+    )
+    body = client.get("/ask", params={"q": "النية", "engine": "remote"}).json()
+    assert body["mode"] == "llm"
+    assert body["engine"] == "remote"
+    assert body["answer"] == "[remote] النية"
+
+
+def test_api_ask_rejects_unknown_engine(client):
+    assert client.get("/ask", params={"q": "النية", "engine": "wat"}).status_code == 422
