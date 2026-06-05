@@ -1,0 +1,35 @@
+{
+  "description": "Starter high-frequency Quranic vocabulary organized by root. Counts are approximate occurrences from the Quranic Arabic Corpus. This is a seed set (top items); the full frequency list is loaded/extended later.",
+  "source": "https://corpus.quran.com",
+  "function_words": [
+    {"word": "مِن", "translit": "min", "gloss": "da / di", "count": 3226},
+    {"word": "فِي", "translit": "fī", "gloss": "in", "count": 1701},
+    {"word": "إِنَّ", "translit": "inna", "gloss": "in verità", "count": 1682},
+    {"word": "عَلَى", "translit": "ʿalā", "gloss": "su", "count": 1445},
+    {"word": "لَا", "translit": "lā", "gloss": "non / no", "count": 1700},
+    {"word": "مَا", "translit": "mā", "gloss": "ciò che / non", "count": 2000},
+    {"word": "الَّذِينَ", "translit": "alladhīna", "gloss": "coloro che", "count": 1080}
+  ],
+  "roots": [
+    {"root": "ق-و-ل", "translit": "q-w-l", "core": "dire", "count": 1722,
+     "derivatives": [{"w": "قَالَ", "g": "disse"}, {"w": "قَوْل", "g": "parola/detto"}, {"w": "يَقُولُ", "g": "dice"}]},
+    {"root": "ك-و-ن", "translit": "k-w-n", "core": "essere/divenire", "count": 1390,
+     "derivatives": [{"w": "كَانَ", "g": "era"}, {"w": "يَكُونُ", "g": "è/sarà"}, {"w": "مَكَان", "g": "luogo"}]},
+    {"root": "أ-ل-ه", "translit": "ʾ-l-h", "core": "divinità", "count": 2851,
+     "derivatives": [{"w": "اللَّه", "g": "Allah", "count": 2699}, {"w": "إِلٰه", "g": "dio/divinità"}]},
+    {"root": "ر-ب-ب", "translit": "r-b-b", "core": "signoria/educare", "count": 980,
+     "derivatives": [{"w": "رَبّ", "g": "Signore", "count": 975}, {"w": "رَبَّى", "g": "allevare/educare"}]},
+    {"root": "أ-م-ن", "translit": "ʾ-m-n", "core": "fede/sicurezza", "count": 879,
+     "derivatives": [{"w": "آمَنَ", "g": "credette", "count": 537}, {"w": "مُؤْمِن", "g": "credente", "count": 202}, {"w": "أَمْن", "g": "sicurezza"}]},
+    {"root": "ع-ل-م", "translit": "ʿ-l-m", "core": "sapere", "count": 854,
+     "derivatives": [{"w": "عَلِمَ", "g": "seppe"}, {"w": "عِلْم", "g": "scienza/sapere"}, {"w": "عَالِم", "g": "sapiente"}, {"w": "عَالَم", "g": "mondo"}]},
+    {"root": "ر-س-ل", "translit": "r-s-l", "core": "inviare", "count": 513,
+     "derivatives": [{"w": "رَسُول", "g": "messaggero", "count": 332}, {"w": "أَرْسَلَ", "g": "inviò"}, {"w": "رِسَالة", "g": "messaggio"}]},
+    {"root": "ك-ت-ب", "translit": "k-t-b", "core": "scrivere", "count": 319,
+     "derivatives": [{"w": "كِتَاب", "g": "libro"}, {"w": "كَتَبَ", "g": "scrisse"}, {"w": "كَاتِب", "g": "scriba"}, {"w": "مَكْتُوب", "g": "scritto"}]},
+    {"root": "ء-ر-ض", "translit": "ʾ-r-ḍ", "core": "terra", "count": 461,
+     "derivatives": [{"w": "أَرْض", "g": "terra", "count": 461}]},
+    {"root": "ق-و-م", "translit": "q-w-m", "core": "alzarsi/popolo", "count": 660,
+     "derivatives": [{"w": "قَوْم", "g": "popolo", "count": 383}, {"w": "قَامَ", "g": "si alzò"}, {"w": "أَقَامَ", "g": "stabilire"}, {"w": "مُسْتَقِيم", "g": "retto"}]}
+  ]
+}

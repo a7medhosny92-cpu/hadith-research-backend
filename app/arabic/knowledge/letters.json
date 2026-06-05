@@ -1,0 +1,41 @@
+{
+  "description": "The 28 Arabic letters (+ hamza). Per-letter basic data; ṣifāt are derived from sifat.json groups to avoid duplication.",
+  "regions": {
+    "jawf": "الجوف — oral/throat cavity (source of the madd letters)",
+    "halq": "الحلق — throat",
+    "lisan": "اللسان — tongue",
+    "shafatan": "الشفتان — lips",
+    "khayshum": "الخيشوم — nasal cavity (ghunna)"
+  },
+  "letters": [
+    {"letter": "ء", "name": "همزة", "translit": "hamza", "ipa": "ʔ", "region": "halq", "sun": false, "madd": false},
+    {"letter": "ا", "name": "ألف", "translit": "alif", "ipa": "aː", "region": "jawf", "sun": false, "madd": true},
+    {"letter": "ب", "name": "باء", "translit": "bāʾ", "ipa": "b", "region": "shafatan", "sun": false, "madd": false},
+    {"letter": "ت", "name": "تاء", "translit": "tāʾ", "ipa": "t", "region": "lisan", "sun": true, "madd": false},
+    {"letter": "ث", "name": "ثاء", "translit": "thāʾ", "ipa": "θ", "region": "lisan", "sun": true, "madd": false},
+    {"letter": "ج", "name": "جيم", "translit": "jīm", "ipa": "d͡ʒ", "region": "lisan", "sun": false, "madd": false},
+    {"letter": "ح", "name": "حاء", "translit": "ḥāʾ", "ipa": "ħ", "region": "halq", "sun": false, "madd": false},
+    {"letter": "خ", "name": "خاء", "translit": "khāʾ", "ipa": "x", "region": "halq", "sun": false, "madd": false},
+    {"letter": "د", "name": "دال", "translit": "dāl", "ipa": "d", "region": "lisan", "sun": true, "madd": false},
+    {"letter": "ذ", "name": "ذال", "translit": "dhāl", "ipa": "ð", "region": "lisan", "sun": true, "madd": false},
+    {"letter": "ر", "name": "راء", "translit": "rāʾ", "ipa": "r", "region": "lisan", "sun": true, "madd": false},
+    {"letter": "ز", "name": "زاي", "translit": "zāy", "ipa": "z", "region": "lisan", "sun": true, "madd": false},
+    {"letter": "س", "name": "سين", "translit": "sīn", "ipa": "s", "region": "lisan", "sun": true, "madd": false},
+    {"letter": "ش", "name": "شين", "translit": "shīn", "ipa": "ʃ", "region": "lisan", "sun": true, "madd": false},
+    {"letter": "ص", "name": "صاد", "translit": "ṣād", "ipa": "sˤ", "region": "lisan", "sun": true, "madd": false},
+    {"letter": "ض", "name": "ضاد", "translit": "ḍād", "ipa": "dˤ", "region": "lisan", "sun": true, "madd": false},
+    {"letter": "ط", "name": "طاء", "translit": "ṭāʾ", "ipa": "tˤ", "region": "lisan", "sun": true, "madd": false},
+    {"letter": "ظ", "name": "ظاء", "translit": "ẓāʾ", "ipa": "ðˤ", "region": "lisan", "sun": true, "madd": false},
+    {"letter": "ع", "name": "عين", "translit": "ʿayn", "ipa": "ʕ", "region": "halq", "sun": false, "madd": false},
+    {"letter": "غ", "name": "غين", "translit": "ghayn", "ipa": "ɣ", "region": "halq", "sun": false, "madd": false},
+    {"letter": "ف", "name": "فاء", "translit": "fāʾ", "ipa": "f", "region": "shafatan", "sun": false, "madd": false},
+    {"letter": "ق", "name": "قاف", "translit": "qāf", "ipa": "q", "region": "lisan", "sun": false, "madd": false},
+    {"letter": "ك", "name": "كاف", "translit": "kāf", "ipa": "k", "region": "lisan", "sun": false, "madd": false},
+    {"letter": "ل", "name": "لام", "translit": "lām", "ipa": "l", "region": "lisan", "sun": true, "madd": false},
+    {"letter": "م", "name": "ميم", "translit": "mīm", "ipa": "m", "region": "shafatan", "sun": false, "madd": false},
+    {"letter": "ن", "name": "نون", "translit": "nūn", "ipa": "n", "region": "lisan", "sun": true, "madd": false},
+    {"letter": "ه", "name": "هاء", "translit": "hāʾ", "ipa": "h", "region": "halq", "sun": false, "madd": false},
+    {"letter": "و", "name": "واو", "translit": "wāw", "ipa": "w", "region": "shafatan", "sun": false, "madd": true},
+    {"letter": "ي", "name": "ياء", "translit": "yāʾ", "ipa": "j", "region": "lisan", "sun": false, "madd": true}
+  ]
+}

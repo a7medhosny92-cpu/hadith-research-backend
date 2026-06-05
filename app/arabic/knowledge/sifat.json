@@ -1,0 +1,51 @@
+{
+  "description": "Ṣifāt al-ḥurūf (attributes). Letters are listed per attribute; the engine derives each letter's ṣifāt from membership. Contrasting attributes come in opposed pairs/triples; every letter has exactly one of each contrasting set.",
+  "contrasting": {
+    "hams_jahr": {
+      "ar": "الهمس / الجهر",
+      "values": {
+        "hams": {"ar": "همس", "desc": "whispered, airflow continues", "letters": ["ف","ح","ث","ه","ش","خ","ص","س","ك","ت"], "mnemonic": "فحثه شخص سكت"},
+        "jahr": {"ar": "جهر", "desc": "voiced, airflow stops", "letters": "rest"}
+      }
+    },
+    "shidda_rakhawa": {
+      "ar": "الشدة / التوسط / الرخاوة",
+      "values": {
+        "shidda": {"ar": "شدة", "desc": "sound fully stops", "letters": ["ء","ج","د","ق","ط","ب","ك","ت"], "mnemonic": "أجد قط بكت"},
+        "tawassut": {"ar": "توسط", "desc": "in-between (bayniyya)", "letters": ["ل","ن","ع","م","ر"], "mnemonic": "لن عمر"},
+        "rakhawa": {"ar": "رخاوة", "desc": "sound flows", "letters": "rest"}
+      }
+    },
+    "istila_istifal": {
+      "ar": "الاستعلاء / الاستفال",
+      "values": {
+        "istila": {"ar": "استعلاء", "desc": "raised tongue → tafkhīm (heavy)", "letters": ["خ","ص","ض","غ","ط","ق","ظ"], "mnemonic": "خص ضغط قظ"},
+        "istifal": {"ar": "استفال", "desc": "lowered tongue → tarqīq (light)", "letters": "rest"}
+      }
+    },
+    "itbaq_infitah": {
+      "ar": "الإطباق / الانفتاح",
+      "values": {
+        "itbaq": {"ar": "إطباق", "desc": "tongue clamps the palate", "letters": ["ص","ض","ط","ظ"]},
+        "infitah": {"ar": "انفتاح", "desc": "open", "letters": "rest"}
+      }
+    },
+    "idhlaq_ismat": {
+      "ar": "الإذلاق / الإصمات",
+      "values": {
+        "idhlaq": {"ar": "إذلاق", "desc": "light/fluent on the tongue", "letters": ["ف","ر","م","ن","ل","ب"], "mnemonic": "فر من لب"},
+        "ismat": {"ar": "إصمات", "desc": "heavy/'silenced'", "letters": "rest"}
+      }
+    }
+  },
+  "non_contrasting": {
+    "qalqala": {"ar": "قلقلة", "desc": "echo/bounce on sukūn", "letters": ["ق","ط","ب","ج","د"], "mnemonic": "قطب جد"},
+    "safir":   {"ar": "صفير", "desc": "whistle", "letters": ["ص","س","ز"]},
+    "lin":     {"ar": "لين", "desc": "softness (و/ي sākina after fatḥa)", "letters": ["و","ي"]},
+    "inhiraf": {"ar": "انحراف", "desc": "deviation of the sound", "letters": ["ل","ر"]},
+    "takrir":  {"ar": "تكرير", "desc": "slight trilling", "letters": ["ر"]},
+    "tafashshi": {"ar": "تفشٍّ", "desc": "spreading of air", "letters": ["ش"]},
+    "istitala": {"ar": "استطالة", "desc": "elongation along the tongue side", "letters": ["ض"]},
+    "ghunna":  {"ar": "غنة", "desc": "nasalization", "letters": ["ن","م"]}
+  }
+}

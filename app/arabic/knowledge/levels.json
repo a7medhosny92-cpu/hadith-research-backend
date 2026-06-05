@@ -1,0 +1,23 @@
+{
+  "description": "6-level curriculum mapped to CEFR, tied to the classical matn ladder.",
+  "levels": [
+    {"id": "L1", "cefr": "A1", "matn": "بداية + تحفة الأطفال",
+     "focus": ["28 lettere e forme", "ḥarakāt, sukūn, shadda, tanwīn", "genere e determinazione", "iḍāfa semplice"],
+     "objectives": ["leggere testo vocalizzato ad alta voce", "presentarsi", "~300 parole coraniche", "regole base di nūn sākina"]},
+    {"id": "L2", "cefr": "A2", "matn": "الآجُرُّومِيّة",
+     "focus": ["i 3 casi rafʿ/naṣb/jarr e segni", "plurale sano e fratto", "passato/presente"],
+     "objectives": ["iʿrāb di frasi semplici", "coniugare verbi regolari", "~1000 parole", "recitare una sura breve con madd/ghunna"]},
+    {"id": "L3", "cefr": "B1", "matn": "متن البناء + الجزرية",
+     "focus": ["Forme verbali I–X", "attivo/passivo", "kāna e إنّ con le sorelle", "makhārij/ṣifāt"],
+     "objectives": ["analizzare/produrre frasi multi-proposizione", "riconoscere forma e radice", "conversazione semplice"]},
+    {"id": "L4", "cefr": "B2", "matn": "قطر الندى + لامية الأفعال",
+     "focus": ["reggenza completa", "ḥāl, tamyīz, eccezione", "intro iʿlāl/ibdāl"],
+     "objectives": ["iʿrāb completo di un versetto", "leggere prosa non vocalizzata", "scrivere un paragrafo", "spiegare l'iʿlāl"]},
+    {"id": "L5", "cefr": "C1", "matn": "ألفية ابن مالك (+شرح ابن عقيل)",
+     "focus": ["particelle e reggenti sottili", "ṣarf avanzato", "inizio balāgha"],
+     "objectives": ["difendere un iʿrāb citando le regole", "leggere tafsīr/ḥadīth", "riconoscere figure retoriche"]},
+    {"id": "L6", "cefr": "C2", "matn": "مغني اللبيب، الكافية/الشافية، الشاطبية",
+     "focus": ["dispute di scuola (baṣrana/kufana)", "qirāʾāt", "balāgha avanzata"],
+     "objectives": ["analizzare l'iʿjāz retorico", "muoversi tra le qirāʾāt", "leggere le fonti primarie"]}
+  ]
+}

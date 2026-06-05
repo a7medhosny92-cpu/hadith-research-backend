@@ -1,0 +1,16 @@
+{
+  "description": "The verb forms (awzān) I–X with the dummy root ف-ع-ل. Meanings are typical tendencies, not laws (many verbs are lexicalized).",
+  "note_maṣdar": "Form I maṣdar is سماعي (memorized); Forms II–X maṣādir are قياسي (rule-governed).",
+  "forms": [
+    {"n": 1,  "madi": "فَعَلَ",    "mudari": "يَفْعُلُ/يَفْعِلُ/يَفْعَلُ", "masdar": "سماعي",     "meaning": "azione base, non modificata", "example": {"verb": "كَتَبَ", "gloss": "scrivere"}},
+    {"n": 2,  "madi": "فَعَّلَ",   "mudari": "يُفَعِّلُ",  "masdar": "تَفْعِيل",   "meaning": "causativo e intensivo/ripetitivo", "example": {"verb": "عَلَّمَ", "gloss": "insegnare"}},
+    {"n": 3,  "madi": "فَاعَلَ",   "mudari": "يُفَاعِلُ",  "masdar": "مُفَاعَلة / فِعَال", "meaning": "reciproco; rivolgere l'azione a un altro", "example": {"verb": "قَاتَلَ", "gloss": "combattere (qualcuno)"}},
+    {"n": 4,  "madi": "أَفْعَلَ",  "mudari": "يُفْعِلُ",   "masdar": "إِفْعَال",   "meaning": "causativo (transitivante)", "example": {"verb": "أَخْرَجَ", "gloss": "far uscire"}},
+    {"n": 5,  "madi": "تَفَعَّلَ", "mudari": "يَتَفَعَّلُ", "masdar": "تَفَعُّل",   "meaning": "riflessivo di II; acquisire uno stato", "example": {"verb": "تَعَلَّمَ", "gloss": "imparare"}},
+    {"n": 6,  "madi": "تَفَاعَلَ", "mudari": "يَتَفَاعَلُ", "masdar": "تَفَاعُل",   "meaning": "reciproco tra parti; finzione", "example": {"verb": "تَكَاتَبَ", "gloss": "corrispondere"}},
+    {"n": 7,  "madi": "اِنْفَعَلَ", "mudari": "يَنْفَعِلُ", "masdar": "اِنْفِعَال", "meaning": "medio-passivo (esito intransitivo di I)", "example": {"verb": "اِنْكَسَرَ", "gloss": "rompersi"}},
+    {"n": 8,  "madi": "اِفْتَعَلَ", "mudari": "يَفْتَعِلُ", "masdar": "اِفْتِعَال", "meaning": "riflessivo/medio; fare per sé", "example": {"verb": "اِجْتَمَعَ", "gloss": "radunarsi"}},
+    {"n": 9,  "madi": "اِفْعَلَّ",  "mudari": "يَفْعَلُّ",  "masdar": "اِفْعِلَال", "meaning": "colori e difetti fisici", "example": {"verb": "اِحْمَرَّ", "gloss": "diventare rosso"}},
+    {"n": 10, "madi": "اِسْتَفْعَلَ","mudari": "يَسْتَفْعِلُ","masdar": "اِسْتِفْعَال","meaning": "cercare/chiedere; ritenere", "example": {"verb": "اِسْتَغْفَرَ", "gloss": "chiedere perdono"}}
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "description": "Tajwīd rule definitions used by the analyzer. Letter groups follow the standard Ḥafṣ ʿan ʿĀṣim teaching.",
+  "nun_sakina_tanwin": {
+    "ar": "أحكام النون الساكنة والتنوين",
+    "rules": {
+      "izhar": {"ar": "إظهار", "desc": "clear pronunciation", "letters": ["ء","ه","ع","ح","غ","خ"]},
+      "idgham_ghunna": {"ar": "إدغام بغنة", "desc": "merge with nasalization", "letters": ["ي","ن","م","و"], "mnemonic": "ينمو"},
+      "idgham_no_ghunna": {"ar": "إدغام بلا غنة", "desc": "merge without nasalization", "letters": ["ل","ر"]},
+      "iqlab": {"ar": "إقلاب", "desc": "convert nūn into a hidden mīm with ghunna", "letters": ["ب"]},
+      "ikhfa": {"ar": "إخفاء", "desc": "concealment with ghunna", "letters": ["ت","ث","ج","د","ذ","ز","س","ش","ص","ض","ط","ظ","ف","ق","ك"]}
+    }
+  },
+  "mim_sakina": {
+    "ar": "أحكام الميم الساكنة",
+    "rules": {
+      "ikhfa_shafawi": {"ar": "إخفاء شفوي", "desc": "labial concealment with ghunna", "letters": ["ب"]},
+      "idgham_shafawi": {"ar": "إدغام شفوي", "desc": "merge of two mīms with ghunna", "letters": ["م"]},
+      "izhar_shafawi": {"ar": "إظهار شفوي", "desc": "clear; all other letters", "letters": "rest"}
+    }
+  },
+  "qalqala": {
+    "ar": "القلقلة",
+    "letters": ["ق","ط","ب","ج","د"],
+    "levels": {
+      "sughra": {"ar": "صغرى", "desc": "minor — qalqala letter with sukūn mid-word"},
+      "kubra": {"ar": "كبرى", "desc": "major — qalqala letter at a stop (waqf)"}
+    }
+  },
+  "madd": {
+    "ar": "المد",
+    "letters": ["ا","و","ي"],
+    "types": {
+      "tabii": {"ar": "طبيعي", "count": 2, "desc": "natural: madd letter not followed by hamza or sukūn"},
+      "badal": {"ar": "بدل", "count": 2, "desc": "hamza precedes the madd letter (e.g. آمنوا)"},
+      "muttasil": {"ar": "متصل واجب", "count": [4,5], "desc": "madd + hamza in the same word (e.g. جاء)"},
+      "munfasil": {"ar": "منفصل جائز", "count": [2,4,5], "desc": "madd at word end + hamza starting the next word"},
+      "lazim": {"ar": "لازم", "count": 6, "desc": "madd + permanent sukūn or shadda (e.g. الضالين)"},
+      "arid": {"ar": "عارض للسكون", "count": [2,4,6], "desc": "sukūn only because of stopping (waqf)"}
+    }
+  }
+}
