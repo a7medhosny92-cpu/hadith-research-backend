@@ -35,6 +35,24 @@ CORE_COLLECTIONS: dict[int, str] = {
     9771: "سنن الدارقطني",
 }
 
+# Major scholarly commentaries (شروح الحديث — turath cat 7) keyed by the base
+# collection they explain. These carry the explanations of the ʿulamāʾ that we want
+# to surface alongside each hadith (with attribution to the commentator). ids verified.
+COMMENTARIES: dict[int, list[int]] = {
+    1284: [1673, 5756, 21716, 137],  # البخاري: فتح الباري (ابن حجر)، عمدة القاري، إرشاد الساري، فتح الباري (ابن رجب)
+    1727: [1711, 148870],            # مسلم: شرح النووي (المنهاج)، البحر المحيط الثجاج
+    1435: [21662, 1337],             # الترمذي: تحفة الأحوذي، حاشية السندي
+    1726: [5760, 37052, 20764],      # أبو داود: عون المعبود، شرح العباد، المنهل العذب المورود
+    1339: [522],                     # النسائي: حاشية السندي
+    1198: [9810],                    # ابن ماجه: حاشية السندي
+    1699: [6684],                    # الموطأ: المنتقى شرح الموطإ (الباجي)
+}
+
+#: Flat, de-duplicated list of every curated commentary book id.
+ALL_COMMENTARY_IDS: tuple[int, ...] = tuple(
+    dict.fromkeys(sid for ids in COMMENTARIES.values() for sid in ids)
+)
+
 
 @dataclass(frozen=True, slots=True)
 class BookRecord:
@@ -97,35 +115,45 @@ class Catalog:
         wanted = set(cat_ids)
         return [b for b in self.books.values() if b.cat_id in wanted]
 
+    def commentaries_for(self, collection_id: int) -> list[BookRecord]:
+        """The curated شروح (commentaries) that explain a given base collection."""
+        return [self.books[s] for s in COMMENTARIES.get(collection_id, []) if s in self.books]
+
     def select(
         self,
         *,
         book_ids: Iterable[int] | None = None,
         cat_ids: Iterable[int] | None = None,
         priority: bool = False,
+        with_commentaries: bool = False,
     ) -> list[BookRecord]:
         """Resolve a download selection.
 
         Resolution order: explicit ``book_ids`` → ``priority`` core collections →
-        all books in ``cat_ids``. When ``priority`` is combined with ``cat_ids`` the
-        core collections are listed first, then the rest of the categories.
+        all books in ``cat_ids``. With ``with_commentaries`` the curated شروح of every
+        selected base collection are appended (the scholars' explanations).
         """
         if book_ids is not None:
             return [self.books[bid] for bid in book_ids if bid in self.books]
 
         ordered: list[BookRecord] = []
         seen: set[int] = set()
+
+        def add(book: BookRecord | None) -> None:
+            if book and book.id not in seen:
+                ordered.append(book)
+                seen.add(book.id)
+
         if priority:
             for bid in CORE_COLLECTIONS:
-                book = self.books.get(bid)
-                if book and bid not in seen:
-                    ordered.append(book)
-                    seen.add(bid)
+                add(self.books.get(bid))
         if cat_ids is not None:
             for book in self.books_in_categories(cat_ids):
-                if book.id not in seen:
-                    ordered.append(book)
-                    seen.add(book.id)
+                add(book)
+        if with_commentaries:
+            for base_id in [b.id for b in list(ordered)]:
+                for sharh in self.commentaries_for(base_id):
+                    add(sharh)
         return ordered
 
     def total_pages(self, books: Iterable[BookRecord]) -> int:

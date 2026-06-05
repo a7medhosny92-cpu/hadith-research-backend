@@ -39,6 +39,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="seed the curated core collections first",
     )
     parser.add_argument(
+        "--with-commentaries", action="store_true",
+        help="also fetch the curated شروح (scholarly explanations) of the collections",
+    )
+    parser.add_argument(
         "--limit-pages", type=int, default=None,
         help="cap pages per book (smoke testing)",
     )
@@ -79,7 +83,12 @@ async def run(args: argparse.Namespace) -> None:
         cat_ids = args.categories
         if not args.books and not args.priority and cat_ids is None:
             cat_ids = list(settings.hadith_category_ids)  # sensible default
-        books = catalog.select(book_ids=args.books, cat_ids=cat_ids, priority=args.priority)
+        books = catalog.select(
+            book_ids=args.books,
+            cat_ids=cat_ids,
+            priority=args.priority,
+            with_commentaries=args.with_commentaries,
+        )
 
         if not books:
             print("Nothing selected.")
