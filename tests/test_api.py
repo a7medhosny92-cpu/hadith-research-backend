@@ -13,8 +13,8 @@ def test_health():
 
 def test_root_lists_endpoints():
     body = client.get("/").json()
-    assert {"/search", "/ask"} <= set(body["endpoints"])   # now live
-    assert "/takhrij" in body["endpoints_planned"]         # still to come
+    assert {"/search", "/ask", "/takhrij"} <= set(body["endpoints"])   # now live
+    assert "/verify-isnad" in body["endpoints_planned"]               # still to come
 
 
 def test_ingestion_status_shape():
