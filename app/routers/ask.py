@@ -26,11 +26,12 @@ def resolve_engine(requested: str, settings) -> str:
     return settings.llm_default_engine if requested == "auto" else requested
 
 
-def build_synthesizer(engine: str, settings) -> Synthesizer | None:
-    """The synthesizer for ``engine`` (``"off"`` → None → an extractive answer)."""
+def build_synthesizer(engine: str, settings, model: str | None = None) -> Synthesizer | None:
+    """The synthesizer for ``engine`` (``"off"`` → None → an extractive answer).
+    ``model`` optionally overrides the engine's model with any litellm id."""
     from app.qa.llm import synthesizer_for_engine  # lazy: optional 'llm' extra
 
-    return synthesizer_for_engine(engine, settings)
+    return synthesizer_for_engine(engine, settings, model)
 
 
 @lru_cache(maxsize=1)
@@ -53,7 +54,12 @@ def ask(
         "auto",
         pattern="^(auto|local|remote|off)$",
         description="which LLM brain answers: auto (config default) | local (Ollama) "
-        "| remote (cloud, e.g. Claude) | off (extractive, no LLM)",
+        "| remote (cloud, any provider) | off (extractive, no LLM)",
+    ),
+    model: str | None = Query(
+        None,
+        description="optional litellm model id to use (any provider): "
+        "anthropic/claude-sonnet-4-6 · openai/gpt-4o · gemini/gemini-2.0-flash · ollama/llama3 …",
     ),
     hadith_index: HadithIndex = Depends(get_index),
     sharh_index: SharhIndex = Depends(get_sharh_index),
@@ -69,7 +75,7 @@ def ask(
     try:
         out = answer_question(
             q, retriever, sharh_index,
-            synthesize=build_synthesizer(resolved, settings), **kw,
+            synthesize=build_synthesizer(resolved, settings, model), **kw,
         )
     except Exception:
         # The LLM brain is unreachable (Ollama not running, missing API key, or the
@@ -82,4 +88,8 @@ def ask(
         )
         resolved = "off"
     out["engine"] = resolved
+    if resolved == "local":
+        out["model"] = model or settings.llm_local_model
+    elif resolved == "remote":
+        out["model"] = model or settings.llm_remote_model
     return out

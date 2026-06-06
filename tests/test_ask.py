@@ -136,7 +136,7 @@ def test_api_ask_engine_routes_to_llm(client, monkeypatch):
     # Swap in a fake brain so no real model or network is touched.
     monkeypatch.setattr(
         ask_router, "build_synthesizer",
-        lambda engine, settings: (lambda q, h, s: f"[{engine}] {q}"),
+        lambda engine, settings, model=None: (lambda q, h, s: f"[{engine}] {q}"),
     )
     body = client.get("/ask", params={"q": "النية", "engine": "remote"}).json()
     assert body["mode"] == "llm"
@@ -151,7 +151,7 @@ def test_api_ask_rejects_unknown_engine(client):
 def test_api_ask_falls_back_when_engine_unavailable(client, monkeypatch):
     # The chosen brain is unreachable (Ollama down / missing key / no litellm): the
     # synthesizer raises. /ask must still answer — extractively — with a warning.
-    def boom(engine, settings):
+    def boom(engine, settings, model=None):
         def _raise(q, h, s):
             raise RuntimeError("engine unavailable")
         return _raise

@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     llm_remote_model: str = "anthropic/claude-sonnet-4-6"  # the remote brain (cloud)
     llm_temperature: float = 0.2
     ollama_api_base: str = "http://localhost:11434"        # local Ollama server
+    # Cloud API keys, read from .env. We export them to the process environment so
+    # litellm (which reads os.environ) can authenticate — otherwise a key set only in
+    # .env never reaches the remote engine.
+    anthropic_api_key: str | None = None
+    openai_api_key: str | None = None
 
     # ── Rijal (narrator gradings) ────────────────────────────────────────────
     # /verify-isnad always uses the bundled curated seed; point this at a full

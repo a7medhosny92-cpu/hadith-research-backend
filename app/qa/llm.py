@@ -66,24 +66,63 @@ def litellm_synthesizer(
     return synthesize
 
 
-def synthesizer_for_engine(engine: str, settings) -> Synthesizer | None:
+def _load_dotenv_provider_keys(path: str = ".env") -> None:
+    """Make *any* provider credential set in .env visible to litellm (which reads
+    os.environ): any VAR ending in _API_KEY / _API_BASE / _API_VERSION (Anthropic,
+    OpenAI, Gemini, Mistral, Groq, Cohere, DeepSeek, …). Pre-set env vars win."""
+    import os
+    from pathlib import Path
+
+    p = Path(path)
+    if not p.exists():
+        return
+    suffixes = ("_API_KEY", "_API_BASE", "_API_VERSION")
+    for line in p.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip().strip('"').strip("'")
+        if value and key.endswith(suffixes) and not os.environ.get(key):
+            os.environ[key] = value
+
+
+def _export_api_keys(settings) -> None:
+    """Make cloud keys visible to litellm. Typed settings keys first, then any other
+    provider key found in .env — so the remote engine works with *any* litellm
+    provider, not just Anthropic. A pre-existing environment variable always wins."""
+    import os
+
+    for var, value in (
+        ("ANTHROPIC_API_KEY", getattr(settings, "anthropic_api_key", None)),
+        ("OPENAI_API_KEY", getattr(settings, "openai_api_key", None)),
+    ):
+        if value and not os.environ.get(var):
+            os.environ[var] = value
+    _load_dotenv_provider_keys()
+
+
+def synthesizer_for_engine(engine: str, settings, model: str | None = None) -> Synthesizer | None:
     """Build the synthesizer for an LLM engine; ``"off"`` → ``None`` (extractive).
 
-    ``"local"`` routes to the Ollama model + ``ollama_api_base``; ``"remote"`` routes
-    to the cloud model with no ``api_base``. Each reads its model id from settings,
-    so the engine is a pure config switch (no code changes to swap brains).
+    ``model`` (optional) overrides the engine's configured model with any litellm id
+    — ``anthropic/claude-sonnet-4-6``, ``openai/gpt-4o``, ``gemini/gemini-2.0-flash``,
+    ``ollama/llama3``, ``groq/…`` — so any provider/model can be chosen per request.
+    ``"local"`` routes to Ollama + ``ollama_api_base``; ``"remote"`` routes to the
+    cloud model with no ``api_base`` (and exports the provider key so litellm can auth).
     """
     if engine == "off":
         return None
     if engine == "local":
         return litellm_synthesizer(
-            settings.llm_local_model,
+            model or settings.llm_local_model,
             api_base=settings.ollama_api_base,
             temperature=settings.llm_temperature,
         )
     if engine == "remote":
+        _export_api_keys(settings)
         return litellm_synthesizer(
-            settings.llm_remote_model,
+            model or settings.llm_remote_model,
             api_base=None,
             temperature=settings.llm_temperature,
         )

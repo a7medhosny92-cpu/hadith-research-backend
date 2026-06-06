@@ -47,9 +47,12 @@ data/processed/*.jsonl
 The chain is the same everywhere: the system **retrieves and cites**, it never
 invents — every answer stays verifiable against the real sources.
 
-The **LLM engine is provider-agnostic** and chosen per request via `?engine=`:
-`local` is a model via Ollama, `remote` is any cloud engine (Claude, OpenAI, …) —
-set `LLM_REMOTE_MODEL` + an API key. No code changes to swap brains.
+The **LLM engine is provider-agnostic** (via LiteLLM) and chosen per request via
+`?engine=`: `local` is Ollama, `remote` is **any** cloud provider. Pick the exact
+model per request with `?model=` (e.g. `anthropic/claude-sonnet-4-6`, `openai/gpt-4o`,
+`gemini/gemini-2.0-flash`, `groq/…`, `ollama/llama3`) or default with
+`LLM_REMOTE_MODEL`; set the matching `*_API_KEY` in `.env`. No code changes to swap
+brains or providers.
 
 ## What it does
 
@@ -173,7 +176,7 @@ uvicorn app.main:app --reload
 |---|---|
 | `GET /search?q=…` | rank hadith by relevance (Arabic-folded; `field=all\|matn\|isnad`, filter by `collection`/`grade`; `mode=lexical\|semantic\|hybrid`) |
 | `GET /hadith/{id}` | a single hadith with its citation |
-| `GET /ask?q=…` | the most relevant hadith + grade + the **scholars' شرح**, the **scholars' rulings (أحكام)** on it ordered by era (صحّحه/ضعّفه…, divergence surfaced), cited (add `&engine=local` or `&engine=remote` to synthesise with an LLM) |
+| `GET /ask?q=…` | the most relevant hadith + grade + the **scholars' شرح**, the **scholars' rulings (أحكام)** on it ordered by era (صحّحه/ضعّفه…, divergence surfaced), cited (add `&engine=local\|remote` and optionally `&model=<any litellm id>` to synthesise with an LLM) |
 | `GET /takhrij?hadith_id=…` (or `q=…`) | **every** narration of the same report (lexical+semantic recall), grouped **by Companion (الصحابي)** then into distinct wordings (صيغ) labelled بلفظه/بنحوه/بمعناه — each Companion with an «أخرجه» summary, every chain shown |
 | `GET /verify-isnad?hadith_id=…` (or `isnad=…`) | parse the **chain of narrators**, flag سماع/عنعنة/تحويل, **grade each narrator** (رجال), and check each link's **continuity (اتصال)** against the narrator network |
 | `GET /narrator?name=…` | a narrator's place in the network (شبكة الرواة): his **شيوخ** (narrates from) and **تلاميذ** (narrate from him), weighted, plus his grade |
