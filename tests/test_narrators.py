@@ -41,6 +41,17 @@ def test_resolve_by_subset(graph):
     assert node is not None and "عمر" in node.name
 
 
+def test_disambiguates_shared_name():
+    g = NarratorGraph()
+    g.add_chain(["وكيع", "سفيان", "منصور", "إبراهيم"])           # context ⇒ al-Thawrī
+    g.add_chain(["الحميدي", "سفيان", "عمرو بن دينار", "عطاء"])   # context ⇒ Ibn ʿUyayna
+    g.commit()
+    names = {n.name for n in g._nodes()}
+    assert "سفيان الثوري" in names and "سفيان بن عيينة" in names   # split into two people
+    assert any(t["name"] == "منصور" for t in g.teachers("سفيان الثوري"))
+    assert any(t["name"] == "عمرو بن دينار" for t in g.teachers("سفيان بن عيينة"))
+
+
 # ── /narrator endpoint ──────────────────────────────────────────────────────────
 @pytest.fixture
 def client(graph) -> TestClient:
@@ -59,6 +70,12 @@ def test_api_narrator(client):
 
 def test_api_narrator_unknown(client):
     assert client.get("/narrator", params={"name": "شخص مجهول تماما هنا"}).status_code == 404
+
+
+def test_api_narrator_has_summary_and_sources(client):
+    body = client.get("/narrator", params={"name": "مالك"}).json()
+    assert "شيخًا" in body["summary"] and "راويًا" in body["summary"]   # composed profile
+    assert any("أسانيد" in s["from"] for s in body["sources"])          # provenance shown
 
 
 # ── isnad continuity via the graph ─────────────────────────────────────────────

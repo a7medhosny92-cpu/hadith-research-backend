@@ -50,6 +50,41 @@ def is_prophet(name: str) -> bool:
     return bool(toks) and toks <= _PROPHET | {"صلي", "عليه", "وسلم", "عن"}
 
 
+# Shared bare names (المشترك): same name, different men. Disambiguate by the company
+# they keep — classic cases, each candidate with telltale teachers/students. (The full
+# رجال import extends this for every narrator; these are the high-frequency ones.)
+_AMBIGUOUS: dict[str, list[tuple[str, list[str]]]] = {
+    "سفيان": [
+        ("سفيان بن عيينة", ["عمرو بن دينار", "الزهري", "أبو الزناد", "عبد الله بن دينار",
+                            "الحميدي", "الشافعي", "علي بن المديني", "ابن أبي عمر"]),
+        ("سفيان الثوري", ["منصور", "الأعمش", "أبو إسحاق", "سلمة بن كهيل",
+                          "وكيع", "عبد الرزاق", "عبد الرحمن بن مهدي", "أبو نعيم", "الفريابي", "قبيصة"]),
+    ],
+    "حماد": [
+        ("حماد بن زيد", ["أيوب", "عمرو بن دينار", "أنس بن سيرين", "هشام بن عروة"]),
+        ("حماد بن سلمة", ["ثابت", "قتادة", "علي بن زيد", "حميد الطويل", "عمار بن أبي عمار"]),
+    ],
+}
+_AMBIG = {" ".join(sorted(name_tokens(k))): v for k, v in _AMBIGUOUS.items()}
+
+
+def disambiguate(name: str, neighbours: list[str]) -> str:
+    """Resolve a shared name to a specific person from its chain neighbours; if no
+    marker matches (or the name isn't shared), return it unchanged."""
+    candidates = _AMBIG.get(" ".join(sorted(name_tokens(name))))
+    if not candidates:
+        return name
+    around: set[str] = set()
+    for nb in neighbours:
+        around |= name_tokens(nb)
+    best, best_score = name, 0
+    for canonical, markers in candidates:
+        score = sum(1 for m in markers if name_tokens(m) <= around)
+        if score > best_score:
+            best, best_score = canonical, score
+    return best
+
+
 @dataclass(slots=True)
 class _Node:
     id: int
@@ -81,8 +116,14 @@ class NarratorGraph:
         return cur.lastrowid
 
     def add_chain(self, names: Iterable[str]) -> None:
-        """Record a chain: each name narrates *from* the next one (تلميذ → شيخ)."""
-        ids = [nid for n in names if (nid := self._node_id(n)) is not None]
+        """Record a chain: each name narrates *from* the next one (تلميذ → شيخ).
+        Shared names (سفيان …) are first resolved from their immediate neighbours."""
+        names = list(names)
+        resolved = [
+            disambiguate(n, [names[i - 1] if i else "", names[i + 1] if i + 1 < len(names) else ""])
+            for i, n in enumerate(names)
+        ]
+        ids = [nid for n in resolved if (nid := self._node_id(n)) is not None]
         for student, teacher in zip(ids, ids[1:]):
             if student == teacher:
                 continue
