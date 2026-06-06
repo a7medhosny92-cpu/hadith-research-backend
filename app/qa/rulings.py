@@ -13,7 +13,7 @@ more شروح/تخريج/علل ⇒ more rulings. Not a substitute for a hand-cu
 
 from __future__ import annotations
 
-from app.parsing.normalize import normalize_for_search
+from app.parsing.normalize import NEGATORS, negated_before, normalize_for_search
 
 #: Hadith critic → (death year AH, name forms). Ordered roughly by era; the year is
 #: what we sort by (طبقات). Forms are matched against the text (folded).
@@ -117,6 +117,8 @@ def _scholar_in(window: list[str]) -> str | None:
 
 def _verdict_in(window: list[str]) -> str | None:
     for i in range(len(window)):
+        if i > 0 and window[i - 1] in NEGATORS:          # «غير صحيح» / «ليس صحيحًا»
+            continue
         for phrase, label in _VERDICT_PHRASES:           # composite forms first
             if tuple(window[i : i + len(phrase)]) == phrase:
                 return label
@@ -168,8 +170,10 @@ def extract_rulings(text: str) -> list[dict]:
     for i, raw in enumerate(toks):
         tok = _dewaw(raw)
         window = toks[i + 1 : i + 5]   # the attributed scholar sits right after the trigger
-        # «صحّحه ابن حجر», «ضعّفه الألباني»
+        # «صحّحه ابن حجر», «ضعّفه الألباني» — but not «لم يصحّحه», «لم يضعّفه»
         if tok in _VERBS:
+            if negated_before(toks, i):
+                continue
             who = _scholar_in(window)
             if who:
                 rulings.setdefault((who, _VERBS[tok]), "نصّ")

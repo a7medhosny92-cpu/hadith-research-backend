@@ -11,7 +11,10 @@ qualifier (يهم/اختلط/خلط…), the narrator is nudged down a notch.
 
 from __future__ import annotations
 
-from app.parsing.normalize import normalize_for_search
+from app.parsing.normalize import NEGATORS, normalize_for_search
+
+# Positive ranks that a preceding negator («غير عدل») cancels.
+_POSITIVE = {"ثقة", "صدوق", "مقبول", "صحابي"}
 
 #: category → rank (10 best … 0 worst)
 RANKS: dict[str, int] = {
@@ -61,6 +64,10 @@ def classify(verdict: str) -> tuple[str, int | None]:
         if pos < best_pos:
             best_cat, best_pos = cat, pos
     if best_cat is None:
+        return "غير معروف", None
+    # a negator just before a positive verdict cancels it: «غير عدل» / «ليس بعدلٍ» is not توثيق
+    window = text[max(0, best_pos - 12):best_pos + 1]
+    if best_cat in _POSITIVE and any(f" {n} " in window for n in NEGATORS):
         return "غير معروف", None
     if best_cat == "صدوق" and any(_first_index(text, q) < 10**9 for q in _QUALIFIERS_N):
         best_cat = "صدوق له أوهام"

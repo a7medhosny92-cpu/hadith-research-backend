@@ -49,3 +49,14 @@ def normalize_for_search(text: str) -> str:
     text = text.translate(_FOLD)
     text = _NON_ARABIC_WS.sub(" ", text)
     return _WS.sub(" ", text).strip()
+
+
+#: Negators that cancel a following verdict — «غير صحيح», «ليس بثقة», «لم يصحّح», «لم
+#: يثبت». Folded forms. «لا/ما» are excluded on purpose: they double as ordinary words
+#: and appear in positive idioms («لا بأس به»).
+NEGATORS = frozenset({"غير", "ليس", "لست", "لسنا", "لم", "لن"})
+
+
+def negated_before(tokens: list[str], i: int, *, window: int = 2) -> bool:
+    """True if a negator appears within ``window`` folded tokens before position ``i``."""
+    return any(tokens[j] in NEGATORS for j in range(max(0, i - window), i))
