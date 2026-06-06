@@ -85,6 +85,7 @@
   .r-era{opacity:.75;font-size:.78rem}
   .r-basis{opacity:.7;font-size:.76rem}
   .r-diverge{color:#f0c674;font-weight:bold;font-size:.85rem}
+  .r-info{cursor:help;opacity:.85}
 </style>
 </head>
 <body>
@@ -151,8 +152,10 @@ function rulingsHtml(rulings){
   if(!rulings || !rulings.length) return "";
   const items = rulings.map(r => {
     const basis = (r.basis && r.basis !== "نصّ") ? ` <span class="r-basis">(${esc(r.basis)})</span>` : "";
-    return `<span class="ruling ${gradeClass(r.verdict)}">${esc(r.scholar)} `
-      + `<span class="r-era">${esc(r.era)}</span>: ${esc(r.verdict)}${basis}</span>`;
+    const info = r.note ? ` <span class="r-info" title="${esc(r.note)}">ⓘ</span>` : "";
+    const tip = r.note ? ` title="${esc(r.note)}"` : "";
+    return `<span class="ruling ${gradeClass(r.verdict)}"${tip}>${esc(r.scholar)} `
+      + `<span class="r-era">${esc(r.era)}</span>: ${esc(r.verdict)}${basis}${info}</span>`;
   }).join("");
   const diverge = new Set(rulings.map(r => r.verdict)).size > 1
     ? ` <span class="r-diverge">⚠ اختلف العلماء</span>` : "";

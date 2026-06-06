@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.qa.rulings import collect_rulings, extract_rulings, has_divergence
+from app.qa.rulings import collect_rulings, extract_rulings, has_divergence, refine_with_routes
 
 
 def _pairs(rulings):
@@ -35,6 +35,26 @@ def test_implicit_shart_al_shaykhayn():
 
 def test_no_false_positive_without_scholar():
     assert extract_rulings("هذا الكلام جميل ولا يتعلق بالحكم") == []
+
+
+def test_tirmidhi_composite_forms():
+    assert ("الترمذي", "حسن صحيح غريب") in _pairs(
+        extract_rulings("قال الترمذي هذا حديث حسن صحيح غريب")
+    )
+    assert ("الترمذي", "صحيح غريب") in _pairs(extract_rulings("قال الترمذي صحيح غريب"))
+    assert ("الترمذي", "غريب") in _pairs(extract_rulings("قال الترمذي هذا حديث غريب"))
+
+
+def test_hasan_sahih_carries_a_note():
+    r = extract_rulings("قال الترمذي حسن صحيح")[0]
+    assert r["verdict"] == "حسن صحيح" and r["note"]      # explanation attached
+
+
+def test_refine_with_routes_resolves_hasan_sahih():
+    multi = refine_with_routes([{"verdict": "حسن صحيح", "note": ""}], routes=3)
+    assert "أكثر" in multi[0]["note"]               # more than one chain
+    single = refine_with_routes([{"verdict": "حسن صحيح", "note": ""}], routes=1)
+    assert "واحد" in single[0]["note"]              # a single chain
 
 
 def test_collect_merges_and_detects_divergence():
