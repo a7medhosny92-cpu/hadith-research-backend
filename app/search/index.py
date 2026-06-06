@@ -219,7 +219,7 @@ class HadithIndex:
             args = [*params] if limit is None else [*params, limit]
             rows = self._con.execute(sql, args).fetchall()
             if rows or joiner == joiners[-1]:
-                return [_hit(row) for row in rows]
+                return [_hit(row, tuple(terms)) for row in rows]
         return []
 
     def get(self, hadith_id: int) -> SearchHit | None:
@@ -257,11 +257,32 @@ def _read_jsonl(path: Path) -> Iterator[dict]:
                 yield json.loads(line)
 
 
-def _hit(row: tuple) -> SearchHit:
+def _excerpt(matn: str, terms: tuple[str, ...] = (), window: int = 14) -> str:
+    """A readable, *original-spelling* excerpt with the match wrapped in «…».
+
+    FTS5's snippet() can only highlight the indexed (folded) column, which would show
+    diacritic-stripped Arabic. So we highlight the original matn ourselves: find the
+    first word whose folded form carries a query term and frame a window around it."""
+    words = (matn or "").split()
+    if not words:
+        return ""
+    hit = next(
+        (i for i, w in enumerate(words) if any(t in normalize_for_search(w) for t in terms)),
+        None,
+    )
+    if hit is None:
+        return " ".join(words[:window]) + ("…" if len(words) > window else "")
+    lo, hi = max(0, hit - window // 2), min(len(words), hit + window // 2 + 1)
+    frag = words[lo:hi]
+    frag[hit - lo] = f"«{frag[hit - lo]}»"
+    return f"{'…' if lo else ''}{' '.join(frag)}{'…' if hi < len(words) else ''}"
+
+
+def _hit(row: tuple, terms: tuple[str, ...] = ()) -> SearchHit:
     return SearchHit(
         id=row[0], book_id=row[1], collection=row[2], number=row[3], matn=row[4],
         isnad=row[5], grade=row[6], chapter=row[7], page=row[8], volume=row[9],
-        score=row[10], snippet=row[11],
+        score=row[10], snippet=_excerpt(row[4], terms),
     )
 
 

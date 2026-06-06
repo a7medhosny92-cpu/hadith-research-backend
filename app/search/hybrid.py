@@ -79,13 +79,18 @@ class HybridSearcher:
             )
 
         limit = limit or 50
-        pool = max(limit * 4, 40)  # gather extra candidates from each side, then fuse/cut
+        filtered = collection_id is not None or grade is not None
+        # Without a filter a modest candidate pool is enough. With one, most candidates
+        # are discarded, so we must look deeper or matches ranked past the pool are lost
+        # (a collection's only hits could sit beyond a small cutoff → empty result).
+        pool = max(self.vectors.count(), limit) if filtered else max(limit * 4, 40)
         qvec = self.embedder.embed([query])[0]
         semantic_ids = [rid for rid, _ in self.vectors.search(qvec, k=pool)]
         if mode == "semantic":
             ordered = semantic_ids
-        else:  # hybrid
-            lexical_ids = [h.id for h in self.lexical.search(query, limit=pool, field=field)]
+        else:  # hybrid — the lexical side is filtered in SQL (exact, cheap)
+            lexical_ids = [h.id for h in self.lexical.search(
+                query, limit=pool, collection_id=collection_id, grade=grade, field=field)]
             ordered = rrf_fuse([lexical_ids, semantic_ids], k=self.rrf_k)
 
         out: list[SearchHit] = []
