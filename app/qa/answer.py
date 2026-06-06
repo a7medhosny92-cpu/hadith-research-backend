@@ -50,23 +50,47 @@ def _extractive_answer(hadith: list[SearchHit], sharh: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _linked_sharh(
+    question: str, hadith: list[SearchHit], sharh_index: SharhIndex, k_sharh: int
+) -> list["SharhHit"]:
+    """Find commentary that explains one of the retrieved hadith.
+
+    Walk the ranked hadith (not just the first): for each, look for شرح tied to that
+    exact hadith — by question relevance, else any of its linked passages. Return the
+    first hadith's commentary we find, so the answer never falls back to unrelated شرح
+    just because the single top hadith happens to be uncommented. Only if *none* of the
+    retrieved hadith are commented do we do a general شرح search.
+    """
+    if not hadith or not k_sharh:
+        return []
+    for top in hadith:
+        if top.number is None:
+            continue
+        found = sharh_index.search(
+            question, base_id=top.book_id, hadith_number=top.number, limit=k_sharh
+        ) or sharh_index.by_hadith(top.book_id, top.number, limit=k_sharh)
+        if found:
+            return found
+    return sharh_index.search(question, limit=k_sharh)
+
+
 def _complete_sharh(sharh: list[SharhHit], sharh_index: SharhIndex) -> list[dict]:
     """Turn the ranked شرح chunks into source dicts carrying the *complete* passage.
 
-    For by-number commentary we re-join every chunk of that hadith's شرح (and drop
-    duplicate chunks of the same commentary on the same hadith); by-chapter شرح has
-    no hadith number to join on, so its own chunk text is kept as-is.
+    Each chunk names the passage it belongs to via its anchor ``page_id``; we re-join
+    all of that passage's chunks (so the full discourse is shown, not a fragment) and
+    drop duplicate chunks of the same passage. Works for by-number and by-chapter شرح.
     """
     out: list[dict] = []
     seen: set[tuple[int, int]] = set()
     for s in sharh:
         d = s.to_dict()
-        if s.hadith_number is not None:
-            key = (s.book_id, s.hadith_number)
+        if s.page_id is not None:
+            key = (s.book_id, s.page_id)
             if key in seen:
                 continue
             seen.add(key)
-            full = sharh_index.full_text(s.book_id, s.hadith_number)
+            full = sharh_index.full_passage(s.book_id, s.page_id)
             if full:
                 d["text"] = full
         out.append(d)
@@ -89,16 +113,7 @@ def answer_question(
     so the answer cites scholarship tied to the matched hadith when possible.
     """
     hadith = hadith_index.search(question, limit=k_hadith)
-
-    sharh: list[SharhHit] = []
-    if hadith and k_sharh:
-        top = hadith[0]
-        if top.number is not None:
-            sharh = sharh_index.search(
-                question, base_id=top.book_id, hadith_number=top.number, limit=k_sharh
-            ) or sharh_index.by_hadith(top.book_id, top.number, limit=k_sharh)
-        if not sharh:
-            sharh = sharh_index.search(question, limit=k_sharh)
+    sharh = _linked_sharh(question, hadith, sharh_index, k_sharh)
 
     hadith_sources = [h.to_dict() for h in hadith]
     sharh_sources = _complete_sharh(sharh, sharh_index)

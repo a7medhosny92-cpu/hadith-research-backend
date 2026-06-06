@@ -22,17 +22,19 @@ def find_parallels(
     hadith_index: HadithIndex,
     *,
     exclude_id: int | None = None,
-    limit: int = 20,
+    limit: int | None = 20,
     min_overlap: float = 0.5,
 ) -> list[tuple[float, SearchHit]]:
     """Return ``(overlap, hit)`` for hadith whose matn overlaps ``matn`` by at least
-    ``min_overlap``, best first. ``exclude_id`` drops the source hadith itself."""
+    ``min_overlap``, best first. ``exclude_id`` drops the source hadith itself.
+    ``limit=None`` scans and returns every parallel (no cap)."""
     source = _term_set(matn)
     if not source:
         return []
     scored: list[tuple[float, SearchHit]] = []
     seen: set[tuple[int, int | None]] = set()
-    for hit in hadith_index.search(matn, field="matn", limit=limit * 5):
+    pool = None if limit is None else limit * 5
+    for hit in hadith_index.search(matn, field="matn", limit=pool):
         if hit.id == exclude_id:
             continue
         terms = _term_set(hit.matn)
@@ -47,4 +49,4 @@ def find_parallels(
         seen.add(key)
         scored.append((round(overlap, 3), hit))
     scored.sort(key=lambda pair: (-pair[0], -pair[1].score))
-    return scored[:limit]
+    return scored if limit is None else scored[:limit]

@@ -35,7 +35,7 @@ def _parallel(overlap: float, hit) -> dict:
 def takhrij(
     hadith_id: int | None = Query(None, description="indexed hadith to trace"),
     q: str | None = Query(None, min_length=2, description="or a free matn text"),
-    limit: int = Query(50, ge=1, le=5000),
+    limit: int | None = Query(None, ge=1, description="cap parallels; omit for all"),
     min_overlap: float = Query(0.5, ge=0.1, le=1.0, description="min matn overlap (0–1)"),
     index: HadithIndex = Depends(get_index),
 ) -> dict:

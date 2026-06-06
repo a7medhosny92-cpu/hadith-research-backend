@@ -178,7 +178,7 @@ class HadithIndex:
         self,
         query: str,
         *,
-        limit: int = 20,
+        limit: int | None = 20,
         collection_id: int | None = None,
         grade: str | None = None,
         field: str = "all",
@@ -188,6 +188,7 @@ class HadithIndex:
         Tries an all-terms (AND) match first for precision, then falls back to
         any-term (OR) for recall. ``field`` selects what to search: ``all`` (matn +
         chapter + chain, matn weighted highest), ``matn``, or ``isnad``.
+        ``limit=None`` returns *every* match (no cap).
         """
         terms = _tokens(query)
         if not terms:
@@ -202,15 +203,17 @@ class HadithIndex:
         if grade is not None:
             filters.append("grade = ?")
             params.append(grade)
+        limit_sql = "" if limit is None else " LIMIT ?"
         sql = (
             "SELECT rowid, book_id, collection, number, matn, isnad, grade, chapter, "
             f"page, volume, -bm25(hadith, {_HADITH_WEIGHTS}) AS score, "
             "snippet(hadith, 0, '«', '»', '…', 12) AS snip "
-            f"FROM hadith WHERE {' AND '.join(filters)} ORDER BY score DESC LIMIT ?"
+            f"FROM hadith WHERE {' AND '.join(filters)} ORDER BY score DESC{limit_sql}"
         )
         for joiner in (" AND ", " OR "):
             params[0] = prefix + (joiner.join(f'"{t}"' for t in terms))
-            rows = self._con.execute(sql, [*params, limit]).fetchall()
+            args = [*params] if limit is None else [*params, limit]
+            rows = self._con.execute(sql, args).fetchall()
             if rows or joiner == " OR ":
                 return [_hit(row) for row in rows]
         return []
@@ -255,6 +258,7 @@ class SharhHit:
     hadith_number: int | None
     chapter: str | None
     page: int | None
+    page_id: int | None      # anchor page id — identifies the passage (joins its chunks)
     score: float
     excerpt: str             # matched fragment, the hit wrapped in «…» (shows context)
     text: str                # the full passage text (the complete stored chunk)
@@ -268,6 +272,7 @@ class SharhHit:
             "hadith_number": self.hadith_number,
             "chapter": self.chapter,
             "page": self.page,
+            "page_id": self.page_id,
             "score": round(self.score, 4),
             "excerpt": self.excerpt,
             "text": self.text,
@@ -332,7 +337,7 @@ class SharhIndex:
             params.append(hadith_number)
         sql = (
             "SELECT book_id, sharh_name, base_id, base_name, hadith_number, chapter, page, "
-            "-bm25(sharh) AS score, snippet(sharh, 0, '«', '»', '…', 24) AS snip, text "
+            "page_id, -bm25(sharh) AS score, snippet(sharh, 0, '«', '»', '…', 24) AS snip, text "
             f"FROM sharh WHERE {' AND '.join(filters)} ORDER BY score DESC LIMIT ?"
         )
         for joiner in (" AND ", " OR "):
@@ -346,21 +351,24 @@ class SharhIndex:
         """All commentary linked to a hadith, regardless of query (full passage text)."""
         rows = self._con.execute(
             "SELECT book_id, sharh_name, base_id, base_name, hadith_number, chapter, page, "
-            "0.0 AS score, substr(text, 1, 240) AS snip, text FROM sharh "
+            "page_id, 0.0 AS score, substr(text, 1, 240) AS snip, text FROM sharh "
             "WHERE base_id = ? AND hadith_number = ? LIMIT ?",
             (base_id, hadith_number, limit),
         ).fetchall()
         return [_sharh_hit(row) for row in rows]
 
-    def full_text(self, book_id: int, hadith_number: int) -> str:
-        """The complete commentary on one hadith from one شرح: all its chunks, in order.
+    def full_passage(self, book_id: int, page_id: int) -> str:
+        """Re-join every chunk of one شرح *passage* — a whole hadith's commentary, or a
+        whole chapter's — identified by its anchor ``page_id``.
 
-        A long passage is split into several chunks at index time; this re-joins them
-        so /ask can show the whole شرح, not just the fragment that matched the query.
+        A passage is split into ~1400-char chunks at index time for focused retrieval;
+        joining them back by their shared anchor returns the complete discourse (and it
+        works for by-number editions *and* by-chapter ones, where ``hadith_number`` is
+        null), so /ask shows the scholar's full explanation, never a truncated fragment.
         """
         rows = self._con.execute(
-            "SELECT text FROM sharh WHERE book_id = ? AND hadith_number = ? ORDER BY rowid",
-            (book_id, hadith_number),
+            "SELECT text FROM sharh WHERE book_id = ? AND page_id = ? ORDER BY rowid",
+            (book_id, page_id),
         ).fetchall()
         return " ".join(r[0] for r in rows if r[0]).strip()
 
@@ -374,6 +382,6 @@ class SharhIndex:
 def _sharh_hit(row: tuple) -> SharhHit:
     return SharhHit(
         book_id=row[0], sharh=row[1], base_id=row[2], base_name=row[3],
-        hadith_number=row[4], chapter=row[5], page=row[6], score=row[7],
-        excerpt=row[8], text=row[9],
+        hadith_number=row[4], chapter=row[5], page=row[6], page_id=row[7],
+        score=row[8], excerpt=row[9], text=row[10],
     )

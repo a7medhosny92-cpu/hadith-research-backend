@@ -59,10 +59,21 @@ def ask(
 ) -> dict:
     settings = get_settings()
     resolved = resolve_engine(engine, settings)
-    out = answer_question(
-        q, hadith_index, sharh_index,
-        k_hadith=k_hadith, k_sharh=k_sharh,
-        synthesize=build_synthesizer(resolved, settings),
-    )
+    kw = dict(k_hadith=k_hadith, k_sharh=k_sharh)
+    try:
+        out = answer_question(
+            q, hadith_index, sharh_index,
+            synthesize=build_synthesizer(resolved, settings), **kw,
+        )
+    except Exception:
+        # The LLM brain is unreachable (Ollama not running, missing API key, or the
+        # optional 'llm' extra not installed). Don't fail the request — fall back to
+        # the cited extractive answer and tell the user what happened.
+        out = answer_question(q, hadith_index, sharh_index, synthesize=None, **kw)
+        out["warning"] = (
+            "تعذّر تشغيل محرّك الذكاء الاصطناعي — تأكّد من تشغيل Ollama للمحرّك المحلي، "
+            "أو من ضبط مفتاح API للمحرّك السحابي. وهذه إجابة استخراجية من المصادر."
+        )
+        resolved = "off"
     out["engine"] = resolved
     return out

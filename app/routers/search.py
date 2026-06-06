@@ -36,7 +36,7 @@ def search(
     field: str = Query("all", pattern="^(all|matn|isnad)$"),
     collection: int | None = Query(None, description="restrict to a collection (book id)"),
     grade: str | None = Query(None, description="restrict to an authenticity grade"),
-    limit: int = Query(50, ge=1, le=5000),
+    limit: int | None = Query(None, ge=1, description="cap results; omit for all matches"),
     index: HadithIndex = Depends(get_index),
 ) -> dict:
     hits = index.search(

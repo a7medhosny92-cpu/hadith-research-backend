@@ -146,3 +146,18 @@ def test_api_ask_engine_routes_to_llm(client, monkeypatch):
 
 def test_api_ask_rejects_unknown_engine(client):
     assert client.get("/ask", params={"q": "النية", "engine": "wat"}).status_code == 422
+
+
+def test_api_ask_falls_back_when_engine_unavailable(client, monkeypatch):
+    # The chosen brain is unreachable (Ollama down / missing key / no litellm): the
+    # synthesizer raises. /ask must still answer — extractively — with a warning.
+    def boom(engine, settings):
+        def _raise(q, h, s):
+            raise RuntimeError("engine unavailable")
+        return _raise
+
+    monkeypatch.setattr(ask_router, "build_synthesizer", boom)
+    body = client.get("/ask", params={"q": "الأعمال بالنيات", "engine": "remote"}).json()
+    assert body["mode"] == "extractive"   # fell back, did not 500
+    assert body["engine"] == "off"
+    assert "warning" in body
