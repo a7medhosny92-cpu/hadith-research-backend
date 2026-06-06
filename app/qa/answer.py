@@ -28,7 +28,7 @@ def _citation(hit: SearchHit) -> str:
     return " - ".join(parts)
 
 
-def _extractive_answer(hadith: list[SearchHit], sharh: list[SharhHit]) -> str:
+def _extractive_answer(hadith: list[SearchHit], sharh: list[dict]) -> str:
     if not hadith:
         return "لم أعثر على حديثٍ مطابقٍ في النصوص المتوفّرة."
     top = hadith[0]
@@ -37,14 +37,40 @@ def _extractive_answer(hadith: list[SearchHit], sharh: list[SharhHit]) -> str:
         lines.append(f"الحكم: {top.grade}.")
     if sharh:
         s = sharh[0]
+        body = s.get("text") or s.get("excerpt") or ""
         # Be honest about whether the commentary explains *this* hadith or is merely
         # related: only passages linked to the top hadith may claim to be its شرح.
-        if s.hadith_number == top.number and s.base_id == top.book_id:
-            lines.append(f"\nمن كلام أهل العلم في شرح هذا الحديث — {s.sharh}:\n{s.excerpt}")
+        if s.get("hadith_number") == top.number and s.get("base_id") == top.book_id:
+            lines.append(f"\nمن كلام أهل العلم في شرح هذا الحديث — {s.get('sharh')}:\n{body}")
         else:
-            ref = s.sharh + (f" (عند الحديث رقم {s.hadith_number})" if s.hadith_number else "")
-            lines.append(f"\nومن الشروح ذات الصلة بالموضوع — {ref}:\n{s.excerpt}")
+            ref = s.get("sharh") + (
+                f" (عند الحديث رقم {s['hadith_number']})" if s.get("hadith_number") else ""
+            )
+            lines.append(f"\nومن الشروح ذات الصلة بالموضوع — {ref}:\n{body}")
     return "\n".join(lines)
+
+
+def _complete_sharh(sharh: list[SharhHit], sharh_index: SharhIndex) -> list[dict]:
+    """Turn the ranked شرح chunks into source dicts carrying the *complete* passage.
+
+    For by-number commentary we re-join every chunk of that hadith's شرح (and drop
+    duplicate chunks of the same commentary on the same hadith); by-chapter شرح has
+    no hadith number to join on, so its own chunk text is kept as-is.
+    """
+    out: list[dict] = []
+    seen: set[tuple[int, int]] = set()
+    for s in sharh:
+        d = s.to_dict()
+        if s.hadith_number is not None:
+            key = (s.book_id, s.hadith_number)
+            if key in seen:
+                continue
+            seen.add(key)
+            full = sharh_index.full_text(s.book_id, s.hadith_number)
+            if full:
+                d["text"] = full
+        out.append(d)
+    return out
 
 
 def answer_question(
@@ -75,12 +101,12 @@ def answer_question(
             sharh = sharh_index.search(question, limit=k_sharh)
 
     hadith_sources = [h.to_dict() for h in hadith]
-    sharh_sources = [s.to_dict() for s in sharh]
+    sharh_sources = _complete_sharh(sharh, sharh_index)
 
     if synthesize is not None:
         answer, mode = synthesize(question, hadith_sources, sharh_sources), "llm"
     else:
-        answer, mode = _extractive_answer(hadith, sharh), "extractive"
+        answer, mode = _extractive_answer(hadith, sharh_sources), "extractive"
 
     return {
         "question": question,

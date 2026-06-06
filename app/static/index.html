@@ -48,6 +48,9 @@
   .sharh .ex{margin-top:6px;line-height:1.95;color:#d4e6dc}
   .note{color:var(--muted);margin:6px 2px}
   .state{text-align:center;padding:40px;color:var(--muted);font-size:1.05rem}
+  .more{display:block;margin:20px auto;background:var(--card);color:var(--accent);
+    border:1px solid var(--accent);border-radius:8px;padding:11px 26px;font-size:1rem;cursor:pointer}
+  .more:hover{background:var(--accent);color:#fff}
 </style>
 </head>
 <body>
@@ -103,31 +106,50 @@ function hadithCard(h){
     <div class="cite">${grade}<span>${esc(cite)}</span></div>${isnad}</div>`;
 }
 
+// Reveal long result lists in batches so the window stays responsive even with
+// thousands of hits — all results are fetched, "تحميل المزيد" shows the rest.
+const PAGE = 50;
+let listState = null;   // {hits, shown, unit}
+
+function renderList(hits, unit, empty){
+  if(!hits.length){ results.innerHTML = `<div class="state">${empty}</div>`; return; }
+  listState = { hits, shown: 0, unit };
+  results.innerHTML =
+    `<div class="note" id="count"></div><div id="list"></div><div id="more-wrap"></div>`;
+  revealMore();
+}
+function revealMore(){
+  const { hits, shown, unit } = listState;
+  const next = hits.slice(shown, shown + PAGE);
+  document.getElementById("list").insertAdjacentHTML("beforeend", next.map(hadithCard).join(""));
+  listState.shown += next.length;
+  document.getElementById("count").textContent = `${listState.shown} من ${hits.length} ${unit}`;
+  const left = hits.length - listState.shown;
+  const wrap = document.getElementById("more-wrap");
+  wrap.innerHTML = left > 0 ? `<button class="more">تحميل المزيد (${left})</button>` : "";
+  if(left > 0) wrap.firstChild.onclick = revealMore;
+}
+
 async function run(){
   const query = q.value.trim();
   if(!query) return;
   results.innerHTML = `<div class="state">… جارٍ التنفيذ</div>`;
   try{
     if(mode === "search"){
-      const d = await (await fetch(`/search?q=${encodeURIComponent(query)}&limit=20`)).json();
-      const hits = d.results || [];
-      results.innerHTML = hits.length
-        ? `<div class="note">${d.count} نتيجة</div>` + hits.map(hadithCard).join("")
-        : `<div class="state">لا توجد نتائج</div>`;
+      const d = await (await fetch(`/search?q=${encodeURIComponent(query)}&limit=5000`)).json();
+      renderList(d.results || [], "نتيجة", "لا توجد نتائج");
     } else if(mode === "ask"){
       const d = await (await fetch(`/ask?q=${encodeURIComponent(query)}`)).json();
       let html = `<div class="card"><div class="answer">${esc(d.answer)}</div></div>`;
       (d.sharh || []).forEach(s => {
         const ref = s.sharh + (s.hadith_number!=null ? ` (عند الحديث ${s.hadith_number})` : "");
-        html += `<div class="card sharh"><b>${esc(ref)}</b><div class="ex">${esc(s.excerpt)}</div></div>`;
+        const body = s.text || s.excerpt || "";
+        html += `<div class="card sharh"><b>${esc(ref)}</b><div class="ex">${esc(body)}</div></div>`;
       });
       results.innerHTML = html;
     } else {
-      const d = await (await fetch(`/takhrij?q=${encodeURIComponent(query)}&limit=20`)).json();
-      const ps = d.parallels || [];
-      results.innerHTML = ps.length
-        ? `<div class="note">${d.count} روايات موازية</div>` + ps.map(hadithCard).join("")
-        : `<div class="state">لا توجد روايات موازية</div>`;
+      const d = await (await fetch(`/takhrij?q=${encodeURIComponent(query)}&limit=5000`)).json();
+      renderList(d.parallels || [], "رواية موازية", "لا توجد روايات موازية");
     }
   } catch(e){
     results.innerHTML = `<div class="state">تعذّر الاتصال بالخادم. تأكّد أنّ التطبيق يعمل.</div>`;
