@@ -24,14 +24,14 @@ def _sources_block(hadith: list[dict], sharh: list[dict]) -> str:
     for h in hadith:
         cite = f"{h.get('collection')} رقم {h.get('number')}"
         grade = f" [الحكم: {h['grade']}]" if h.get("grade") else ""
-        lines.append(f"- ({cite}){grade}: {h.get('matn')}")
+        lines.append(f"- ({cite}){grade}: {h.get('matn') or ''}")
     if sharh:
         lines.append("\n# الشروح")
         for s in sharh:
-            ref = s.get("sharh")
+            ref = s.get("sharh") or "شرح"   # commentaries with no title must not crash here
             if s.get("hadith_number"):
                 ref += f" (عند الحديث {s['hadith_number']})"
-            lines.append(f"- ({ref}): {s.get('text') or s.get('excerpt')}")
+            lines.append(f"- ({ref}): {s.get('text') or s.get('excerpt') or ''}")
     return "\n".join(lines)
 
 
@@ -61,7 +61,7 @@ def litellm_synthesizer(
             ],
             temperature=temperature,
         )
-        return response["choices"][0]["message"]["content"].strip()
+        return (response["choices"][0]["message"]["content"] or "").strip()
 
     return synthesize
 
