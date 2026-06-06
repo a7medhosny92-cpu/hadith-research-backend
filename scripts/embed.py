@@ -21,6 +21,7 @@ from app.config import get_settings
 from app.search import HadithIndex
 from app.search.embeddings import load_embedder
 from app.search.vectors import VectorIndex
+from scripts._atomic import rebuild
 
 
 def main() -> None:
@@ -41,34 +42,34 @@ def main() -> None:
 
     embedder = load_embedder(settings)
     print(f"Embedder: {type(embedder).__name__} (dim={embedder.dim}); {total} hadith to embed.")
+    started = time.time()
 
-    if settings.vector_index_path.exists():
-        settings.vector_index_path.unlink()
-    vectors = VectorIndex(settings.vector_index_path, dim=embedder.dim)
+    def build(tmp):
+        vectors = VectorIndex(tmp, dim=embedder.dim)
+        ids: list[int] = []
+        texts: list[str] = []
+        done = 0
 
-    started, done = time.time(), 0
-    ids: list[int] = []
-    texts: list[str] = []
+        def flush() -> None:
+            nonlocal done
+            if not texts:
+                return
+            vectors.add(ids, embedder.embed(texts))
+            done += len(texts)
+            print(f"  embedded {done}/{total} ({done * 100 // total}%)", end="\r")
+            ids.clear()
+            texts.clear()
 
-    def flush() -> None:
-        nonlocal done
-        if not texts:
-            return
-        vectors.add(ids, embedder.embed(texts))
-        done += len(texts)
-        print(f"  embedded {done}/{total} ({done * 100 // total}%)", end="\r")
-        ids.clear()
-        texts.clear()
+        for rowid, text in lexical.iter_for_embedding():
+            ids.append(rowid)
+            texts.append(text)
+            if len(texts) >= args.batch:
+                flush()
+        flush()
+        return vectors
 
-    for rowid, text in lexical.iter_for_embedding():
-        ids.append(rowid)
-        texts.append(text)
-        if len(texts) >= args.batch:
-            flush()
-    flush()
-
-    print(f"\nIndexed {vectors.count()} vectors → {settings.vector_index_path} "
-          f"in {time.time() - started:.1f}s")
+    n = rebuild(settings.vector_index_path, build)
+    print(f"\nIndexed {n} vectors → {settings.vector_index_path} in {time.time() - started:.1f}s")
 
 
 if __name__ == "__main__":

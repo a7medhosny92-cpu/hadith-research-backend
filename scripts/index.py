@@ -12,6 +12,7 @@ import time
 
 from app.config import get_settings
 from app.search import HadithIndex, SharhIndex
+from scripts._atomic import rebuild
 
 
 def main() -> None:
@@ -23,15 +24,14 @@ def main() -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
 
     started = time.time()
-    if settings.index_path.exists():
-        settings.index_path.unlink()
-    hadith = HadithIndex.build_from_processed(processed, settings.index_path)
-    print(f"Indexed {hadith.count()} hadith → {settings.index_path}")
+    n = rebuild(settings.index_path, lambda tmp: HadithIndex.build_from_processed(processed, tmp))
+    print(f"Indexed {n} hadith → {settings.index_path}")
 
-    if settings.sharh_index_path.exists():
-        settings.sharh_index_path.unlink()
-    sharh = SharhIndex.build_from_processed(processed / "sharh", settings.sharh_index_path)
-    print(f"Indexed {sharh.count()} sharh passages → {settings.sharh_index_path}")
+    m = rebuild(
+        settings.sharh_index_path,
+        lambda tmp: SharhIndex.build_from_processed(processed / "sharh", tmp),
+    )
+    print(f"Indexed {m} sharh passages → {settings.sharh_index_path}")
     print(f"Done in {time.time() - started:.1f}s")
 
 
