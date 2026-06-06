@@ -41,12 +41,14 @@ def build_prompt(question: str, hadith: list[dict], sharh: list[dict]) -> str:
 
 
 def litellm_synthesizer(
-    model: str, *, api_base: str | None = None, temperature: float = 0.2
+    model: str, *, api_base: str | None = None, temperature: float = 0.2,
+    timeout: float = 60.0,
 ) -> Synthesizer:
     """A Synthesizer that calls ``model`` via litellm (lazy import).
 
     ``api_base`` is only meaningful for a local server (Ollama). For a cloud model
     it must be ``None`` — otherwise litellm would send the request to localhost.
+    ``timeout`` bounds the call so a wedged provider can't block the worker forever.
     """
 
     def synthesize(question: str, hadith: list[dict], sharh: list[dict]) -> str:
@@ -60,6 +62,8 @@ def litellm_synthesizer(
                 {"role": "user", "content": build_prompt(question, hadith, sharh)},
             ],
             temperature=temperature,
+            timeout=timeout,
+            num_retries=0,  # so /ask's fallback is reached promptly on failure
         )
         return (response["choices"][0]["message"]["content"] or "").strip()
 
@@ -113,11 +117,13 @@ def synthesizer_for_engine(engine: str, settings, model: str | None = None) -> S
     """
     if engine == "off":
         return None
+    timeout = getattr(settings, "llm_timeout", 60.0)
     if engine == "local":
         return litellm_synthesizer(
             model or settings.llm_local_model,
             api_base=settings.ollama_api_base,
             temperature=settings.llm_temperature,
+            timeout=timeout,
         )
     if engine == "remote":
         _export_api_keys(settings)
@@ -125,5 +131,6 @@ def synthesizer_for_engine(engine: str, settings, model: str | None = None) -> S
             model or settings.llm_remote_model,
             api_base=None,
             temperature=settings.llm_temperature,
+            timeout=timeout,
         )
     raise ValueError(f"unknown LLM engine: {engine!r}")

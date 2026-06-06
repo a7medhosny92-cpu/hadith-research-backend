@@ -7,6 +7,7 @@ built in memory from processed/sharh JSONL).
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 
 from fastapi import APIRouter, Depends, Query
@@ -78,9 +79,11 @@ def ask(
             synthesize=build_synthesizer(resolved, settings, model), **kw,
         )
     except Exception:
-        # The LLM brain is unreachable (Ollama not running, missing API key, or the
-        # optional 'llm' extra not installed). Don't fail the request — fall back to
-        # the cited extractive answer and tell the user what happened.
+        # The LLM brain is unreachable (Ollama not running, missing API key, the
+        # optional 'llm' extra not installed) — or an internal error. Don't fail the
+        # request: fall back to the cited extractive answer. Log it so a real bug is
+        # visible rather than silently masked as "engine unreachable".
+        logging.getLogger(__name__).exception("LLM synthesis failed; serving extractive answer")
         out = answer_question(q, retriever, sharh_index, synthesize=None, **kw)
         out["warning"] = (
             "تعذّر تشغيل محرّك الذكاء الاصطناعي — تأكّد من تشغيل Ollama للمحرّك المحلي، "

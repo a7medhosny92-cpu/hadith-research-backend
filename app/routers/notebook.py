@@ -7,13 +7,30 @@ edit the note; delete. Stored locally and kept across updates (see app.notebook)
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from app.config import get_settings
 from app.notebook import Notebook
 
 router = APIRouter(tags=["notebook"])
+
+
+class NoteCreate(BaseModel):
+    """A saved item. Typed so a wrong field type is a clean 422, not a 500."""
+    kind: str = "note"
+    title: str = ""
+    body: str = ""
+    meta: dict[str, Any] = Field(default_factory=dict)
+    note: str = ""
+    tags: str = ""
+
+
+class NoteUpdate(BaseModel):
+    note: str | None = None
+    tags: str | None = None
 
 
 @lru_cache(maxsize=1)
@@ -34,25 +51,21 @@ def list_notes(
 
 
 @router.post("/notebook")
-def add_note(payload: dict = Body(...), notebook: Notebook = Depends(get_notebook)) -> dict:
-    title = (payload.get("title") or "").strip()
-    if not title and not (payload.get("body") or "").strip():
+def add_note(payload: NoteCreate, notebook: Notebook = Depends(get_notebook)) -> dict:
+    title = payload.title.strip()
+    if not title and not payload.body.strip():
         raise HTTPException(status_code=422, detail="title or body required")
     return notebook.add(
-        kind=payload.get("kind") or "note",
-        title=title,
-        body=payload.get("body") or "",
-        meta=payload.get("meta") or {},
-        note=payload.get("note") or "",
-        tags=payload.get("tags") or "",
+        kind=payload.kind or "note", title=title, body=payload.body,
+        meta=payload.meta, note=payload.note, tags=payload.tags,
     )
 
 
 @router.patch("/notebook/{note_id}")
 def edit_note(
-    note_id: int, payload: dict = Body(...), notebook: Notebook = Depends(get_notebook)
+    note_id: int, payload: NoteUpdate, notebook: Notebook = Depends(get_notebook)
 ) -> dict:
-    updated = notebook.update(note_id, note=payload.get("note"), tags=payload.get("tags"))
+    updated = notebook.update(note_id, note=payload.note, tags=payload.tags)
     if updated is None:
         raise HTTPException(status_code=404, detail="note not found")
     return updated
