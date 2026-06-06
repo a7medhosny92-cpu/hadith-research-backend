@@ -114,7 +114,11 @@ Pull the latest code and refresh the corpus in one go — on Windows just **doub
 ```bash
 python -m scripts.update              # code + corpus
 python -m scripts.update --code-only  # just code + dependencies (fast)
+python -m scripts.update --semantic   # also build the semantic index (smart search)
 ```
+
+On Windows, **double-click `update-semantic.bat`** to update *and* turn on semantic
+search in one go (first run downloads a model + embeds the corpus — one-off).
 
 Safe to re-run anytime: `git pull` is fast-forward, the crawl resumes, and
 parse/index are idempotent.
