@@ -22,39 +22,56 @@ Each answer is meant to surface, for a hadith:
 ## Architecture (7 layers)
 
 ```
-turath.io ─▶ [1] Ingestion ─▶ [2] Parsing ─▶ [3] Store ─▶ [4] Indexing
-            (resumable,       (HTML → matn/  (Postgres   (Arabic embeddings
-             rate-limited)     isnad/grade)   + pgvector)  + lexical search)
-                                                                  │
-   [7] FastAPI ◀─ [6] LLM engine ◀─ [5] Retrieval (RAG)  ◀────────┘
-   /search /ask    (provider-agnostic:  (hybrid dense + lexical,
-   /takhrij        local Ollama + Claude  rerank, grounded citations)
-   /verify-isnad    + OpenAI + …)
+turath.io
+   │  [1] Ingestion   app/ingestion/   polite · rate-limited · resumable
+   ▼
+data/raw/turath/*.json
+   │  [2] Parsing     app/parsing/     HTML → متن · إسناد · grade · شرح · citation
+   ▼
+data/processed/*.jsonl
+   │  [3] Indexing    scripts/         index · embed · build_graph
+   ▼
+ ┌── Local indexes (sqlite; PostgreSQL + pgvector in production) ──────────────┐
+ │  FTS5 hadith · FTS5 شروح · dense vectors · narrator graph · rijal gradings  │
+ └─────────────────────────────────────────────────────────────────────────────┘
+   │  [4] Retrieval   app/search/      lexical · semantic · hybrid (RRF fusion)
+   │  [5] Sciences    app/qa/ · app/rijal/
+   │        answer (RAG) · takhrij (صيغ · صحابي · أخرجه) · isnad · rulings (أحكام) · rijal graph
+   │  [6] LLM engine  app/qa/llm.py    off / local (Ollama) / remote (Claude) — via LiteLLM
+   ▼
+ [7] FastAPI  app/main.py   →  /search · /hadith · /ask · /takhrij · /verify-isnad · /narrator
+        │
+        └─ /app  →  static UI ⟷ native desktop window     modes: بحث · سؤال · تخريج · راوٍ
 ```
+
+The chain is the same everywhere: the system **retrieves and cites**, it never
+invents — every answer stays verifiable against the real sources.
 
 The **LLM engine is provider-agnostic** and chosen per request via `?engine=`:
 `local` is a model via Ollama, `remote` is any cloud engine (Claude, OpenAI, …) —
 set `LLM_REMOTE_MODEL` + an API key. No code changes to swap brains.
 
-## Status
+## What it does
 
-| Phase | What | State |
-|------|------|-------|
-| 0 | Scaffold, config, FastAPI app, CI/tests | ✅ done |
-| 1 | turath.io ingestion (catalog, client, resumable downloader) | ✅ done |
-| 2 | Parsing → structured matn / isnad / grade / citation (multi-edition) | ✅ done |
-| 3 | Enrichment | ◐ takhrij ✅ · rijal gradings (curated seed) ✅ · full رجال DB ☐ |
-| 4 | Search (`/search`, `/hadith/{id}`) | ✅ lexical FTS (uncapped) · **semantic + hybrid (RRF)** via local vectors (`?mode=`) |
-| 5 | `/ask` (Classical-Arabic, cited) | ✅ extractive · **local/remote LLM switch** (`?engine=`) |
-| 6 | **Scholars' explanations (شروح)** linked to hadith & surfaced in answers | ✅ done |
-| 7 | Verification (`/takhrij`, `/verify-isnad`) | ✅ done |
+| Capability | Endpoint | State |
+|---|---|---|
+| Ingestion from turath.io (resumable, rate-limited) | — | ✅ |
+| Parsing → structured متن / إسناد / grade / citation + شروح (multi-edition) | — | ✅ |
+| **Search** — lexical FTS (uncapped) · semantic · **hybrid (RRF)** | `/search?mode=` | ✅ |
+| **Ask (RAG)** — top hadith + **full شرح** + **rulings (أحكام)**, cited; LLM switch off/local/remote | `/ask?engine=` | ✅ |
+| **Takhrij** — *every* narration → variants (صيغ: بلفظه/بنحوه/بمعناه) · grouped by **Companion** · «أخرجه» · chains shown | `/takhrij` | ✅ |
+| **Isnad** — structure (سماع/عنعنة/تحويل), per-narrator grade, **continuity (اتصال)** vs the network | `/verify-isnad` | ✅ |
+| **Narrator network (علم الرجال)** — شيوخ/تلاميذ from the chains, weighted; gradings (seed; full رجال via `RIJAL_PATH`) | `/narrator` | ✅ |
+| **Scholars' rulings (أحكام)** — ordered by طبقة, divergence flagged, «حسن صحيح» resolved by the number of chains | in `/ask`,`/takhrij` | ✅ |
+| Scholars' explanations (شروح) linked per hadith & quoted with attribution | in `/ask` | ✅ |
 
-**Dev vs production.** Everything above runs **today** on a zero-extra-deps stack:
-parsing is pure-stdlib and search is **sqlite FTS5** (Arabic-folded). The search
-interface is storage-agnostic, so production swaps in **PostgreSQL + pgvector**
-(hybrid lexical+semantic) and an **LLM** for `/ask` synthesis by installing the
-optional extras and flipping the LLM engine on (`LLM_DEFAULT_ENGINE=local|remote`,
-or per request `/ask?engine=…`) — no caller changes. The ORM models,
+**Dev vs production.** Everything above runs **today** on your machine with a light
+stack: parsing is pure-stdlib and the indexes are **sqlite** — FTS5 for lexical
+search (Arabic-folded), plus local dense **vectors** and the **narrator graph**.
+The storage interface is backend-agnostic, so production swaps in **PostgreSQL +
+pgvector** (hybrid lexical+semantic) and an **LLM** for `/ask` synthesis by
+installing the optional extras and flipping the engine on (`LLM_DEFAULT_ENGINE=
+local|remote`, or per request `/ask?engine=…`) — no caller changes. The ORM models,
 DB loader and embedding/LLM hooks are in place (`app/models`, `scripts/load_db.py`,
 `app/search/embeddings.py`, `app/qa/llm.py`).
 
