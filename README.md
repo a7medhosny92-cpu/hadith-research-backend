@@ -198,10 +198,12 @@ pip install -e ".[desktop]"
 python -m app.desktop            # or the console script:  hadith-app
 ```
 
-It opens a window over the local app to **search**, **ask**, and trace **takhrij**.
-Search and takhrij return *all* matches (revealed in batches, no cap), `/ask` shows
-the **complete** شرح passage, and in «ask» mode a dropdown switches the answer engine
-between **off** (extractive), **local** (Ollama) and **remote** (Claude) live.
+It opens a window over the local app to **search**, **ask**, trace **takhrij**, and
+explore a **narrator (راوٍ)**. Search/takhrij return *all* matches (revealed in batches,
+no cap), `/ask` shows the **complete** شرح passage. In «ask» a dropdown switches the
+engine **off / local / remote** live, a model box picks **any** litellm model, and
+**«قارن النماذج»** runs the question across the local Qwen sizes (3b · 7b · 14b)
+**side by side with timings**, so you can see which size answers best for you.
 
 **Semantic ("smart") search.** Beyond exact words, you can match by *meaning*
 (synonyms, paraphrase). Build a local vector index once, then `/ask` retrieves with a
