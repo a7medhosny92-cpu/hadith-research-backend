@@ -84,6 +84,29 @@ def test_lookup_does_not_overgrade_via_single_token_alias():
     assert idx.lookup("عن أنس").entry.category == "صحابي"
 
 
+def test_kashif_style_entries_extract_clean_names_and_grades():
+    """al-Dhahabī's الكاشف has no طبقة and uses «سمع … وعنه …»; the verdict («الحافظ»,
+    «صدوق») sits around it, and OCR sometimes glues «صدوقتوفي» (audit RIJ-3/4)."""
+    page = "\n".join([
+        "١- أحمد بن إبراهيم الدورقي الحافظ عن هشيم وعنه مسلم توفي ٢٤٦ م د",
+        "٢- أحمد بن إسحاق الحضرمي البصري ثقة سمع عكرمة وعنه أبو خيثمة توفي ٢١١ م",
+        "٣- أحمد بن إبراهيم البسري الدمشقي صدوقتوفي ٢٨٩ س",
+        "٤- نوح بن أبي مريم رماه بالكذب وعنه فلان ق",
+    ])
+    recs = list(iter_narrators([{"pg": 1, "text": page}], source="الكاشف"))
+    by = {r["name"].split()[2] if len(r["name"].split()) > 2 else r["name"]: r for r in recs}
+    cats = {r["name"]: classify(r["grade"])[0] for r in recs}
+    # الحافظ is read as a verdict; the name stops before it
+    dorqi = next(r for r in recs if "الدورقي" in r["name"])
+    assert classify(dorqi["grade"])[0] == "ثقة" and "عن" not in dorqi["name"]
+    # «ثقة» before «سمع» is the verdict; the name stops at it
+    assert classify(next(r for r in recs if "الحضرمي" in r["name"])["grade"])[0] == "ثقة"
+    # OCR glue «صدوقتوفي» is split → صدوق
+    assert classify(next(r for r in recs if "البسري" in r["name"])["grade"])[0] == "صدوق"
+    # «رماه بالكذب» → كذاب (narrative liar verdict)
+    assert classify(next(r for r in recs if "نوح" in r["name"])["grade"])[0] == "كذاب"
+
+
 def test_dedupe_drops_exact_seed_duplicates_but_keeps_namesakes():
     records = [
         {"name": "عبد الله بن عمر", "grade": "صحابي"},            # exact seed alias → drop

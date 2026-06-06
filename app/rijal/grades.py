@@ -51,6 +51,8 @@ _QUALIFIERS_N = [normalize_for_search(q) for q in _QUALIFIERS]
 
 def _first_index(haystack: str, needle: str) -> int:
     pos = haystack.find(f" {needle} ")
+    if pos < 0:                              # also accept the definite-article form
+        pos = haystack.find(f" ال{needle} ")  # «الحافظ»/«الإمام»/«الثقة» (al-Dhahabī)
     return pos if pos >= 0 else 10**9
 
 
