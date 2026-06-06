@@ -7,6 +7,10 @@ up to date: download new/updated books -> parse -> rebuild the search indexes.
     python -m scripts.update --code-only  # just pull code + refresh deps (fast)
     python -m scripts.update --full       # refresh the FULL corpus, not just canonical
 
+Once the semantic index exists, every update re-embeds **incrementally** (only the
+matns whose text changed) to keep it aligned with the freshly-rebuilt id space — so
+``update.bat`` and ``update-semantic.bat`` both leave search consistent.
+
 Safe to re-run anytime: ``git pull`` is fast-forward only, the crawl is resumable,
 and parse/index are idempotent. On Windows you can also double-click ``update.bat``.
 """
@@ -17,6 +21,8 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
+
+from app.config import get_settings
 
 ROOT = Path(__file__).resolve().parent.parent
 PY = sys.executable
@@ -40,11 +46,16 @@ def main() -> None:
                          "(installs the 'embeddings' extra; the first run downloads a model)")
     args = ap.parse_args()
 
+    # Keep the semantic index aligned automatically: once it's been built, a re-index
+    # reassigns row ids, so every update must re-embed (incrementally — fast). --semantic
+    # forces it on (and installs the embeddings extra) for the first-time setup.
+    semantic = args.semantic or get_settings().vector_index_path.exists()
+
     step("1/5  Pull the latest code from GitHub", ["git", "pull", "--ff-only"])
     # Include the desktop window (pywebview) and the LLM switch (litellm) so the app
     # and the local/remote «brain» work out of the box after an update; add the
-    # embeddings stack too when semantic search is requested.
-    extras = ".[dev,desktop,llm,embeddings]" if args.semantic else ".[dev,desktop,llm]"
+    # embeddings stack too when semantic search is in use.
+    extras = ".[dev,desktop,llm,embeddings]" if semantic else ".[dev,desktop,llm]"
     step("2/5  Refresh dependencies", [PY, "-m", "pip", "install", "-e", extras, "-q"])
 
     if args.code_only:
@@ -62,8 +73,9 @@ def main() -> None:
     # the small رجال sources if missing; resumable and idempotent.
     step("7/7  Build the رجال gradings (تقريب التهذيب + الكاشف)",
          [PY, "-X", "utf8", "-m", "scripts.build_rijal"])
-    if args.semantic:
-        step("+ semantic  Build the vector index (incremental — embeds only new/changed matns)",
+    if semantic:
+        why = "" if args.semantic else " (keeping your existing semantic index aligned)"
+        step(f"+ semantic  Build the vector index — incremental, only new/changed matns{why}",
              [PY, "-X", "utf8", "-m", "scripts.embed"])
     print("\nDone — code, corpus and indexes are all up to date.")
 
