@@ -60,6 +60,7 @@ class RijalMatch:
     def to_dict(self) -> dict:
         return {
             "name": self.entry.name,
+            "kunya": self.entry.kunya,
             "grade": self.entry.category,
             "rank": self.entry.rank,
             "verdict": self.entry.grade_text,

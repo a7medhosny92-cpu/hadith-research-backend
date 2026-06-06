@@ -78,6 +78,9 @@
     border-bottom:1px solid var(--line);padding-bottom:8px}
   .rawi-item{display:flex;justify-content:space-between;gap:10px;align-items:center;
     padding:7px 4px;border-bottom:1px solid #20292f;font-size:1.05rem}
+  .rawi-summary{margin-top:10px;color:#cdd9e1;line-height:2;font-size:1.05rem}
+  .sources{margin:16px 2px;color:var(--muted);font-size:.9rem;line-height:1.9;
+    border-top:1px dashed var(--line);padding-top:10px}
   .rulings{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);
     display:flex;flex-wrap:wrap;gap:6px;align-items:center;line-height:2}
   .r-lbl{color:var(--accent);font-weight:bold;font-size:.9rem}
@@ -282,11 +285,17 @@ function rawiList(title, arr){
 function renderNarrator(d){
   const v = d.grade && (d.grade.verdict || d.grade.grade);
   const badge = v ? `<span class="grade ${rijalClass(v)}">${esc(v)}</span>` : "";
-  let html = `<div class="card"><div class="rawi-name">${esc(d.name)} ${badge}</div></div>`;
+  let html = `<div class="card"><div class="rawi-name">${esc(d.name)} ${badge}</div>`;
+  if(d.summary) html += `<div class="rawi-summary">${esc(d.summary)}</div>`;
+  html += `</div>`;
   html += `<div class="rawi-cols">`
     + rawiList("شيوخه — يروي عنهم", d.teachers)
     + rawiList("تلاميذه — يروون عنه", d.students)
     + `</div>`;
+  if(d.sources && d.sources.length){
+    html += `<div class="sources"><span class="r-lbl">المصادر:</span> `
+      + d.sources.map(s => `${esc(s.what)} — ${esc(s.from)}`).join("  ·  ") + `</div>`;
+  }
   results.innerHTML = html;
 }
 
