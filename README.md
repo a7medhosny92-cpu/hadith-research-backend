@@ -41,7 +41,8 @@ data/processed/*.jsonl
    ▼
  [7] FastAPI  app/main.py   →  /search · /hadith · /ask · /takhrij · /verify-isnad · /narrator · /notebook
         │
-        └─ /app  →  static UI ⟷ native desktop window  modes: بحث · سؤال · تخريج · راوٍ · الإسناد · دفتري
+        └─ /app  →  static UI ⟷ native desktop window
+                    modes: بحث · سؤال · تخريج · راوٍ · الإسناد · دفتري · المنهجية
 ```
 
 The chain is the same everywhere: the system **retrieves and cites**, it never
@@ -68,6 +69,7 @@ brains or providers.
 | **Scholars' rulings (أحكام)** — ordered by طبقة, divergence flagged, «حسن صحيح» resolved by the number of chains | in `/ask`,`/takhrij` | ✅ |
 | Scholars' explanations (شروح) linked per hadith & quoted with attribution | in `/ask` | ✅ |
 | **Study notebook (دفتري)** — save any hadith / narrator / answer / isnad with a note; persists across rebuilds | `/notebook` | ✅ |
+| **Methodology (المنهجية)** — an in-app page explaining, for **every datum**, its source, how it is derived, its advantages and its limits | in `/app` | ✅ |
 
 **Dev vs production.** Everything above runs **today** on your machine with a light
 stack: parsing is pure-stdlib and the indexes are **sqlite** — FTS5 for lexical
