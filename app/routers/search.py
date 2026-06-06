@@ -15,6 +15,7 @@ from functools import lru_cache
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.config import get_settings
+from app.qa.rulings import extract_rulings
 from app.search import HadithIndex, HybridSearcher, VectorIndex
 from app.search.embeddings import Embedder
 
@@ -77,8 +78,14 @@ def search(
         "query": q,
         "mode": effective,
         "count": len(hits),
-        "results": [h.to_dict() for h in hits],
+        "results": [_with_rulings(h.to_dict()) for h in hits],
     }
+
+
+def _with_rulings(record: dict) -> dict:
+    """Attach any scholars' verdicts stated in the matn itself (e.g. الترمذي's)."""
+    record["rulings"] = extract_rulings(record.get("matn") or "")
+    return record
 
 
 @router.get("/hadith/{hadith_id}")
@@ -86,4 +93,4 @@ def get_hadith(hadith_id: int, index: HadithIndex = Depends(get_index)) -> dict:
     hit = index.get(hadith_id)
     if hit is None:
         raise HTTPException(status_code=404, detail="hadith not found")
-    return hit.to_dict()
+    return _with_rulings(hit.to_dict())

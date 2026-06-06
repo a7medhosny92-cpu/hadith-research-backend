@@ -19,6 +19,7 @@ from collections import Counter, defaultdict
 from functools import lru_cache
 
 from app.parsing.normalize import normalize_for_search
+from app.qa.rulings import extract_rulings
 from app.search import HadithIndex, SearchHit
 from app.search.embeddings import Embedder, cosine
 from app.search.vectors import VectorIndex
@@ -181,6 +182,7 @@ def _narration(item: dict) -> dict:
         "overlap": item["overlap"],
         "semantic": item["semantic"],
         "label": _label(item["overlap"]),
+        "rulings": extract_rulings(hit.matn),
     }
 
 

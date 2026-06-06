@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import Callable
 
+from app.qa.rulings import collect_rulings
 from app.search import HadithIndex, HybridSearcher, SearchHit, SharhHit, SharhIndex
 
 #: Given (question, hadith_sources, sharh_sources) → a grounded prose answer.
@@ -118,6 +119,13 @@ def answer_question(
     hadith_sources = [h.to_dict() for h in hadith]
     sharh_sources = _complete_sharh(sharh, sharh_index)
 
+    # Scholars' rulings on the top hadith, gathered from its matn and its شروح,
+    # ordered by era (طبقة) — so divergent verdicts are surfaced, oldest first.
+    ruling_texts = ([hadith[0].matn] if hadith else []) + [
+        s.get("text") or s.get("excerpt") or "" for s in sharh_sources
+    ]
+    rulings = collect_rulings(ruling_texts)
+
     if synthesize is not None:
         answer, mode = synthesize(question, hadith_sources, sharh_sources), "llm"
     else:
@@ -129,4 +137,5 @@ def answer_question(
         "mode": mode,
         "hadith": hadith_sources,
         "sharh": sharh_sources,
+        "rulings": rulings,
     }

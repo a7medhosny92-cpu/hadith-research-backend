@@ -78,6 +78,13 @@
     border-bottom:1px solid var(--line);padding-bottom:8px}
   .rawi-item{display:flex;justify-content:space-between;gap:10px;align-items:center;
     padding:7px 4px;border-bottom:1px solid #20292f;font-size:1.05rem}
+  .rulings{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);
+    display:flex;flex-wrap:wrap;gap:6px;align-items:center;line-height:2}
+  .r-lbl{color:var(--accent);font-weight:bold;font-size:.9rem}
+  .ruling{padding:2px 10px;border-radius:999px;font-size:.85rem}
+  .r-era{opacity:.75;font-size:.78rem}
+  .r-basis{opacity:.7;font-size:.76rem}
+  .r-diverge{color:#f0c674;font-weight:bold;font-size:.85rem}
 </style>
 </head>
 <body>
@@ -136,8 +143,20 @@ function gradeClass(g){
   if(!g) return "g-other";
   if(g.includes("صحيح")) return "g-sahih";
   if(g.includes("حسن"))  return "g-hasan";
-  if(g.includes("ضعيف")||g.includes("موضوع")||g.includes("منكر")) return "g-daif";
+  if(g.includes("ضعيف")||g.includes("موضوع")||g.includes("منكر")||g.includes("باطل")) return "g-daif";
   return "g-other";
+}
+// Scholars' rulings (أحكام), ordered by era; هـ after each hijri year, divergence flagged.
+function rulingsHtml(rulings){
+  if(!rulings || !rulings.length) return "";
+  const items = rulings.map(r => {
+    const basis = (r.basis && r.basis !== "نصّ") ? ` <span class="r-basis">(${esc(r.basis)})</span>` : "";
+    return `<span class="ruling ${gradeClass(r.verdict)}">${esc(r.scholar)} `
+      + `<span class="r-era">${esc(r.era)}</span>: ${esc(r.verdict)}${basis}</span>`;
+  }).join("");
+  const diverge = new Set(rulings.map(r => r.verdict)).size > 1
+    ? ` <span class="r-diverge">⚠ اختلف العلماء</span>` : "";
+  return `<div class="rulings"><span class="r-lbl">أحكام العلماء:</span>${items}${diverge}</div>`;
 }
 function hadithCard(h){
   const cite = [h.collection, (h.number!=null?"رقم "+h.number:null), (h.page!=null?"ص "+h.page:null)]
@@ -146,7 +165,7 @@ function hadithCard(h){
   const isnad = h.isnad
     ? `<div class="toggle">عرض الإسناد ▾</div><div class="isnad">${esc(h.isnad)}</div>` : "";
   return `<div class="card"><div class="matn">${esc(h.matn)}</div>
-    <div class="cite">${grade}<span>${esc(cite)}</span></div>${isnad}</div>`;
+    <div class="cite">${grade}<span>${esc(cite)}</span></div>${rulingsHtml(h.rulings)}${isnad}</div>`;
 }
 
 // Reveal long result lists in batches so the window stays responsive even with
@@ -188,6 +207,7 @@ async function run(){
       if(d.warning) html += `<div class="warn">${esc(d.warning)}</div>`;
       if(d.engine) html += `<div class="engine-tag">${ENGINE_AR[d.engine] || esc(d.engine)}</div>`;
       html += `<div class="card"><div class="answer">${esc(d.answer)}</div></div>`;
+      if(d.rulings && d.rulings.length) html += `<div class="card">${rulingsHtml(d.rulings)}</div>`;
       (d.sharh || []).forEach(s => {
         const ref = s.sharh + (s.hadith_number!=null ? ` (عند الحديث ${s.hadith_number})` : "");
         const body = s.text || s.excerpt || "";
@@ -220,7 +240,7 @@ function narrationCard(n){
   const chain = n.isnad
     ? `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${esc(n.isnad)}</div>` : "";
   return `<div class="card"><div class="matn">${esc(n.matn)}</div>
-    <div class="cite">${grade}<span>${esc(cite)}</span>${sim}</div>${chain}</div>`;
+    <div class="cite">${grade}<span>${esc(cite)}</span>${sim}</div>${chain}${rulingsHtml(n.rulings)}</div>`;
 }
 function renderTakhrij(d){
   const groups = d.groups || [];

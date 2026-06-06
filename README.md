@@ -156,7 +156,7 @@ uvicorn app.main:app --reload
 |---|---|
 | `GET /search?q=…` | rank hadith by relevance (Arabic-folded; `field=all\|matn\|isnad`, filter by `collection`/`grade`; `mode=lexical\|semantic\|hybrid`) |
 | `GET /hadith/{id}` | a single hadith with its citation |
-| `GET /ask?q=…` | the most relevant hadith + grade + the **scholars' شرح** on that exact hadith, cited (add `&engine=local` or `&engine=remote` to synthesise with an LLM) |
+| `GET /ask?q=…` | the most relevant hadith + grade + the **scholars' شرح**, the **scholars' rulings (أحكام)** on it ordered by era (صحّحه/ضعّفه…, divergence surfaced), cited (add `&engine=local` or `&engine=remote` to synthesise with an LLM) |
 | `GET /takhrij?hadith_id=…` (or `q=…`) | **every** narration of the same report (lexical+semantic recall), grouped **by Companion (الصحابي)** then into distinct wordings (صيغ) labelled بلفظه/بنحوه/بمعناه — each Companion with an «أخرجه» summary, every chain shown |
 | `GET /verify-isnad?hadith_id=…` (or `isnad=…`) | parse the **chain of narrators**, flag سماع/عنعنة/تحويل, **grade each narrator** (رجال), and check each link's **continuity (اتصال)** against the narrator network |
 | `GET /narrator?name=…` | a narrator's place in the network (شبكة الرواة): his **شيوخ** (narrates from) and **تلاميذ** (narrate from him), weighted, plus his grade |
