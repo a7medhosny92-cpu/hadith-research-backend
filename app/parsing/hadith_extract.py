@@ -29,6 +29,7 @@ from app.parsing.html_clean import (
     split_footnotes,
 )
 from app.parsing.isnad_matn import split_isnad_matn
+from app.parsing.normalize import normalize_for_search
 
 _NUM = r"[\d٠-٩۰-۹]+"
 # "• [N]" bullet (a "* [N]" line is a takhrij note, not a hadith — we anchor on •).
@@ -38,6 +39,9 @@ _MARKER_DASH: Pattern[str] = re.compile(rf"(?:^|\n)[ \t]*({_NUM})\s*-\s+")
 # A leading sub-number like "(١)" some editions print after the hadith number.
 _LEADING_SUBNUM = re.compile(rf"^\s*\(\s*{_NUM}\s*\)\s*")
 _WS = re.compile(r"\s+")
+# A dash marker «N - باب …» is a chapter heading printed as a numbered line in some
+# editions, not a hadith — recognise it by its leading word so it isn't emitted.
+_HEADING_WORDS = {"باب", "كتاب", "فصل", "جماع", "ابواب", "مقدمه"}
 
 
 @dataclass(slots=True)
@@ -140,6 +144,11 @@ def iter_hadith(
             end = matches[i + 1].start() if i + 1 < len(matches) else len(block)
             grade_hint = page_grades[i] if i < len(page_grades) else None
             segment = _LEADING_SUBNUM.sub("", block[match.end():end], count=1)
+            head = normalize_for_search(segment[:40]).split()
+            if head and head[0] in _HEADING_WORDS:   # a numbered «باب/كتاب …» heading, not a hadith
+                chapter = remove_footnote_refs(segment.strip().split("\n", 1)[0]).strip() or chapter
+                current = None
+                continue
             current = {
                 "number": arabic_digits_to_int(match.group(1)),
                 "chapter": chapter,
