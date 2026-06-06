@@ -19,7 +19,7 @@ from collections import Counter, defaultdict
 from functools import lru_cache
 
 from app.parsing.normalize import normalize_for_search
-from app.qa.rulings import extract_rulings
+from app.qa.rulings import extract_rulings, refine_with_routes
 from app.search import HadithIndex, SearchHit
 from app.search.embeddings import Embedder, cosine
 from app.search.vectors import VectorIndex
@@ -286,6 +286,14 @@ def analyze_narrations(
         )
     # Identified Companions first (most-narrated first); the unidentified group last.
     groups.sort(key=lambda g: (g["companion"] is None, -g["count"]))
+
+    # Resolve «حسن صحيح» with the actual number of chains seen (source + parallels):
+    # more than one ⇒ صحيح from a way, حسن from another; a single one ⇒ imams differed.
+    routes = len(items) + 1
+    for g in groups:
+        for v in g["variants"]:
+            for n in v["narrations"]:
+                refine_with_routes(n["rulings"], routes)
 
     by_collection = Counter(m["hit"].collection for m in items)
     return {

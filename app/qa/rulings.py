@@ -83,7 +83,15 @@ _VERBS: dict[str, str] = {
 _VERDICT_WORDS = {
     "صحيح": "صحيح", "حسن": "حسن", "ضعيف": "ضعيف", "موضوع": "موضوع",
     "منكر": "منكر", "شاذ": "شاذ", "ثابت": "صحيح", "باطل": "باطل", "جيد": "جيد",
+    "غريب": "غريب",
 }
+# al-Tirmidhī's composite verdicts — matched longest-first as a phrase.
+_VERDICT_PHRASES = [
+    (("حسن", "صحيح", "غريب"), "حسن صحيح غريب"),
+    (("حسن", "صحيح"), "حسن صحيح"),
+    (("صحيح", "غريب"), "صحيح غريب"),
+    (("حسن", "غريب"), "حسن غريب"),
+]
 _SAYS = {"قال", "ذكر", "حكم", "قاله"}
 _TAKHRIJ_VERBS = {"اخرجه", "رواه", "اخرج", "روي", "اخرجاه"}
 
@@ -108,12 +116,45 @@ def _scholar_in(window: list[str]) -> str | None:
 
 
 def _verdict_in(window: list[str]) -> str | None:
-    for i, tok in enumerate(window):
-        if tok == "حسن" and i + 1 < len(window) and window[i + 1] == "صحيح":
-            return "حسن صحيح"
-        if tok in _VERDICT_WORDS:
-            return _VERDICT_WORDS[tok]
+    for i in range(len(window)):
+        for phrase, label in _VERDICT_PHRASES:           # composite forms first
+            if tuple(window[i : i + len(phrase)]) == phrase:
+                return label
+        if window[i] in _VERDICT_WORDS:
+            return _VERDICT_WORDS[window[i]]
     return None
+
+
+# Short explanations of al-Tirmidhī's composite verdicts (مصطلح).
+_EXPLAIN: dict[str, str] = {
+    "حسن صحيح": (
+        "جمَع الترمذيُّ الوصفين: صحيحٌ من وجهٍ وحسنٌ من وجهٍ آخر. فإن تعدّدت طرقه فهو "
+        "أقوى من الصحيح المُفرد؛ وإن كان طريقًا واحدًا ففيه تردّد الأئمة في حال راويه."
+    ),
+    "حسن صحيح غريب": "حسنٌ صحيحٌ مع تفرّدٍ في إحدى طبقات سنده (غرابة).",
+    "صحيح غريب": "صحيحٌ تفرّد به راوٍ في طبقةٍ من سنده.",
+    "حسن غريب": "حسنٌ تفرّد به راوٍ في طبقةٍ من سنده.",
+    "غريب": "تفرّد به راوٍ في طبقةٍ من طبقات الإسناد.",
+}
+
+
+def explain(verdict: str) -> str | None:
+    """A short gloss for a composite/technical verdict (e.g. «حسن صحيح»), else None."""
+    return _EXPLAIN.get(verdict)
+
+
+def refine_with_routes(rulings: list[dict], routes: int) -> list[dict]:
+    """Resolve «حسن صحيح» using how many chains (طرق) the hadith actually has — Ibn
+    al-Ṣalāḥ's two cases: more than one isnad ⇒ صحيح from one way, حسن from another (and
+    so stronger); a single isnad ⇒ the imams differed over its narrator."""
+    for r in rulings:
+        if r["verdict"].startswith("حسن صحيح"):
+            r["note"] = (
+                "له أكثر من إسناد: صحيحٌ من وجهٍ وحسنٌ من وجهٍ آخر، وهو بذلك أقوى."
+                if routes > 1
+                else "بإسنادٍ واحد: تردّدٌ بين الأئمة في حال راويه (حسنٌ عند قومٍ صحيحٌ عند آخرين)."
+            )
+    return rulings
 
 
 def extract_rulings(text: str) -> list[dict]:
@@ -162,6 +203,7 @@ def extract_rulings(text: str) -> list[dict]:
             "era": f"{SCHOLARS[who][0]}هـ",
             "verdict": verdict,
             "basis": basis,
+            "note": explain(verdict),
         }
         for (who, verdict), basis in rulings.items()
     ]
