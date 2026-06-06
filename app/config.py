@@ -95,6 +95,12 @@ class Settings(BaseSettings):
         return self.data_dir / "vectors.db"
 
     @property
+    def embed_cache_path(self) -> Path:
+        """Persistent text-hash → vector cache, so re-embedding only touches changed
+        matns (re-indexing assigns fresh row ids, so we key by content, not id)."""
+        return self.data_dir / "embed_cache.db"
+
+    @property
     def narrator_graph_path(self) -> Path:
         """sqlite narrator network (شيوخ/تلاميذ links) built from the corpus chains."""
         return self.data_dir / "narrators.db"

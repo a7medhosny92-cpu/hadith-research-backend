@@ -63,7 +63,7 @@ def main() -> None:
     step("7/7  Build the رجال gradings (تقريب التهذيب + الكاشف)",
          [PY, "-X", "utf8", "-m", "scripts.build_rijal"])
     if args.semantic:
-        step("+ semantic  Build the vector index (first run downloads a model)",
+        step("+ semantic  Build the vector index (incremental — embeds only new/changed matns)",
              [PY, "-X", "utf8", "-m", "scripts.embed"])
     print("\nDone — code, corpus and indexes are all up to date.")
 
