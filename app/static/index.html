@@ -56,6 +56,13 @@
   #engine{cursor:pointer}
   #model{min-width:200px}
   #engine[hidden],#model[hidden]{display:none}
+  #compare-lbl{display:flex;gap:6px;align-items:center;color:var(--muted);
+    font-size:.92rem;cursor:pointer}
+  #compare-lbl[hidden]{display:none}
+  .cmp-cols{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+  .cmp-col{flex:1 1 300px;min-width:280px}
+  .cmp-head{font-weight:bold;color:#bff0d0;margin:6px 2px;font-size:1rem}
+  .cmp-time{color:var(--muted);font-size:.85rem}
   .warn{background:#4a3320;color:#f3dcc2;border:1px solid #6b4a2a;border-radius:8px;
     padding:10px 14px;margin:6px 2px;font-size:.95rem;line-height:1.7}
   .engine-tag{color:var(--accent);font-size:.85rem;margin:2px 2px 8px}
@@ -128,6 +135,9 @@
     <option value="mistral/mistral-large-latest"></option>
     <option value="ollama/llama3"></option>
   </datalist>
+  <label id="compare-lbl" title="قارن أحجام Qwen المحلية الثلاثة" hidden>
+    <input type="checkbox" id="compare"> قارن النماذج
+  </label>
 </div>
 
 <div id="results">
@@ -149,11 +159,17 @@ const q  = document.getElementById("q");
 const go = document.getElementById("go");
 const engineSel = document.getElementById("engine");
 const modelInput = document.getElementById("model");
+const compareLbl = document.getElementById("compare-lbl");
+const compareBox = document.getElementById("compare");
+// Local Qwen sizes to put head-to-head when «قارن النماذج» is on.
+const COMPARE_MODELS = ["ollama/qwen2.5:3b", "ollama/qwen2.5:7b", "ollama/qwen2.5:14b"];
 
-// The LLM switch shows only in «سؤال»; the model box only when an engine is on.
+// The LLM switch shows only in «سؤال»; the model box when an engine is on; the
+// compare toggle only for the local engine (pit the local sizes against each other).
 function syncEngineUI(){
   engineSel.hidden = mode !== "ask";
   modelInput.hidden = mode !== "ask" || engineSel.value === "off";
+  compareLbl.hidden = !(mode === "ask" && engineSel.value === "local");
 }
 engineSel.addEventListener("change", syncEngineUI);
 
@@ -232,6 +248,7 @@ async function run(){
       const d = await (await fetch(`/search?q=${encodeURIComponent(query)}`)).json();
       renderList(d.results || [], "نتيجة", "لا توجد نتائج");
     } else if(mode === "ask"){
+      if(engineSel.value === "local" && compareBox.checked){ await runCompare(query); return; }
       const eng = engineSel.value;
       const mdl = modelInput.value.trim();
       let url = `/ask?q=${encodeURIComponent(query)}&engine=${eng}`;
@@ -262,6 +279,30 @@ async function run(){
     }
   } catch(e){
     results.innerHTML = `<div class="state">تعذّر الاتصال بالخادم. تأكّد أنّ التطبيق يعمل.</div>`;
+  }
+}
+
+// Run the same question across the local Qwen sizes, side by side, each with the time
+// it took — so you can compare quality vs speed and decide which size is best for you.
+async function runCompare(query){
+  results.innerHTML = `<div class="note">مقارنة النماذج المحلية على نفس السؤال</div>`
+    + `<div class="cmp-cols" id="cmp"></div>`;
+  const cmp = document.getElementById("cmp");
+  COMPARE_MODELS.forEach((m, i) => cmp.insertAdjacentHTML("beforeend",
+    `<div class="cmp-col"><div class="cmp-head" id="h${i}">${esc(m)} <span class="cmp-time">… جارٍ</span></div>`
+    + `<div class="card"><div class="answer" id="a${i}">…</div></div></div>`));
+  for(let i = 0; i < COMPARE_MODELS.length; i++){
+    const t0 = performance.now();
+    try{
+      const url = `/ask?q=${encodeURIComponent(query)}&engine=local&model=${encodeURIComponent(COMPARE_MODELS[i])}`;
+      const d = await (await fetch(url)).json();
+      const secs = ((performance.now() - t0) / 1000).toFixed(1);
+      document.getElementById("h"+i).innerHTML = `${esc(COMPARE_MODELS[i])} <span class="cmp-time">· ${secs}ث</span>`;
+      const warn = d.warning ? `<div class="warn">${esc(d.warning)}</div>` : "";
+      document.getElementById("a"+i).innerHTML = warn + esc(d.answer || "");
+    }catch(e){
+      document.getElementById("a"+i).textContent = "تعذّر الاتصال";
+    }
   }
 }
 
