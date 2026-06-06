@@ -31,7 +31,7 @@ def _sources_block(hadith: list[dict], sharh: list[dict]) -> str:
             ref = s.get("sharh")
             if s.get("hadith_number"):
                 ref += f" (عند الحديث {s['hadith_number']})"
-            lines.append(f"- ({ref}): {s.get('excerpt')}")
+            lines.append(f"- ({ref}): {s.get('text') or s.get('excerpt')}")
     return "\n".join(lines)
 
 

@@ -256,7 +256,8 @@ class SharhHit:
     chapter: str | None
     page: int | None
     score: float
-    excerpt: str             # focused fragment (full passages can be very long)
+    excerpt: str             # matched fragment, the hit wrapped in «…» (shows context)
+    text: str                # the full passage text (the complete stored chunk)
 
     def to_dict(self) -> dict:
         return {
@@ -269,6 +270,7 @@ class SharhHit:
             "page": self.page,
             "score": round(self.score, 4),
             "excerpt": self.excerpt,
+            "text": self.text,
         }
 
 
@@ -330,7 +332,7 @@ class SharhIndex:
             params.append(hadith_number)
         sql = (
             "SELECT book_id, sharh_name, base_id, base_name, hadith_number, chapter, page, "
-            "-bm25(sharh) AS score, snippet(sharh, 0, '«', '»', '…', 24) AS snip "
+            "-bm25(sharh) AS score, snippet(sharh, 0, '«', '»', '…', 24) AS snip, text "
             f"FROM sharh WHERE {' AND '.join(filters)} ORDER BY score DESC LIMIT ?"
         )
         for joiner in (" AND ", " OR "):
@@ -341,14 +343,26 @@ class SharhIndex:
         return []
 
     def by_hadith(self, base_id: int, hadith_number: int, *, limit: int = 3) -> list[SharhHit]:
-        """All commentary linked to a hadith, regardless of query (truncated excerpt)."""
+        """All commentary linked to a hadith, regardless of query (full passage text)."""
         rows = self._con.execute(
             "SELECT book_id, sharh_name, base_id, base_name, hadith_number, chapter, page, "
-            "0.0 AS score, substr(text, 1, 500) AS snip FROM sharh "
+            "0.0 AS score, substr(text, 1, 240) AS snip, text FROM sharh "
             "WHERE base_id = ? AND hadith_number = ? LIMIT ?",
             (base_id, hadith_number, limit),
         ).fetchall()
         return [_sharh_hit(row) for row in rows]
+
+    def full_text(self, book_id: int, hadith_number: int) -> str:
+        """The complete commentary on one hadith from one شرح: all its chunks, in order.
+
+        A long passage is split into several chunks at index time; this re-joins them
+        so /ask can show the whole شرح, not just the fragment that matched the query.
+        """
+        rows = self._con.execute(
+            "SELECT text FROM sharh WHERE book_id = ? AND hadith_number = ? ORDER BY rowid",
+            (book_id, hadith_number),
+        ).fetchall()
+        return " ".join(r[0] for r in rows if r[0]).strip()
 
     def count(self) -> int:
         return self._con.execute("SELECT count(*) FROM sharh").fetchone()[0]
@@ -360,5 +374,6 @@ class SharhIndex:
 def _sharh_hit(row: tuple) -> SharhHit:
     return SharhHit(
         book_id=row[0], sharh=row[1], base_id=row[2], base_name=row[3],
-        hadith_number=row[4], chapter=row[5], page=row[6], score=row[7], excerpt=row[8],
+        hadith_number=row[4], chapter=row[5], page=row[6], score=row[7],
+        excerpt=row[8], text=row[9],
     )
