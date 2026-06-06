@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     llm_local_model: str = "ollama/qwen2.5:7b"             # the local brain (Ollama)
     llm_remote_model: str = "anthropic/claude-sonnet-4-6"  # the remote brain (cloud)
     llm_temperature: float = 0.2
+    llm_timeout: float = 60.0                               # seconds per LLM call (no hang)
     ollama_api_base: str = "http://localhost:11434"        # local Ollama server
     # Cloud API keys, read from .env. We export them to the process environment so
     # litellm (which reads os.environ) can authenticate — otherwise a key set only in

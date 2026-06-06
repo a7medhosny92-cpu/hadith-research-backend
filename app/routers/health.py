@@ -23,11 +23,15 @@ def ingestion_status() -> dict:
     manifest_path = get_settings().raw_dir / "manifest.json"
     if not manifest_path.exists():
         return {"started": False, "books": 0}
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    try:                                  # a crawl may be mid-write — don't 500 on that
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        return {"started": True, "books": 0, "error": f"manifest unreadable: {exc}"}
     books = manifest.get("books", {})
     by_status: dict[str, int] = {}
     pages = 0
     for entry in books.values():
-        by_status[entry["status"]] = by_status.get(entry["status"], 0) + 1
+        status = entry.get("status", "unknown")
+        by_status[status] = by_status.get(status, 0) + 1
         pages += entry.get("pages_fetched", 0)
     return {"started": True, "books": len(books), "pages_fetched": pages, "by_status": by_status}
