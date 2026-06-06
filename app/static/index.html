@@ -70,6 +70,14 @@
   .chain{margin-top:8px;color:#aec4d2;font-size:.96rem;line-height:1.9;
     border-top:1px dashed var(--line);padding-top:8px}
   .chain-lbl{color:var(--accent);font-weight:bold}
+  .rawi-name{font-size:1.4rem;font-weight:bold;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .rawi-cols{display:flex;gap:16px;flex-wrap:wrap}
+  .rawi-col{flex:1;min-width:280px;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:14px 16px;margin:14px 0}
+  .rawi-col h3{margin:0 0 10px;color:#bff0d0;font-size:1.1rem;
+    border-bottom:1px solid var(--line);padding-bottom:8px}
+  .rawi-item{display:flex;justify-content:space-between;gap:10px;align-items:center;
+    padding:7px 4px;border-bottom:1px solid #20292f;font-size:1.05rem}
 </style>
 </head>
 <body>
@@ -83,6 +91,7 @@
     <button data-mode="search" class="active">بحث</button>
     <button data-mode="ask">سؤال</button>
     <button data-mode="takhrij">تخريج</button>
+    <button data-mode="narrator">راوٍ</button>
   </div>
   <input id="q" placeholder="اكتب الحديث أو السؤال…" autofocus>
   <button id="go">ابحث</button>
@@ -98,7 +107,9 @@
 </div>
 
 <script>
-const LABELS = {search:"ابحث", ask:"اسأل", takhrij:"خرّج"};
+const LABELS = {search:"ابحث", ask:"اسأل", takhrij:"خرّج", narrator:"اعرض"};
+const PLACEHOLDER = {search:"اكتب الحديث أو السؤال…", ask:"اكتب سؤالك…",
+  takhrij:"اكتب متن الحديث…", narrator:"اكتب اسم الراوي…"};
 const ENGINE_AR = {
   off: "إجابة استخراجية من المصادر (بدون ذكاء اصطناعي)",
   local: "أُجيب عبر محرّك محلي (Ollama)",
@@ -114,6 +125,7 @@ document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
   mode = b.dataset.mode;
   document.querySelectorAll(".modes button").forEach(x => x.classList.toggle("active", x === b));
   go.textContent = LABELS[mode];
+  q.placeholder = PLACEHOLDER[mode];
   engineSel.hidden = mode !== "ask";   // the LLM switch only applies to «سؤال»
 });
 go.onclick = run;
@@ -182,9 +194,14 @@ async function run(){
         html += `<div class="card sharh"><b>${esc(ref)}</b><div class="ex">${esc(body)}</div></div>`;
       });
       results.innerHTML = html;
-    } else {
+    } else if(mode === "takhrij"){
       const d = await (await fetch(`/takhrij?q=${encodeURIComponent(query)}`)).json();
       renderTakhrij(d);
+    } else {
+      const r = await fetch(`/narrator?name=${encodeURIComponent(query)}`);
+      const d = await r.json();
+      if(!r.ok){ results.innerHTML = `<div class="state">${esc(d.detail || "تعذّر العرض")}</div>`; return; }
+      renderNarrator(d);
     }
   } catch(e){
     results.innerHTML = `<div class="state">تعذّر الاتصال بالخادم. تأكّد أنّ التطبيق يعمل.</div>`;
@@ -221,6 +238,32 @@ function renderTakhrij(d){
       html += v.narrations.map(narrationCard).join("");
     });
   });
+  results.innerHTML = html;
+}
+
+// Narrator (راوٍ): the narrator's place in the network — his شيوخ and تلاميذ, and grade.
+function rijalClass(v){
+  if(!v) return "g-other";
+  if(/ثقة|صحاب|حافظ|إمام|ثبت/.test(v)) return "g-sahih";
+  if(/صدوق|لا بأس|حسن/.test(v)) return "g-hasan";
+  if(/ضعيف|متروك|منكر|كذاب|واهٍ/.test(v)) return "g-daif";
+  return "g-other";
+}
+function rawiList(title, arr){
+  if(!arr || !arr.length) return `<div class="rawi-col"><h3>${title}</h3><div class="note">—</div></div>`;
+  const rows = arr.map(x =>
+    `<div class="rawi-item"><span>${esc(x.name)}</span><span class="simbadge">${x.count} حديثًا</span></div>`
+  ).join("");
+  return `<div class="rawi-col"><h3>${title} (${arr.length})</h3>${rows}</div>`;
+}
+function renderNarrator(d){
+  const v = d.grade && (d.grade.verdict || d.grade.grade);
+  const badge = v ? `<span class="grade ${rijalClass(v)}">${esc(v)}</span>` : "";
+  let html = `<div class="card"><div class="rawi-name">${esc(d.name)} ${badge}</div></div>`;
+  html += `<div class="rawi-cols">`
+    + rawiList("شيوخه — يروي عنهم", d.teachers)
+    + rawiList("تلاميذه — يروون عنه", d.students)
+    + `</div>`;
   results.innerHTML = html;
 }
 

@@ -35,16 +35,19 @@ if ! "$PYTHON" -c "import app" >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "▶ 1/3  Downloading from turath.io (polite + resumable — rerun to continue)…"
+echo "▶ 1/5  Downloading from turath.io (polite + resumable — rerun to continue)…"
 "$PYTHON" -m scripts.ingest "${INGEST_ARGS[@]}"
 
-echo "▶ 2/3  Parsing raw pages → structured JSONL (hadith + شروح)…"
+echo "▶ 2/5  Parsing raw pages → structured JSONL (hadith + شروح)…"
 "$PYTHON" -m scripts.parse
 
-echo "▶ 3/4  Building the sqlite search indexes…"
+echo "▶ 3/5  Building the sqlite search indexes…"
 "$PYTHON" -m scripts.index
 
-echo "▶ 4/4  Building the semantic (vector) index for «smart» search…"
+echo "▶ 4/5  Building the narrator network (شيوخ/تلاميذ) from the chains…"
+"$PYTHON" -m scripts.build_graph
+
+echo "▶ 5/5  Building the semantic (vector) index for «smart» search…"
 if "$PYTHON" -c "import sentence_transformers" >/dev/null 2>&1; then
   "$PYTHON" -m scripts.embed
 else

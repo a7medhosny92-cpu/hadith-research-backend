@@ -54,11 +54,12 @@ def main() -> None:
     ingest = [PY, "-X", "utf8", "-m", "scripts.ingest"]
     ingest += (["--categories", "6", "7", "8", "9", "10", "26"] if args.full
                else ["--priority", "--with-commentaries"])
-    step("3/5  Download new/updated books (resumable — may take a while)", ingest)
-    step("4/5  Parse raw pages into structured JSONL", [PY, "-X", "utf8", "-m", "scripts.parse"])
-    step("5/5  Rebuild the search indexes", [PY, "-X", "utf8", "-m", "scripts.index"])
+    step("3/6  Download new/updated books (resumable — may take a while)", ingest)
+    step("4/6  Parse raw pages into structured JSONL", [PY, "-X", "utf8", "-m", "scripts.parse"])
+    step("5/6  Rebuild the search indexes", [PY, "-X", "utf8", "-m", "scripts.index"])
+    step("6/6  Build the narrator network", [PY, "-X", "utf8", "-m", "scripts.build_graph"])
     if args.semantic:
-        step("6/6  Build the semantic vector index (first run downloads a model)",
+        step("+ semantic  Build the vector index (first run downloads a model)",
              [PY, "-X", "utf8", "-m", "scripts.embed"])
     print("\nDone — code, corpus and indexes are all up to date.")
 

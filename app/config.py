@@ -88,6 +88,11 @@ class Settings(BaseSettings):
         """sqlite store of dense hadith vectors for semantic search (dev backend)."""
         return self.data_dir / "vectors.db"
 
+    @property
+    def narrator_graph_path(self) -> Path:
+        """sqlite narrator network (شيوخ/تلاميذ links) built from the corpus chains."""
+        return self.data_dir / "narrators.db"
+
 
 @lru_cache
 def get_settings() -> Settings:

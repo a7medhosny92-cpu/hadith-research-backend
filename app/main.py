@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
 from app import __version__
-from app.routers import ask, health, search, takhrij, verify_isnad
+from app.routers import ask, health, narrators, search, takhrij, verify_isnad
 
 app = FastAPI(
     title="Hadith Research Backend",
@@ -24,6 +24,7 @@ app.include_router(search.router)
 app.include_router(ask.router)
 app.include_router(takhrij.router)
 app.include_router(verify_isnad.router)
+app.include_router(narrators.router)
 
 
 @app.get("/", tags=["root"])
@@ -33,8 +34,9 @@ def root() -> dict:
         "version": __version__,
         "docs": "/docs",
         "app": "/app",
-        "endpoints": ["/search", "/hadith/{id}", "/ask", "/takhrij", "/verify-isnad"],
-        "endpoints_planned": ["semantic search & LLM synthesis (production)"],
+        "endpoints": [
+            "/search", "/hadith/{id}", "/ask", "/takhrij", "/verify-isnad", "/narrator",
+        ],
     }
 
 

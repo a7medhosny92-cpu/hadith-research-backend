@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.config import get_settings
 from app.qa.isnad import analyze_isnad
 from app.rijal import RijalIndex, load_entries
+from app.rijal.graph import NarratorGraph
 from app.routers.search import get_index
 from app.search import HadithIndex
 
@@ -29,12 +30,47 @@ def get_rijal() -> RijalIndex:
     return _rijal_index()
 
 
+@lru_cache(maxsize=1)
+def _graph() -> NarratorGraph | None:
+    path = get_settings().narrator_graph_path
+    return NarratorGraph(path) if path.exists() else None
+
+
+def get_graph() -> NarratorGraph | None:
+    return _graph()
+
+
+def _continuity(narrators: list[dict], graph: NarratorGraph) -> dict:
+    """Check each link against the corpus network: is this تلميذ→شيخ pair ever recorded?
+
+    A link never seen together is a flag for a possible break (انقطاع) — a *structural*
+    hint from the texts, not a verdict on سماع."""
+    links = []
+    for student, teacher in zip(narrators, narrators[1:]):
+        weight = graph.link_weight(student["name"], teacher["name"])
+        links.append(
+            {"from": student["name"], "to": teacher["name"], "count": weight, "seen": weight > 0}
+        )
+    seen = sum(1 for link in links if link["seen"])
+    if not links:
+        note = "السند قصير؛ لا حلقات للمقابلة."
+    elif seen == len(links):
+        note = "كلّ حلقات الإسناد لها رواية معروفة في النصوص."
+    else:
+        note = (
+            f"{len(links) - seen} من {len(links)} حلقة لم تُعرف روايتها في النصوص؛ "
+            "يُنظر في الاتصال (قد يكون انقطاعًا أو اختلاف صيغة الاسم)."
+        )
+    return {"links": links, "seen": seen, "total": len(links), "note": note}
+
+
 @router.get("/verify-isnad")
 def verify_isnad(
     hadith_id: int | None = Query(None, description="indexed hadith whose isnad to analyse"),
     isnad: str | None = Query(None, min_length=2, description="or a free isnad string"),
     index: HadithIndex = Depends(get_index),
     rijal: RijalIndex = Depends(get_rijal),
+    graph: NarratorGraph | None = Depends(get_graph),
 ) -> dict:
     if hadith_id is not None:
         hit = index.get(hadith_id)
@@ -46,4 +82,8 @@ def verify_isnad(
     else:
         raise HTTPException(status_code=422, detail="provide hadith_id or isnad")
 
-    return {"source": source, "analysis": analyze_isnad(chain, rijal=rijal).to_dict()}
+    analysis = analyze_isnad(chain, rijal=rijal).to_dict()
+    result = {"source": source, "analysis": analysis}
+    if graph is not None and graph.count():
+        result["continuity"] = _continuity(analysis["narrators"], graph)
+    return result

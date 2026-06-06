@@ -13,8 +13,7 @@ def test_health():
 
 def test_root_lists_endpoints():
     body = client.get("/").json()
-    assert {"/search", "/ask", "/takhrij", "/verify-isnad"} <= set(body["endpoints"])
-    assert body["endpoints_planned"]  # production items (semantic search, LLM) remain
+    assert {"/search", "/ask", "/takhrij", "/verify-isnad", "/narrator"} <= set(body["endpoints"])
 
 
 def test_ingestion_status_shape():
