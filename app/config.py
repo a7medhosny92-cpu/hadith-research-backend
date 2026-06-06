@@ -98,6 +98,11 @@ class Settings(BaseSettings):
         """sqlite narrator network (شيوخ/تلاميذ links) built from the corpus chains."""
         return self.data_dir / "narrators.db"
 
+    @property
+    def notebook_path(self) -> Path:
+        """The study notebook (saved items + notes) — persistent, never rebuilt."""
+        return self.data_dir / "notebook.db"
+
 
 @lru_cache
 def get_settings() -> Settings:

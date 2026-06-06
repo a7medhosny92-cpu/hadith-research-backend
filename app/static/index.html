@@ -98,6 +98,22 @@
   .r-basis{opacity:.7;font-size:.76rem}
   .r-diverge{color:#f0c674;font-weight:bold;font-size:.85rem}
   .r-info{cursor:help;opacity:.85}
+  /* ★ save-to-notebook chip + the notebook cards */
+  .save-btn{margin-inline-start:auto;background:transparent;border:1px solid var(--line);
+    color:#f0c674;border-radius:8px;padding:3px 11px;font-size:1.05rem;cursor:pointer;line-height:1}
+  .save-btn:hover{border-color:#f0c674}
+  .save-btn.saved{color:var(--accent);border-color:var(--accent);cursor:default}
+  .card.nb .cite{margin-top:0}
+  .nb-kind{background:#33404a;color:#cde;padding:2px 11px;border-radius:999px;font-size:.82rem}
+  .nb-title{color:var(--text);font-weight:bold}
+  .nb-body{font-size:1.12rem;line-height:2;margin-top:8px;white-space:pre-wrap}
+  .nb-row{display:flex;gap:8px;margin-top:12px;align-items:center}
+  .nb-input{flex:1;background:var(--bg);color:var(--text);border:1px solid var(--line);
+    border-radius:8px;padding:8px 12px;font-size:1rem}
+  .nb-save,.nb-del{background:var(--card);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:8px 14px;font-size:.9rem;cursor:pointer;white-space:nowrap}
+  .nb-save:hover{border-color:var(--accent);color:#bff0d0}
+  .nb-del{color:#f0a0a0}.nb-del:hover{border-color:#5c2a1f;background:#3a2420}
 </style>
 </head>
 <body>
@@ -112,6 +128,7 @@
     <button data-mode="ask">سؤال</button>
     <button data-mode="takhrij">تخريج</button>
     <button data-mode="narrator">راوٍ</button>
+    <button data-mode="notebook">دفتري</button>
   </div>
   <input id="q" placeholder="اكتب الحديث أو السؤال…" autofocus>
   <button id="go">ابحث</button>
@@ -145,9 +162,10 @@
 </div>
 
 <script>
-const LABELS = {search:"ابحث", ask:"اسأل", takhrij:"خرّج", narrator:"اعرض"};
+const LABELS = {search:"ابحث", ask:"اسأل", takhrij:"خرّج", narrator:"اعرض", notebook:"ابحث"};
 const PLACEHOLDER = {search:"اكتب الحديث أو السؤال…", ask:"اكتب سؤالك…",
-  takhrij:"اكتب متن الحديث…", narrator:"اكتب اسم الراوي…"};
+  takhrij:"اكتب متن الحديث…", narrator:"اكتب اسم الراوي…",
+  notebook:"ابحث في دفترك… (فارغ = الكل)"};
 const ENGINE_AR = {
   off: "إجابة استخراجية من المصادر (بدون ذكاء اصطناعي)",
   local: "أُجيب عبر محرّك محلي (Ollama)",
@@ -179,11 +197,19 @@ document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
   go.textContent = LABELS[mode];
   q.placeholder = PLACEHOLDER[mode];
   syncEngineUI();
+  if(mode === "notebook") run();   // open the notebook immediately (lists everything)
 });
 go.onclick = run;
 q.addEventListener("keydown", e => { if (e.key === "Enter") run(); });
 
 function esc(s){ const d = document.createElement("div"); d.textContent = (s==null?"":s); return d.innerHTML; }
+
+// «★ احفظ» button: register the payload, render a star; a delegated handler POSTs it.
+let _saveSeq = 0; const SAVEABLE = {};
+function saveChip(payload){
+  const k = ++_saveSeq; SAVEABLE[k] = payload;
+  return `<button class="save-btn" data-k="${k}" title="احفظ في الدفتر">★</button>`;
+}
 function gradeClass(g){
   if(!g) return "g-other";
   if(g.includes("صحيح")) return "g-sahih";
@@ -211,8 +237,11 @@ function hadithCard(h){
   const grade = h.grade ? `<span class="grade ${gradeClass(h.grade)}">${esc(h.grade)}</span>` : "";
   const isnad = h.isnad
     ? `<div class="toggle">عرض الإسناد ▾</div><div class="isnad">${esc(h.isnad)}</div>` : "";
+  const save = saveChip({kind:"hadith", title:cite, body:h.matn,
+    meta:{collection:h.collection, number:h.number, page:h.page, grade:h.grade,
+          isnad:h.isnad, rulings:h.rulings}});
   return `<div class="card"><div class="matn">${esc(h.matn)}</div>
-    <div class="cite">${grade}<span>${esc(cite)}</span></div>${rulingsHtml(h.rulings)}${isnad}</div>`;
+    <div class="cite">${grade}<span>${esc(cite)}</span>${save}</div>${rulingsHtml(h.rulings)}${isnad}</div>`;
 }
 
 // Reveal long result lists in batches so the window stays responsive even with
@@ -241,7 +270,7 @@ function revealMore(){
 
 async function run(){
   const query = q.value.trim();
-  if(!query) return;
+  if(!query && mode !== "notebook") return;   // notebook lists everything when empty
   results.innerHTML = `<div class="state">… جارٍ التنفيذ</div>`;
   try{
     if(mode === "search"){
@@ -260,7 +289,9 @@ async function run(){
         const tag = (ENGINE_AR[d.engine] || esc(d.engine)) + (d.model ? ` · ${esc(d.model)}` : "");
         html += `<div class="engine-tag">${tag}</div>`;
       }
-      html += `<div class="card"><div class="answer">${esc(d.answer)}</div></div>`;
+      html += `<div class="card"><div class="answer">${esc(d.answer)}</div>`
+        + saveChip({kind:"answer", title:query, body:d.answer,
+            meta:{engine:d.engine, model:d.model, rulings:d.rulings}}) + `</div>`;
       if(d.rulings && d.rulings.length) html += `<div class="card">${rulingsHtml(d.rulings)}</div>`;
       (d.sharh || []).forEach(s => {
         const ref = s.sharh + (s.hadith_number!=null ? ` (عند الحديث ${s.hadith_number})` : "");
@@ -271,11 +302,14 @@ async function run(){
     } else if(mode === "takhrij"){
       const d = await (await fetch(`/takhrij?q=${encodeURIComponent(query)}`)).json();
       renderTakhrij(d);
-    } else {
+    } else if(mode === "narrator"){
       const r = await fetch(`/narrator?name=${encodeURIComponent(query)}`);
       const d = await r.json();
       if(!r.ok){ results.innerHTML = `<div class="state">${esc(d.detail || "تعذّر العرض")}</div>`; return; }
       renderNarrator(d);
+    } else {
+      const d = await (await fetch(`/notebook?q=${encodeURIComponent(query)}`)).json();
+      renderNotebook(d.items || []);
     }
   } catch(e){
     results.innerHTML = `<div class="state">تعذّر الاتصال بالخادم. تأكّد أنّ التطبيق يعمل.</div>`;
@@ -317,8 +351,11 @@ function narrationCard(n){
   // The chain is always shown here — «who carried it» is the point of takhrij.
   const chain = n.isnad
     ? `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${esc(n.isnad)}</div>` : "";
+  const save = saveChip({kind:"hadith", title:cite, body:n.matn,
+    meta:{collection:n.collection, number:n.number, page:n.page, grade:n.grade,
+          isnad:n.isnad, companion:n.companion, rulings:n.rulings}});
   return `<div class="card"><div class="matn">${esc(n.matn)}</div>
-    <div class="cite">${grade}<span>${esc(cite)}</span>${sim}</div>${chain}${rulingsHtml(n.rulings)}</div>`;
+    <div class="cite">${grade}<span>${esc(cite)}</span>${sim}${save}</div>${chain}${rulingsHtml(n.rulings)}</div>`;
 }
 function renderTakhrij(d){
   const groups = d.groups || [];
@@ -357,7 +394,9 @@ function rawiList(title, arr){
 function renderNarrator(d){
   const v = d.grade && (d.grade.verdict || d.grade.grade);
   const badge = v ? `<span class="grade ${rijalClass(v)}">${esc(v)}</span>` : "";
-  let html = `<div class="card"><div class="rawi-name">${esc(d.name)} ${badge}</div>`;
+  const save = saveChip({kind:"narrator", title:d.name, body:d.summary || "",
+    meta:{grade:d.grade, sources:d.sources}});
+  let html = `<div class="card"><div class="rawi-name">${esc(d.name)} ${badge} ${save}</div>`;
   if(d.summary) html += `<div class="rawi-summary">${esc(d.summary)}</div>`;
   html += `</div>`;
   html += `<div class="rawi-cols">`
@@ -371,12 +410,77 @@ function renderNarrator(d){
   results.innerHTML = html;
 }
 
+// Study notebook (دفتري): the items you saved with the ★ star, each with your own note.
+const NB_KIND = {hadith:"حديث", narrator:"راوٍ", answer:"جواب", note:"ملاحظة"};
+const NB_EMPTY = `<div class="state">دفترك فارغ — احفظ حديثًا أو راويًا أو جوابًا بالنجمة ★</div>`;
+function nbGrade(it){
+  const g = it.meta && it.meta.grade;
+  if(!g) return "";
+  const v = typeof g === "string" ? g : (g.verdict || g.grade);
+  return v ? `<span class="grade ${gradeClass(v)}">${esc(v)}</span>` : "";
+}
+function nbCard(it){
+  const kind  = `<span class="nb-kind">${NB_KIND[it.kind] || esc(it.kind)}</span>`;
+  const title = it.title ? `<span class="nb-title">${esc(it.title)}</span>` : "";
+  const body  = it.body  ? `<div class="nb-body">${esc(it.body)}</div>` : "";
+  return `<div class="card nb" data-id="${it.id}">
+    <div class="cite">${kind}${nbGrade(it)}${title}
+      <button class="nb-del" title="احذف من الدفتر">حذف ✕</button></div>
+    ${body}
+    <div class="nb-row">
+      <input class="nb-input" placeholder="اكتب ملاحظتك…" value="${esc(it.note || "")}">
+      <button class="nb-save">حفظ الملاحظة</button>
+    </div></div>`;
+}
+function renderNotebook(items){
+  if(!items.length){ results.innerHTML = NB_EMPTY; return; }
+  results.innerHTML = `<div class="note">${items.length} محفوظًا في دفترك</div>`
+    + items.map(nbCard).join("");
+}
+
 // Toggle the isnad (event delegation).
 results.addEventListener("click", e => {
   if(!e.target.classList.contains("toggle")) return;
   const isnad = e.target.nextElementSibling;
   const open = isnad.classList.toggle("show");
   e.target.textContent = open ? "إخفاء الإسناد ▴" : "عرض الإسناد ▾";
+});
+
+// Save (★) / edit a note / delete — all the notebook actions (event delegation, async).
+results.addEventListener("click", async e => {
+  const star = e.target.closest(".save-btn");
+  if(star){
+    const payload = SAVEABLE[star.dataset.k];
+    if(!payload || star.classList.contains("saved")) return;
+    try{
+      const r = await fetch("/notebook", {method:"POST",
+        headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+      if(r.ok){ star.classList.add("saved"); star.textContent = "✓"; star.title = "حُفظ في الدفتر"; }
+    }catch(_){}
+    return;
+  }
+  const card = e.target.closest(".card.nb");
+  if(!card) return;
+  const id = card.dataset.id;
+  if(e.target.classList.contains("nb-del")){
+    try{
+      if((await fetch(`/notebook/${id}`, {method:"DELETE"})).ok){
+        card.remove();
+        const left = results.querySelectorAll(".card.nb").length;
+        const note = results.querySelector(".note");
+        if(!left) results.innerHTML = NB_EMPTY;
+        else if(note) note.textContent = `${left} محفوظًا في دفترك`;
+      }
+    }catch(_){}
+  } else if(e.target.classList.contains("nb-save")){
+    const btn = e.target, val = card.querySelector(".nb-input").value;
+    try{
+      const r = await fetch(`/notebook/${id}`, {method:"PATCH",
+        headers:{"Content-Type":"application/json"}, body:JSON.stringify({note: val})});
+      if(r.ok){ const t = btn.textContent; btn.textContent = "✓ حُفظت";
+        setTimeout(() => btn.textContent = t, 1200); }
+    }catch(_){}
+  }
 });
 </script>
 </body>
