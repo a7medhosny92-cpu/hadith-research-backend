@@ -17,28 +17,57 @@ import re
 
 from app.parsing.html_clean import flexible_word
 
-_OPEN_QUOTES = ("\"", "«", "“")
-_CLOSE_QUOTES = ("\"", "»", "”")
+# Opening quote → its matching closer (a symmetric " pairs with the next ").
+_CLOSE_FOR = {'"': '"', "«": "»", "“": "”"}
+_QUOTE_CHARS = re.compile(r'["«»“”]')
 _STRIP = " \t:،.-—\"«»“”"
+_WS = re.compile(r"\s+")
 
 _INTRO = re.compile(
     r"(?:%s)\s*:" % "|".join(flexible_word(w) for w in ("قال", "قالت", "قالوا", "يقول", "تقول"))
 )
+# A gap between two quoted spans that signals the matn has ended and an editor's note /
+# takhrij begins — so we do NOT merge the next span into the matn.
+_EDITORIAL = re.compile(r"أبو عبد الله|تنبيه|انظر|أخرجه|رواه|أخرجاه|تحفة|الأطراف|قلت|\(\s*\d")
+
+
+def _quoted_spans(text: str) -> list[tuple[int, int]]:
+    """All quoted spans as ``(open_index, close_index)``, pairing each opener with its
+    own closer (handles symmetric " and asymmetric «…» / “…”)."""
+    spans: list[tuple[int, int]] = []
+    i, n = 0, len(text)
+    while i < n:
+        ch = text[i]
+        if ch in _CLOSE_FOR:
+            close = text.find(_CLOSE_FOR[ch], i + 1)
+            if close == -1:
+                spans.append((i, n))          # unclosed quote — runs to the end
+                break
+            spans.append((i, close))
+            i = close + 1
+        else:
+            i += 1
+    return spans
 
 
 def split_isnad_matn(text: str) -> tuple[str, str, str]:
     """Return ``(isnad, matn, confidence)`` where confidence is the strategy used."""
     text = text.strip()
 
-    quote_idx = min((text.find(q) for q in _OPEN_QUOTES if q in text), default=-1)
-    if quote_idx != -1:
-        # matn runs from the first opening quote to the last closing quote, so trailing
-        # footnote/takhrij residue after the final quote is dropped, while multi-quote
-        # dialogue hadiths are still captured whole.
-        last_close = max((text.rfind(q) for q in _CLOSE_QUOTES), default=-1)
-        inner = text[quote_idx + 1:last_close] if last_close > quote_idx else text[quote_idx:]
-        isnad = text[:quote_idx].strip(_STRIP)
-        return isnad, inner.strip(_STRIP), "quote"
+    spans = _quoted_spans(text)
+    if spans:
+        # the matn is the first quoted span, extended over *adjacent dialogue* spans
+        # («…» فقال «…»), but stopping at an editorial/takhrij tail so it isn't swallowed.
+        start, end = spans[0]
+        for open_i, close_i in spans[1:]:
+            gap = text[end + 1:open_i].strip()
+            if len(gap) <= 40 and not _EDITORIAL.search(gap):
+                end = close_i
+            else:
+                break
+        isnad = text[:start].strip(_STRIP)
+        matn = _WS.sub(" ", _QUOTE_CHARS.sub(" ", text[start:end + 1])).strip(_STRIP)
+        return isnad, matn, "quote"
 
     intros = list(_INTRO.finditer(text))
     if intros:
