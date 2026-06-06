@@ -174,6 +174,9 @@ python -m app.desktop            # or the console script:  hadith-app
 ```
 
 It opens a window over the local app to **search**, **ask**, and trace **takhrij**.
+Search and takhrij return *all* matches (revealed in batches, no cap), `/ask` shows
+the **complete** شرح passage, and in «ask» mode a dropdown switches the answer engine
+between **off** (extractive), **local** (Ollama) and **remote** (Claude) live.
 
 For production search/answers, install the extras and load PostgreSQL:
 

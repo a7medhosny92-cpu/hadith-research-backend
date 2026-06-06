@@ -38,7 +38,10 @@ def main() -> None:
     args = ap.parse_args()
 
     step("1/5  Pull the latest code from GitHub", ["git", "pull", "--ff-only"])
-    step("2/5  Refresh dependencies", [PY, "-m", "pip", "install", "-e", ".[dev]", "-q"])
+    # Include the desktop window (pywebview) and the LLM switch (litellm) so the app
+    # and the local/remote «brain» work out of the box after an update.
+    step("2/5  Refresh dependencies",
+         [PY, "-m", "pip", "install", "-e", ".[dev,desktop,llm]", "-q"])
 
     if args.code_only:
         print("\nDone — code is up to date. (Re-run without --code-only to refresh the corpus too.)")
