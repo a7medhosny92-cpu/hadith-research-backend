@@ -182,11 +182,14 @@ class HadithIndex:
         collection_id: int | None = None,
         grade: str | None = None,
         field: str = "all",
+        match: str = "auto",
     ) -> list[SearchHit]:
         """Rank hadith by relevance to ``query``.
 
-        Tries an all-terms (AND) match first for precision, then falls back to
-        any-term (OR) for recall. ``field`` selects what to search: ``all`` (matn +
+        ``match`` controls term combination: ``auto`` tries all-terms (AND) first for
+        precision, then falls back to any-term (OR) for recall; ``and`` / ``or`` force
+        one. (Takhrij uses ``or`` to surface differently-worded narrations even when a
+        verbatim parallel exists.) ``field`` selects what to search: ``all`` (matn +
         chapter + chain, matn weighted highest), ``matn``, or ``isnad``.
         ``limit=None`` returns *every* match (no cap).
         """
@@ -210,11 +213,12 @@ class HadithIndex:
             "snippet(hadith, 0, '«', '»', '…', 12) AS snip "
             f"FROM hadith WHERE {' AND '.join(filters)} ORDER BY score DESC{limit_sql}"
         )
-        for joiner in (" AND ", " OR "):
+        joiners = {"and": (" AND ",), "or": (" OR ",), "auto": (" AND ", " OR ")}[match]
+        for joiner in joiners:
             params[0] = prefix + (joiner.join(f'"{t}"' for t in terms))
             args = [*params] if limit is None else [*params, limit]
             rows = self._con.execute(sql, args).fetchall()
-            if rows or joiner == " OR ":
+            if rows or joiner == joiners[-1]:
                 return [_hit(row) for row in rows]
         return []
 

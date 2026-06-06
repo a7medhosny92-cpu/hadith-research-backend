@@ -57,6 +57,13 @@
   .warn{background:#4a3320;color:#f3dcc2;border:1px solid #6b4a2a;border-radius:8px;
     padding:10px 14px;margin:6px 2px;font-size:.95rem;line-height:1.7}
   .engine-tag{color:var(--accent);font-size:.85rem;margin:2px 2px 8px}
+  .group-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+    margin:24px 2px 8px;padding-top:10px;border-top:1px solid var(--line)}
+  .vlabel{padding:3px 14px;border-radius:999px;font-size:.9rem;font-weight:bold}
+  .v-lafz{background:#1f5c3d;color:#bff0d0}
+  .v-nahw{background:#5c531f;color:#f0e7bf}
+  .v-maana{background:#1f3b5c;color:#bfd6f0}
+  .simbadge{color:var(--muted);font-size:.84rem}
 </style>
 </head>
 <body>
@@ -171,11 +178,37 @@ async function run(){
       results.innerHTML = html;
     } else {
       const d = await (await fetch(`/takhrij?q=${encodeURIComponent(query)}`)).json();
-      renderList(d.parallels || [], "رواية موازية", "لا توجد روايات موازية");
+      renderTakhrij(d);
     }
   } catch(e){
     results.innerHTML = `<div class="state">تعذّر الاتصال بالخادم. تأكّد أنّ التطبيق يعمل.</div>`;
   }
+}
+
+// Takhrij: show every narration of the same report, grouped into distinct wordings
+// (صيغ) and labelled by closeness to the source (بلفظه / بنحوه / بمعناه).
+function vlabelClass(l){ return l === "بلفظه" ? "v-lafz" : l === "بنحوه" ? "v-nahw" : "v-maana"; }
+function narrationCard(n){
+  const cite = [n.collection, (n.number!=null?"رقم "+n.number:null), (n.page!=null?"ص "+n.page:null)]
+    .filter(Boolean).join("  ·  ");
+  const grade = n.grade ? `<span class="grade ${gradeClass(n.grade)}">${esc(n.grade)}</span>` : "";
+  const sim = `<span class="simbadge">${Math.round((n.overlap||0)*100)}% تطابق</span>`;
+  const isnad = n.isnad
+    ? `<div class="toggle">عرض الإسناد ▾</div><div class="isnad">${esc(n.isnad)}</div>` : "";
+  return `<div class="card"><div class="matn">${esc(n.matn)}</div>
+    <div class="cite">${grade}<span>${esc(cite)}</span>${sim}</div>${isnad}</div>`;
+}
+function renderTakhrij(d){
+  const groups = d.groups || [];
+  if(!groups.length){ results.innerHTML = `<div class="state">لا توجد روايات</div>`; return; }
+  const sources = Object.keys(d.by_collection || {}).length;
+  let html = `<div class="note">${d.count} روايةً في ${d.variants} صيغة، عبر ${sources} مصدرًا</div>`;
+  groups.forEach(g => {
+    html += `<div class="group-head"><span class="vlabel ${vlabelClass(g.label)}">${esc(g.label)}</span>`
+      + `<span class="simbadge">${g.count} رواية · ${Math.round((g.closeness||0)*100)}% تطابق مع الأصل</span></div>`;
+    html += g.narrations.map(narrationCard).join("");
+  });
+  results.innerHTML = html;
 }
 
 // Toggle the isnad (event delegation).

@@ -86,5 +86,20 @@ class VectorIndex:
     def count(self) -> int:
         return self._con.execute("SELECT count(*) FROM vec").fetchone()[0]
 
+    def vectors_for(self, ids: Sequence[int]) -> dict[int, list[float]]:
+        """Return ``{id: vector}`` for the given ids — for pairwise similarity (clustering)."""
+        ids = list(ids)
+        if not ids:
+            return {}
+        out: dict[int, list[float]] = {}
+        placeholders = ",".join("?" * len(ids))
+        for rid, blob in self._con.execute(
+            f"SELECT id, v FROM vec WHERE id IN ({placeholders})", ids
+        ):
+            vec = array("f")
+            vec.frombytes(blob)
+            out[rid] = vec.tolist()
+        return out
+
     def close(self) -> None:
         self._con.close()

@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.qa.takhrij import find_parallels
+from app.qa.takhrij import analyze_narrations, find_parallels
 from app.routers.search import get_index
 from app.search import HadithIndex
 
@@ -41,6 +41,48 @@ def test_find_parallels_matches_same_report_not_unrelated(index):
     assert parallels[0][0] >= 0.8         # high overlap for a verbatim parallel
 
 
+NIYYA = "إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ وَإِنَّمَا لِكُلِّ امْرِئٍ مَا نَوَى"
+NIYYA_VAR = "الْأَعْمَالُ بِالنِّيَّةِ وَلِكُلِّ امْرِئٍ مَا نَوَى"  # same report, different wording
+
+VARIANTS = [
+    {"book_id": 1284, "number": 1, "matn": NIYYA, "isnad": "حدثنا الحميدي",
+     "grade": "صحيح", "chapter": "بدء الوحي", "page": 1, "volume": "1"},
+    {"book_id": 1727, "number": 5, "matn": NIYYA, "isnad": "حدثنا عبد الله",  # verbatim parallel
+     "grade": "صحيح", "chapter": "الإمارة", "page": 80, "volume": "3"},
+    {"book_id": 1726, "number": 9, "matn": NIYYA_VAR, "isnad": "حدثنا مسدد",  # بنحوه
+     "grade": "صحيح", "chapter": "الطلاق", "page": 50, "volume": "2"},
+    {"book_id": 1198, "number": 70, "matn": "الصَّلَاةُ عِمَادُ الدِّينِ مَنْ أَقَامَهَا",
+     "isnad": "حدثنا علي", "grade": "ضعيف", "chapter": "الصلاة", "page": 5, "volume": "1"},
+]
+
+
+@pytest.fixture
+def variants_index() -> HadithIndex:
+    idx = HadithIndex()
+    idx.add(VARIANTS)
+    return idx
+
+
+def test_analyze_merges_verbatim_into_one_variant(index):
+    src = index.search("كذب علي متعمدا")[0]
+    a = analyze_narrations(src.matn, index, exclude_id=src.id)
+    assert a["total"] == 2 and a["variants"] == 1      # both verbatim → one صيغة
+    assert a["groups"][0]["count"] == 2
+    assert a["groups"][0]["label"] == "بلفظه"
+    matns = [n["matn"] for g in a["groups"] for n in g["narrations"]]
+    assert all("الْأَعْمَالُ" not in m for m in matns)  # the unrelated hadith is excluded
+
+
+def test_analyze_separates_distinct_wordings(variants_index):
+    src = variants_index.search("الأعمال بالنيات")[0]
+    a = analyze_narrations(src.matn, variants_index, exclude_id=src.id)
+    assert a["total"] == 2 and a["variants"] == 2       # one verbatim + one بنحوه
+    labels = {g["label"] for g in a["groups"]}
+    assert "بلفظه" in labels and "بنحوه" in labels
+    matns = [n["matn"] for g in a["groups"] for n in g["narrations"]]
+    assert all("الصَّلَاةُ" not in m for m in matns)     # different report excluded
+
+
 @pytest.fixture
 def client(index) -> TestClient:
     app.dependency_overrides[get_index] = lambda: index
@@ -59,6 +101,14 @@ def test_api_takhrij_by_id(client):
 def test_api_takhrij_by_text(client):
     body = client.get("/takhrij", params={"q": KADHIB}).json()
     assert {p["collection"] for p in body["parallels"]} >= {"صحيح البخاري", "صحيح مسلم"}
+
+
+def test_api_takhrij_returns_groups(client):
+    body = client.get("/takhrij", params={"q": KADHIB}).json()
+    assert body["variants"] >= 1
+    assert body["groups"] and body["groups"][0]["label"] in ("بلفظه", "بنحوه", "بمعناه")
+    assert body["groups"][0]["count"] >= 1
+    assert "by_collection" in body and body["count"] == len(body["parallels"])
 
 
 def test_api_takhrij_requires_input(client):

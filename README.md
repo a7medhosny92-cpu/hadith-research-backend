@@ -153,7 +153,7 @@ uvicorn app.main:app --reload
 | `GET /search?q=…` | rank hadith by relevance (Arabic-folded; `field=all\|matn\|isnad`, filter by `collection`/`grade`; `mode=lexical\|semantic\|hybrid`) |
 | `GET /hadith/{id}` | a single hadith with its citation |
 | `GET /ask?q=…` | the most relevant hadith + grade + the **scholars' شرح** on that exact hadith, cited (add `&engine=local` or `&engine=remote` to synthesise with an LLM) |
-| `GET /takhrij?hadith_id=…` (or `q=…`) | the hadith's **parallel narrations** across collections |
+| `GET /takhrij?hadith_id=…` (or `q=…`) | **every** narration of the same report (lexical+semantic recall), grouped into distinct wordings (صيغ) and labelled بلفظه/بنحوه/بمعناه, with a by-collection tally |
 | `GET /verify-isnad?hadith_id=…` (or `isnad=…`) | parse the **chain of narrators**, flag سماع/عنعنة/تحويل, and **grade each narrator** (رجال) with a weakest-link verdict |
 
 ```bash
