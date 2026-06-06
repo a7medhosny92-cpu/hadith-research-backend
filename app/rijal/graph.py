@@ -135,18 +135,18 @@ class NarratorGraph:
     def add_chain(self, names: Iterable[str]) -> None:
         """Record a chain: each name narrates *from* the next one (تلميذ → شيخ).
 
-        Every Prophet reference collapses to one canonical node; shared names (سفيان …)
-        are resolved from their immediate neighbours; relational pronouns (أبيه/جده)
-        create **no** node and break the link on both sides (so they don't form a hub)."""
+        Every Prophet reference collapses to one canonical node; a shared name (سفيان …)
+        is resolved from the *whole chain* (a telltale شيخ/تلميذ may be more than one link
+        away); relational pronouns (أبيه/جده) create **no** node and break the link on
+        both sides (so they don't form a hub)."""
         names = list(names)
         ids: list[int | None] = []
         for i, name in enumerate(names):
             if _is_relative(name):
                 ids.append(None)            # a pronoun — not a node; breaks the chain here
                 continue
-            canonical = PROPHET_NODE if is_prophet(name) else disambiguate(
-                name, [names[i - 1] if i else "", names[i + 1] if i + 1 < len(names) else ""]
-            )
+            others = [n for j, n in enumerate(names) if j != i]
+            canonical = PROPHET_NODE if is_prophet(name) else disambiguate(name, others)
             ids.append(self._node_id(canonical))
         for student, teacher in zip(ids, ids[1:]):
             if not student or not teacher or student == teacher:

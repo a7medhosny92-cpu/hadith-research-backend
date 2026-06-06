@@ -43,3 +43,13 @@ def test_disambiguates_sufyan_from_neighbours():
     g.commit()
     assert g.resolve("سفيان بن عيينة") is not None
     assert g.resolve("سفيان الثوري") is not None
+
+
+def test_disambiguates_from_a_marker_several_links_away():
+    # the telltale شيخ is not the immediate neighbour (audit RIJ-2)
+    g = NarratorGraph(":memory:")
+    g.add_chain(["تلميذ مجهول", "سفيان", "وكيع", "الأعمش"])          # → الثوري
+    g.add_chain(["راوٍ آخر", "سفيان", "ابن أبي عمر", "عمرو بن دينار"])  # → ابن عيينة
+    g.commit()
+    assert g.resolve("سفيان الثوري") is not None
+    assert g.resolve("سفيان بن عيينة") is not None

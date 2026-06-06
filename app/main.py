@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 
 from app import __version__
 from app.routers import (
-    ask, dossier, health, narrators, notebook, search, takhrij, verify_isnad,
+    admin, ask, dossier, health, narrators, notebook, search, takhrij, verify_isnad,
 )
 
 app = FastAPI(
@@ -29,6 +29,7 @@ app.include_router(verify_isnad.router)
 app.include_router(narrators.router)
 app.include_router(dossier.router)
 app.include_router(notebook.router)
+app.include_router(admin.router)
 
 
 @app.get("/", tags=["root"])
