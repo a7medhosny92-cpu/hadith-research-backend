@@ -70,6 +70,20 @@ def test_lookup_resolves_isnad_names():
     assert idx.lookup("ثابت بن أسلم البناني").entry.category == "ثقة"
 
 
+def test_lookup_does_not_overgrade_via_single_token_alias():
+    """A different man who merely shares one ism must NOT resolve to the Companion
+    (audit RIJ-1: «خالد بن عمر» was wrongly graded عمر بن الخطاب, صحابي rank 10)."""
+    from app.rijal import load_seed
+    idx = RijalIndex(load_seed())
+    assert idx.lookup("خالد بن عمر") is None
+    assert idx.lookup("محمد بن أنس") is None
+    assert idx.lookup("عمر بن علي المقدمي") is None
+    # but the real Companions still resolve (by full name and by bare ism in a chain)
+    assert idx.lookup("عمر بن الخطاب").entry.category == "صحابي"
+    assert idx.lookup("أنس").entry.category == "صحابي"
+    assert idx.lookup("عن أنس").entry.category == "صحابي"
+
+
 def test_dedupe_drops_exact_seed_duplicates_but_keeps_namesakes():
     records = [
         {"name": "عبد الله بن عمر", "grade": "صحابي"},            # exact seed alias → drop

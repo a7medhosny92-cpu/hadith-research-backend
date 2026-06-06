@@ -27,9 +27,11 @@ _HONORIFIC_CH = re.compile(r"[﴾-﷿ؐ-ؚۖ-ۭ]")
 _HONORIFIC_PHRASE = re.compile(
     r"رضي الله عنه[ام]*|صلى الله عليه وسلم|عليه السلام|رحمه الله|رضوان الله عليه"
 )
-# Tokens that are transmission verbs / spillover, never part of a name.
+# Tokens that are transmission verbs / spillover / non-discriminating connectors, never
+# an identifying part of a name. «بن/ابن» are dropped so «خالد بن عمر» and «عمر بن الخطاب»
+# don't look alike merely through the shared «بن».
 _STOP = {normalize_for_search(w) for w in (
-    "قال قالت يقول سمع سمعت يحدث أنه حدثنا حدثني أخبرنا أخبرني عن نا ثنا يعني المنبر"
+    "قال قالت يقول سمع سمعت يحدث أنه حدثنا حدثني أخبرنا أخبرني عن نا ثنا يعني المنبر بن ابن"
 ).split()}
 
 
@@ -123,7 +125,14 @@ class RijalIndex:
             specificity = 0
             best_overlap = 0.0
             for form in forms:
+                # a bare single-token form (an ism like «عمر») can't confidently identify
+                # a more fully-named query («خالد بن عمر») — only an exact bare-name query
+                # («عن أنس») may match it. This kills score-1.0 over-grading.
+                if len(form) == 1 and len(query) > 1:
+                    continue
                 shared = len(query & form)
+                if not shared:
+                    continue
                 if shared == len(form):  # form ⊆ query
                     specificity = max(specificity, len(form))
                 best_overlap = max(best_overlap, shared / min(len(query), len(form)))
