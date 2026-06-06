@@ -106,6 +106,19 @@ bash scripts/setup_local.sh full     # every hadith-sciences category (~2.9M pag
 It is **resumable**: if it stops, run it again and it continues. The steps below are
 the same pipeline run by hand (ingest → parse → index).
 
+### Keep it up to date
+
+Pull the latest code and refresh the corpus in one go — on Windows just **double-click
+`update.bat`**:
+
+```bash
+python -m scripts.update              # code + corpus
+python -m scripts.update --code-only  # just code + dependencies (fast)
+```
+
+Safe to re-run anytime: `git pull` is fast-forward, the crawl resumes, and
+parse/index are idempotent.
+
 ### Ingestion (downloading from turath.io)
 
 ```bash
