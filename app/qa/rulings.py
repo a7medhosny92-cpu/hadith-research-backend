@@ -22,7 +22,7 @@ SCHOLARS: dict[str, tuple[int, list[str]]] = {
     "ابن معين": (233, ["ابن معين", "يحيى بن معين"]),
     "أحمد بن حنبل": (241, ["ابن حنبل", "الإمام أحمد", "أحمد بن حنبل"]),
     "البخاري": (256, ["البخاري", "محمد بن إسماعيل"]),
-    "مسلم": (261, ["مسلم بن الحجاج", "الإمام مسلم", "مسلم"]),
+    "مسلم": (261, ["مسلم بن الحجاج", "الإمام مسلم"]),   # bare «مسلم» is too common a word
     "أبو زرعة الرازي": (264, ["أبو زرعة"]),
     "أبو داود": (275, ["أبو داود"]),
     "أبو حاتم الرازي": (277, ["أبو حاتم"]),
@@ -115,6 +115,17 @@ def _scholar_in(window: list[str]) -> str | None:
     return best
 
 
+def _verdict_window(toks: list[str], start: int, cap: int = 12) -> list[str]:
+    """The tokens of one «قال …» clause: from ``start`` up to (not into) the next
+    «قال/وقال …», so a later scholar's verdict isn't attributed to the earlier one."""
+    out: list[str] = []
+    for tok in toks[start:start + cap]:
+        if _dewaw(tok) in _SAYS:
+            break
+        out.append(tok)
+    return out
+
+
 def _verdict_in(window: list[str]) -> str | None:
     for i in range(len(window)):
         if i > 0 and window[i - 1] in NEGATORS:          # «غير صحيح» / «ليس صحيحًا»
@@ -170,25 +181,28 @@ def extract_rulings(text: str) -> list[dict]:
     for i, raw in enumerate(toks):
         tok = _dewaw(raw)
         window = toks[i + 1 : i + 5]   # the attributed scholar sits right after the trigger
-        # «صحّحه ابن حجر», «ضعّفه الألباني» — but not «لم يصحّحه», «لم يضعّفه»
+        # «صحّحه ابن حجر» (verb→scholar) or «ابن حجر صحّحه» (scholar→verb), not «لم يصحّحه»
         if tok in _VERBS:
             if negated_before(toks, i):
                 continue
-            who = _scholar_in(window)
+            who = _scholar_in(window) or _scholar_in(toks[max(0, i - 3):i])
             if who:
                 rulings.setdefault((who, _VERBS[tok]), "نصّ")
-        # «قال الترمذي: حسن صحيح»
+        # «قال الترمذي: حسن صحيح» — read the verdict only within this قال-clause
         elif tok in _SAYS:
             who = _scholar_in(window)
             if who:
-                verdict = _verdict_in(toks[i + 1 : i + 12])
+                verdict = _verdict_in(_verdict_window(toks, i + 1))
                 if verdict:
                     rulings.setdefault((who, verdict), "نصّ")
-        # implicit: «رواه البخاري» → صحيح عنده
+        # implicit: «رواه البخاري/مسلم» → صحيح عنده (each checked independently, anywhere
+        # in the window — «رواه النسائي والبخاري ومسلم»)
         elif tok in _TAKHRIJ_VERBS:
-            who = _scholar_in(window)
-            if who in ("البخاري", "مسلم"):
-                rulings.setdefault((who, "صحيح"), "تخريج")
+            win = {_dewaw(t) for t in window}
+            if "البخاري" in win:
+                rulings.setdefault(("البخاري", "صحيح"), "تخريج")
+            if "مسلم" in win:
+                rulings.setdefault(("مسلم", "صحيح"), "تخريج")
         # «على شرط الشيخين / البخاري / مسلم»
         elif tok == "شرط":
             nxt = set(window)
