@@ -35,6 +35,15 @@ CREATE INDEX IF NOT EXISTS link_teacher ON link(teacher);
 
 # Tokens that mark the end of a chain (the Prophet ﷺ), not a gradable narrator.
 _PROPHET = {"النبي", "رسول", "الله", "نبي"}
+# The eulogy (صلى الله عليه وسلم) — part of a Prophet reference, ignored when testing it.
+_EULOGY_TOKENS = {"صلي", "عليه", "وسلم", "واله", "وصحبه", "سلم", "عن"}
+# The single canonical node every Prophet reference collapses to.
+PROPHET_NODE = "النبي ﷺ"
+# Relational pronouns (عن أبيه عن جده): real in the text but not graph-able narrators —
+# every «أبيه» would otherwise merge into one bogus hub that is everyone's teacher.
+_RELATIVE = {normalize_for_search(w) for w in (
+    "أبيه أبيها أمه أمها جده جدها جدته ابنه ابنها بنته عمه عمها خاله خالها أخيه أخيها أخته"
+).split()}
 
 
 def name_tokens(text: str) -> frozenset[str]:
@@ -46,8 +55,16 @@ def name_tokens(text: str) -> frozenset[str]:
 
 
 def is_prophet(name: str) -> bool:
+    """True if ``name`` refers to the Prophet ﷺ — its *core* tokens (after dropping the
+    eulogy) are all Prophet terms. So «النبي», «رسول الله», «النبي صلى الله عليه وسلم»
+    all match, but «النبي مثله» / «محمد بن إسماعيل» do not."""
+    core = name_tokens(name) - _EULOGY_TOKENS
+    return bool(core) and core <= _PROPHET
+
+
+def _is_relative(name: str) -> bool:
     toks = name_tokens(name)
-    return bool(toks) and toks <= _PROPHET | {"صلي", "عليه", "وسلم", "عن"}
+    return len(toks) == 1 and next(iter(toks)) in _RELATIVE
 
 
 # Shared bare names (المشترك): same name, different men. Disambiguate by the company
@@ -117,15 +134,22 @@ class NarratorGraph:
 
     def add_chain(self, names: Iterable[str]) -> None:
         """Record a chain: each name narrates *from* the next one (تلميذ → شيخ).
-        Shared names (سفيان …) are first resolved from their immediate neighbours."""
+
+        Every Prophet reference collapses to one canonical node; shared names (سفيان …)
+        are resolved from their immediate neighbours; relational pronouns (أبيه/جده)
+        create **no** node and break the link on both sides (so they don't form a hub)."""
         names = list(names)
-        resolved = [
-            disambiguate(n, [names[i - 1] if i else "", names[i + 1] if i + 1 < len(names) else ""])
-            for i, n in enumerate(names)
-        ]
-        ids = [nid for n in resolved if (nid := self._node_id(n)) is not None]
+        ids: list[int | None] = []
+        for i, name in enumerate(names):
+            if _is_relative(name):
+                ids.append(None)            # a pronoun — not a node; breaks the chain here
+                continue
+            canonical = PROPHET_NODE if is_prophet(name) else disambiguate(
+                name, [names[i - 1] if i else "", names[i + 1] if i + 1 < len(names) else ""]
+            )
+            ids.append(self._node_id(canonical))
         for student, teacher in zip(ids, ids[1:]):
-            if student == teacher:
+            if not student or not teacher or student == teacher:
                 continue
             self._con.execute(
                 "INSERT INTO link (teacher, student, weight) VALUES (?, ?, 1) "

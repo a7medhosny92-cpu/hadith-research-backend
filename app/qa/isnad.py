@@ -17,6 +17,7 @@ from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING
 
 from app.parsing.normalize import normalize_for_search, strip_diacritics
+from app.rijal.graph import is_prophet
 
 if TYPE_CHECKING:
     from app.rijal import RijalIndex, RijalMatch
@@ -30,6 +31,14 @@ _VIA: dict[str, str] = {
 }
 # Connective words that are not narrator names.
 _SKIP = {"قال", "قالا", "قالوا", "يعني", "قالت", "ح"}
+# Matn-start markers: once the isnad reaches one of these (after a narrator) the matn
+# has begun and the chain ends. «قال/قالت» are *soft* — a boundary only when NOT followed
+# by a transmission verb (… قال حدثنا … keeps going); the rest always begin the matn.
+_MATN_HARD = {"يقول", "تقول", "مرفوعا", "رفعه", "يرفعه", "نحوه", "مثله", "بنحوه", "بمثله", "فقال"}
+_MATN_SOFT = {"قال", "قالت"}
+# Tokens still inside a Prophet reference (his name + the eulogy); the first token
+# outside this set ends the Prophet's (terminal) name and starts the matn.
+_EULOGY = {"النبي", "نبي", "رسول", "الله", "صلي", "عليه", "وسلم", "واله", "وصحبه", "سلم"}
 _TOKEN = re.compile(r"[^\s،,.:؛()«»\"']+")
 
 
@@ -85,14 +94,18 @@ def analyze_isnad(text: str, rijal: "RijalIndex | None" = None) -> IsnadAnalysis
     buf: list[str] = []
     has_tahwil = False
 
-    def flush() -> None:
+    def flush() -> bool:
         name = " ".join(buf).strip(" -،")
         if name:
             narrators.append(Narrator(name=name, via=via or "—"))
+            return is_prophet(name)   # the Prophet is terminal — nothing narrates from him
+        return False
 
-    for token in _TOKEN.findall(raw):
+    tokens = _TOKEN.findall(raw)
+    for i, token in enumerate(tokens):
         folded = normalize_for_search(token)
-        if token == "ح" or folded == "ح":
+        nxt = normalize_for_search(tokens[i + 1]) if i + 1 < len(tokens) else ""
+        if folded == "ح":
             has_tahwil = True  # تحويل: a standalone ح marks a route switch
             continue
         # accept a leading و (وحدثنا، وعن، وأخبرنا …)
@@ -100,20 +113,35 @@ def analyze_isnad(text: str, rijal: "RijalIndex | None" = None) -> IsnadAnalysis
             folded[1:] if folded[:1] == "و" and folded[1:] in _VIA else None
         )
         if conn:
-            flush()
+            if flush():           # reached the Prophet → stop; the matn follows
+                break
             via, buf = _VIA[conn], []
             continue
+        # matn boundary: the isnad ends where the report (matn) begins
+        nxt_is_via = nxt in _VIA or (nxt[:1] == "و" and nxt[1:] in _VIA)
+        if folded in _MATN_HARD or (folded in _MATN_SOFT and not nxt_is_via):
+            flush()
+            break
+        if folded in _MATN_SOFT:   # «قال حدثنا …» — connective, not the matn; drop it
+            continue
+        # the Prophet is the terminal narrator: once the buffer is the Prophet and the
+        # next token isn't part of the eulogy, the matn has begun
+        if buf and folded not in _EULOGY and is_prophet(" ".join(buf)):
+            flush()
+            break
         if folded in _SKIP:
             continue
         buf.append(token)
-    flush()
+    else:
+        flush()
 
     modes: dict[str, int] = {}
     for narrator in narrators:
         if narrator.via in ("سماع", "عنعنة"):
             modes[narrator.via] = modes.get(narrator.via, 0) + 1
     has_anana = modes.get("عنعنة", 0) > 0
-    reaches_prophet = ("النبي" in raw) or ("رسول الله" in raw) or ("رسول اللـه" in raw)
+    # marfūʿ iff the chain actually ends at the Prophet (not merely mentions him in matn)
+    reaches_prophet = bool(narrators) and is_prophet(narrators[-1].name)
 
     narrator_dicts: list[dict] = []
     matches: list["RijalMatch | None"] = []

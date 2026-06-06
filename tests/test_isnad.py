@@ -43,6 +43,31 @@ def test_reaches_prophet():
     assert not analyze_isnad("حدثنا فلان، عن أنس").reaches_prophet
 
 
+# ── matn must not leak into the last narrator (audit ISN-1/2/3) ───────────────
+def test_matn_does_not_leak_into_last_narrator():
+    a = analyze_isnad("حدثنا الحميدي حدثنا سفيان عن عمر بن الخطاب "
+                      "عن النبي صلى الله عليه وسلم قال إنما الأعمال بالنيات")
+    names = [n["name"] for n in a.narrators]
+    assert names == ["الحميدي", "سفيان", "عمر بن الخطاب", "النبي صلى الله عليه وسلم"]
+    assert not any("الأعمال" in n or "إنما" in n for n in names)
+
+
+def test_matn_stops_at_qala_for_any_chain_end():
+    a = analyze_isnad("عن أبي هريرة قال إنما الأعمال بالنيات")
+    assert [n["name"] for n in a.narrators] == ["أبي هريرة"]
+
+
+def test_qala_followed_by_transmission_is_connective():
+    a = analyze_isnad("حدثنا فلان قال حدثنا علان عن أنس")
+    assert [n["name"] for n in a.narrators] == ["فلان", "علان", "أنس"]
+
+
+def test_reaches_prophet_is_false_for_mawquf_mentioning_prophet():
+    # the matn mentions the Prophet but the chain stops at a Companion → not marfūʿ
+    a = analyze_isnad("حدثنا فلان عن عمر قال كان النبي صلى الله عليه وسلم")
+    assert not a.reaches_prophet
+
+
 # ── overall ruling (الحكم على الإسناد) ───────────────────────────────────────
 def test_ruling_all_thiqat_connected_is_sahih():
     r = overall_ruling(_analysis(9), {"total": 5, "seen": 5})
