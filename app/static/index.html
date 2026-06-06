@@ -64,6 +64,12 @@
   .v-nahw{background:#5c531f;color:#f0e7bf}
   .v-maana{background:#1f3b5c;color:#bfd6f0}
   .simbadge{color:var(--muted);font-size:.84rem}
+  .comp-head{font-size:1.2rem;font-weight:bold;color:#bff0d0;
+    margin:26px 2px 4px;padding-top:14px;border-top:2px solid var(--accent2)}
+  .takhrij-line{color:var(--muted);font-size:.92rem;margin:2px 2px 8px;line-height:1.9}
+  .chain{margin-top:8px;color:#aec4d2;font-size:.96rem;line-height:1.9;
+    border-top:1px dashed var(--line);padding-top:8px}
+  .chain-lbl{color:var(--accent);font-weight:bold}
 </style>
 </head>
 <body>
@@ -193,20 +199,27 @@ function narrationCard(n){
     .filter(Boolean).join("  ·  ");
   const grade = n.grade ? `<span class="grade ${gradeClass(n.grade)}">${esc(n.grade)}</span>` : "";
   const sim = `<span class="simbadge">${Math.round((n.overlap||0)*100)}% تطابق</span>`;
-  const isnad = n.isnad
-    ? `<div class="toggle">عرض الإسناد ▾</div><div class="isnad">${esc(n.isnad)}</div>` : "";
+  // The chain is always shown here — «who carried it» is the point of takhrij.
+  const chain = n.isnad
+    ? `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${esc(n.isnad)}</div>` : "";
   return `<div class="card"><div class="matn">${esc(n.matn)}</div>
-    <div class="cite">${grade}<span>${esc(cite)}</span>${sim}</div>${isnad}</div>`;
+    <div class="cite">${grade}<span>${esc(cite)}</span>${sim}</div>${chain}</div>`;
 }
 function renderTakhrij(d){
   const groups = d.groups || [];
   if(!groups.length){ results.innerHTML = `<div class="state">لا توجد روايات</div>`; return; }
   const sources = Object.keys(d.by_collection || {}).length;
-  let html = `<div class="note">${d.count} روايةً في ${d.variants} صيغة، عبر ${sources} مصدرًا</div>`;
+  let html = `<div class="note">${d.count} روايةً · عن ${d.companions} صحابيًّا · `
+    + `في ${d.variants} صيغة · عبر ${sources} مصدرًا</div>`;
   groups.forEach(g => {
-    html += `<div class="group-head"><span class="vlabel ${vlabelClass(g.label)}">${esc(g.label)}</span>`
-      + `<span class="simbadge">${g.count} رواية · ${Math.round((g.closeness||0)*100)}% تطابق مع الأصل</span></div>`;
-    html += g.narrations.map(narrationCard).join("");
+    const who = g.companion ? `من حديث: ${esc(g.companion)}` : "صحابيّ غير محدَّد";
+    html += `<div class="comp-head">${who} <span class="simbadge">(${g.count} رواية)</span></div>`;
+    if(g.takhrij) html += `<div class="takhrij-line">${esc(g.takhrij)}</div>`;
+    (g.variants || []).forEach(v => {
+      html += `<div class="group-head"><span class="vlabel ${vlabelClass(v.label)}">${esc(v.label)}</span>`
+        + `<span class="simbadge">${v.count} رواية · ${Math.round((v.closeness||0)*100)}% تطابق مع الأصل</span></div>`;
+      html += v.narrations.map(narrationCard).join("");
+    });
   });
   results.innerHTML = html;
 }

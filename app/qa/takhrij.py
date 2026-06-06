@@ -16,6 +16,7 @@ meaning). :func:`find_parallels` keeps the simple flat list for callers that wan
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from functools import lru_cache
 
 from app.parsing.normalize import normalize_for_search
 from app.search import HadithIndex, SearchHit
@@ -44,6 +45,57 @@ def _label(overlap: float) -> str:
     if overlap >= 0.60:
         return "بنحوه"   # near-wording
     return "بمعناه"      # by meaning (wording differs)
+
+
+def _name_tokens(text: str) -> set[str]:
+    """Folded tokens for *name* matching: unify the kunya cases أبو/أبا/أبي so a name
+    written in the genitive in a chain («عن أبي هريرة») matches its nominative alias."""
+    out = set()
+    for t in normalize_for_search(text).split():
+        out.add("ابو" if t in ("ابو", "ابا", "ابي") else t)
+    return out
+
+
+@lru_cache(maxsize=1)
+def _companions() -> list[tuple[str, frozenset[str]]]:
+    """Known Companions (الصحابة) as ``(canonical_name, alias_token_set)`` pairs, from the
+    bundled rijal seed — the المكثرون and other well-known narrators. Used to recognise
+    *who* a narration goes back to."""
+    from app.rijal import load_seed
+
+    out: list[tuple[str, frozenset[str]]] = []
+    for entry in load_seed():
+        if entry.get("grade") not in ("صحابي", "صحابية"):
+            continue
+        for form in (entry["name"], *entry.get("aliases", [])):
+            toks = frozenset(_name_tokens(form))
+            if toks:
+                out.append((entry["name"], toks))
+    # Longer alias token-sets first, so the most specific name wins on a match.
+    out.sort(key=lambda pair: -len(pair[1]))
+    return out
+
+
+def _companion_of(isnad: str, matn: str) -> str | None:
+    """The Companion a narration goes back to: the known Companion whose name appears in
+    the chain (or, if the isnad isn't separated, in the matn). ``None`` if unrecognised."""
+    chain = _name_tokens(isnad)
+    body = _name_tokens(matn)
+    for name, alias in _companions():
+        if alias <= chain or alias <= body:
+            return name
+    return None
+
+
+def _takhrij_line(narrations: list[dict]) -> str:
+    """Classical «أخرجه» summary: each collection with the hadith numbers it reports under."""
+    by_book: dict[str, list[str]] = defaultdict(list)
+    for n in narrations:
+        num = n.get("number")
+        if num is not None and str(num) not in by_book[n["collection"]]:
+            by_book[n["collection"]].append(str(num))
+    parts = [f"{book} ({'، '.join(nums)})" if nums else book for book, nums in by_book.items()]
+    return "أخرجه " + " · ".join(parts) if parts else ""
 
 
 def find_parallels(
@@ -125,6 +177,7 @@ def _narration(item: dict) -> dict:
         "page": hit.page,
         "matn": hit.matn,
         "isnad": hit.isnad,
+        "companion": item.get("companion"),
         "overlap": item["overlap"],
         "semantic": item["semantic"],
         "label": _label(item["overlap"]),
@@ -145,11 +198,13 @@ def analyze_narrations(
     distinct wordings (صيغ) and labelled by closeness to the source.
 
     Recall is hybrid — lexical wording plus, when a vector index is given, meaning —
-    so paraphrased narrations are found too. Returns counts, a by-collection tally,
-    and ``groups`` (one per variant, best/closest first)."""
+    so paraphrased narrations are found too. Narrations are grouped by **Companion**
+    (who the report goes back to); within each Companion they're clustered into distinct
+    wordings (صيغ) and labelled by closeness, and each Companion carries an «أخرجه»
+    summary (which collections, with numbers). Returns counts + a by-collection tally."""
     source_terms = _term_set(matn)
     if not source_terms:
-        return {"total": 0, "variants": 0, "by_collection": {}, "groups": []}
+        return {"total": 0, "companions": 0, "variants": 0, "by_collection": {}, "groups": []}
 
     # 1) Gather candidates: lexical (wording) + semantic (meaning), de-duplicated by id.
     #    Use OR recall so differently-worded narrations surface even when a verbatim
@@ -181,34 +236,60 @@ def analyze_narrations(
         if overlap < min_overlap and sem < _KEEP_SEM:
             continue
         key = (hit.book_id, hit.number)
-        item = {"hit": hit, "terms": terms, "overlap": round(overlap, 3), "semantic": round(sem, 3)}
+        item = {
+            "hit": hit,
+            "terms": terms,
+            "overlap": round(overlap, 3),
+            "semantic": round(sem, 3),
+            "companion": _companion_of(hit.isnad or "", hit.matn or ""),
+        }
         if key not in best or overlap > best[key]["overlap"]:
             best[key] = item
     items = list(best.values())
     if not items:
-        return {"total": 0, "variants": 0, "by_collection": {}, "groups": []}
+        return {"total": 0, "companions": 0, "variants": 0, "by_collection": {}, "groups": []}
 
-    # 3) Cluster the narrations into distinct wordings, then describe each group.
+    # 3) Group by Companion (who it goes back to); within each, cluster into wordings (صيغ).
+    by_companion: dict[str | None, list[dict]] = defaultdict(list)
+    for item in items:
+        by_companion[item["companion"]].append(item)
+
     groups: list[dict] = []
-    for members in _cluster(items, cand_vecs):
-        members.sort(key=lambda m: -m["overlap"])
-        closeness = max(m["overlap"] for m in members)
+    total_variants = 0
+    for companion, members in by_companion.items():
+        variants: list[dict] = []
+        for cluster in _cluster(members, cand_vecs):
+            cluster.sort(key=lambda m: -m["overlap"])
+            closeness = max(m["overlap"] for m in cluster)
+            variants.append(
+                {
+                    "label": _label(closeness),
+                    "closeness": closeness,
+                    "count": len(cluster),
+                    "narrations": [_narration(m) for m in cluster],
+                }
+            )
+        variants.sort(key=lambda v: (-v["closeness"], -v["count"]))
+        total_variants += len(variants)
+        flat = [n for v in variants for n in v["narrations"]]
         groups.append(
             {
-                "label": _label(closeness),
-                "closeness": closeness,
-                "semantic": max(m["semantic"] for m in members),
+                "companion": companion,
                 "count": len(members),
+                "variants_count": len(variants),
                 "collections": sorted({m["hit"].collection for m in members}),
-                "narrations": [_narration(m) for m in members],
+                "takhrij": _takhrij_line(flat),
+                "variants": variants,
             }
         )
-    groups.sort(key=lambda g: (-g["closeness"], -g["count"]))
+    # Identified Companions first (most-narrated first); the unidentified group last.
+    groups.sort(key=lambda g: (g["companion"] is None, -g["count"]))
 
     by_collection = Counter(m["hit"].collection for m in items)
     return {
         "total": len(items),
-        "variants": len(groups),
+        "companions": sum(1 for g in groups if g["companion"] is not None),
+        "variants": total_variants,
         "by_collection": dict(by_collection),
         "groups": groups,
     }

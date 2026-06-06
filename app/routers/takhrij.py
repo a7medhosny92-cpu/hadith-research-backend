@@ -43,12 +43,13 @@ def takhrij(
     )
     # Flat list (every narration, closest first) for callers that don't want the groups.
     parallels = sorted(
-        (n for g in analysis["groups"] for n in g["narrations"]),
+        (n for g in analysis["groups"] for v in g["variants"] for n in v["narrations"]),
         key=lambda n: -n["overlap"],
     )
     return {
         "source": source,
         "count": analysis["total"],
+        "companions": analysis["companions"],
         "variants": analysis["variants"],
         "by_collection": analysis["by_collection"],
         "groups": analysis["groups"],

@@ -63,24 +63,51 @@ def variants_index() -> HadithIndex:
     return idx
 
 
+def _all_narrations(a):
+    return [n for g in a["groups"] for v in g["variants"] for n in v["narrations"]]
+
+
 def test_analyze_merges_verbatim_into_one_variant(index):
     src = index.search("كذب علي متعمدا")[0]
     a = analyze_narrations(src.matn, index, exclude_id=src.id)
     assert a["total"] == 2 and a["variants"] == 1      # both verbatim → one صيغة
-    assert a["groups"][0]["count"] == 2
-    assert a["groups"][0]["label"] == "بلفظه"
-    matns = [n["matn"] for g in a["groups"] for n in g["narrations"]]
-    assert all("الْأَعْمَالُ" not in m for m in matns)  # the unrelated hadith is excluded
+    g = a["groups"][0]
+    assert g["variants"][0]["count"] == 2
+    assert g["variants"][0]["label"] == "بلفظه"
+    assert all("الْأَعْمَالُ" not in n["matn"] for n in _all_narrations(a))  # unrelated excluded
 
 
 def test_analyze_separates_distinct_wordings(variants_index):
     src = variants_index.search("الأعمال بالنيات")[0]
     a = analyze_narrations(src.matn, variants_index, exclude_id=src.id)
     assert a["total"] == 2 and a["variants"] == 2       # one verbatim + one بنحوه
-    labels = {g["label"] for g in a["groups"]}
+    labels = {v["label"] for g in a["groups"] for v in g["variants"]}
     assert "بلفظه" in labels and "بنحوه" in labels
-    matns = [n["matn"] for g in a["groups"] for n in g["narrations"]]
-    assert all("الصَّلَاةُ" not in m for m in matns)     # different report excluded
+    assert all("الصَّلَاةُ" not in n["matn"] for n in _all_narrations(a))  # different report excluded
+
+
+HADITH = "الطُّهُورُ شَطْرُ الْإِيمَانِ وَالْحَمْدُ لِلَّهِ تَمْلَأُ الْمِيزَانَ"
+COMPANION_RECORDS = [
+    {"book_id": 1727, "number": 223, "matn": HADITH, "grade": "صحيح", "chapter": "الطهارة",
+     "page": 140, "volume": "1", "isnad": "حدثنا إسحاق حدثنا أبو هريرة عن النبي"},
+    {"book_id": 1284, "number": 9, "matn": HADITH, "grade": "صحيح", "chapter": "الإيمان",
+     "page": 12, "volume": "1", "isnad": "حدثنا قتيبة عن أبي هريرة عن النبي"},
+    {"book_id": 1726, "number": 31, "matn": HADITH, "grade": "حسن", "chapter": "الطهارة",
+     "page": 18, "volume": "1", "isnad": "حدثنا مسدد عن عائشة عن النبي"},
+]
+
+
+def test_analyze_groups_by_companion():
+    idx = HadithIndex()
+    idx.add(COMPANION_RECORDS)
+    src = idx.search("الطهور شطر الإيمان")[0]   # the أبو هريرة one is indexed first
+    a = analyze_narrations(src.matn, idx, exclude_id=src.id)
+    companions = {g["companion"] for g in a["groups"]}
+    assert "عبد الرحمن بن صخر الدوسي" in companions   # أبو هريرة, recognised in the chain
+    assert "عائشة بنت أبي بكر" in companions
+    assert a["companions"] == 2
+    abu_hurayra = next(g for g in a["groups"] if g["companion"] == "عبد الرحمن بن صخر الدوسي")
+    assert abu_hurayra["takhrij"].startswith("أخرجه")     # «أخرجه …» summary present
 
 
 @pytest.fixture
@@ -105,9 +132,10 @@ def test_api_takhrij_by_text(client):
 
 def test_api_takhrij_returns_groups(client):
     body = client.get("/takhrij", params={"q": KADHIB}).json()
-    assert body["variants"] >= 1
-    assert body["groups"] and body["groups"][0]["label"] in ("بلفظه", "بنحوه", "بمعناه")
-    assert body["groups"][0]["count"] >= 1
+    assert body["variants"] >= 1 and "companions" in body
+    g = body["groups"][0]
+    assert "companion" in g and g["variants"][0]["label"] in ("بلفظه", "بنحوه", "بمعناه")
+    assert g["count"] >= 1
     assert "by_collection" in body and body["count"] == len(body["parallels"])
 
 
