@@ -67,6 +67,7 @@ class RijalEntry:
     rank: int | None
     death_year: int | None
     source: str | None
+    opinions: list[dict] | None = None   # [{source, grade}] — the «double opinion» (ابن حجر/الذهبي)
 
 
 @dataclass(slots=True)
@@ -88,6 +89,7 @@ class RijalMatch:
             "match_score": self.score,
             "ambiguous": self.ambiguous,
             "alternatives": self.alternatives,
+            "opinions": self.entry.opinions,
         }
 
 
@@ -114,6 +116,7 @@ class RijalIndex:
                 rank=rank,
                 death_year=raw.get("death_year"),
                 source=raw.get("source"),
+                opinions=raw.get("opinions"),
             )
             seqs = [s for s in (_clean_seq(f) for f in (entry.name, *entry.aliases)) if s]
             self._entries.append(entry)

@@ -439,6 +439,17 @@ function rijalClass(v){
   if(/ضعيف|متروك|منكر|كذاب|واهٍ/.test(v)) return "g-daif";
   return "g-other";
 }
+// The «double opinion» (الرأي الثاني): show the critics' verdicts when they differ,
+// e.g. «ثقة عند ابن حجر · صدوق عند الذهبي».
+const SRC_AUTHOR = {"تقريب التهذيب":"ابن حجر", "الكاشف":"الذهبي"};
+function opinionsHtml(ops){
+  if(!ops || ops.length < 2) return "";
+  if(new Set(ops.map(o => o.grade)).size < 2) return "";   // they agree → nothing to add
+  const parts = ops.map(o => `<span class="ruling ${rijalClass(o.grade)}">`
+    + `${esc(o.grade)} عند ${esc(SRC_AUTHOR[o.source] || o.source)}</span>`).join("");
+  return `<div class="rulings"><span class="r-lbl">أقوال النقّاد:</span>${parts}`
+    + `<span class="r-diverge">⚠ اختلفوا</span></div>`;
+}
 function rawiList(title, arr){
   if(!arr || !arr.length) return `<div class="rawi-col"><h3>${title}</h3><div class="note">—</div></div>`;
   const rows = arr.map(x =>
@@ -453,6 +464,7 @@ function renderNarrator(d){
     meta:{grade:d.grade, sources:d.sources}});
   let html = `<div class="card"><div class="rawi-name">${esc(d.name)} ${badge} ${save}</div>`;
   if(d.summary) html += `<div class="rawi-summary">${esc(d.summary)}</div>`;
+  html += opinionsHtml(d.grade && d.grade.opinions);
   html += `</div>`;
   html += `<div class="rawi-cols">`
     + rawiList("شيوخه — يروي عنهم", d.teachers)
@@ -498,8 +510,11 @@ function renderIsnad(d){
     const rij = n.rijal;
     const g = rij && rij.grade;
     const amb = rij && rij.ambiguous ? ` <span class="simbadge" title="${esc((rij.alternatives||[]).join(' / '))}">مشترك</span>` : "";
+    const ops = rij && rij.opinions;
+    const div = ops && new Set(ops.map(o => o.grade)).size > 1
+      ? ` <span class="r-diverge" title="${esc(ops.map(o => (SRC_AUTHOR[o.source]||o.source)+": "+o.grade).join(" · "))}">⚠ اختلفوا</span>` : "";
     const badge = g
-      ? `<span class="grade ${rijalClass(g)}" title="${esc(rij.verdict || '')}">${esc(g)}</span>${amb}`
+      ? `<span class="grade ${rijalClass(g)}" title="${esc(rij.verdict || '')}">${esc(g)}</span>${amb}${div}`
       : `<span class="simbadge">غير معروف في القاعدة</span>`;
     html += `<div class="rawi-item"><span>${i + 1}. ${esc(n.name)} ${isnadVia(n.via)}</span>${badge}</div>`;
   });

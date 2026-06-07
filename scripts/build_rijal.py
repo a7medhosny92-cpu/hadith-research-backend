@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -84,6 +85,23 @@ def _covered(index: RijalIndex, name: str) -> bool:
     return bool(match and match.score >= 1.0 and not match.ambiguous)
 
 
+def _short(source: str) -> str:
+    """The bare book name without the «(رقم …)» suffix — e.g. «تقريب التهذيب»."""
+    return re.sub(r"\s*\(رقم.*", "", source or "").strip() or "غير معروف"
+
+
+def _opinion(source: str, grade_raw: str) -> dict:
+    return {"source": _short(source), "grade": classify(grade_raw)[0]}
+
+
+def _add_opinion(record: dict, source: str, grade_raw: str) -> None:
+    """Record a critic's verdict on a narrator (one per source) — the «double opinion»."""
+    op = _opinion(source, grade_raw)
+    ops = record.setdefault("opinions", [])
+    if not any(o["source"] == op["source"] for o in ops):
+        ops.append(op)
+
+
 def merge_source(primary: list[dict], secondary: list[dict]) -> tuple[list[dict], int, int]:
     """Fold a *secondary* رجال source (e.g. الكاشف) into ``primary`` (تقريب, the
     authority) without ever creating a duplicate — which would make a shared name look
@@ -106,12 +124,16 @@ def merge_source(primary: list[dict], secondary: list[dict]) -> tuple[list[dict]
         match = index.lookup(record["name"])
         if match and match.score >= 1.0 and not match.ambiguous:
             existing = by_name.get(match.entry.name)
-            if existing is not None and not _graded(existing.get("grade")):
+            if existing is None:
+                continue
+            _add_opinion(existing, record.get("source", ""), record["grade"])  # keep both views
+            if not _graded(existing.get("grade")):
                 existing["grade"] = record["grade"]      # fill the gap with al-Dhahabi
                 existing["source"] = f"{existing.get('source', '')} + {record.get('source', '')}".strip(" +")
                 upgraded += 1
-            # otherwise primary already grades him — primary is the standard, skip
+            # otherwise primary already grades him — primary is the standard for the verdict
         else:
+            record["opinions"] = [_opinion(record.get("source", ""), record["grade"])]
             primary.append(record)                       # a narrator primary didn't have
             index.add([record])
             by_name[record["name"]] = record
@@ -150,6 +172,8 @@ def main() -> None:
 
     # تقريب (the first source) is the authority; fold in the rest as gap-fillers.
     result = dedupe_against_seed(extracted[0])
+    for r in result:                       # record each narrator's own (authority) opinion
+        _add_opinion(r, r.get("source", ""), r["grade"])
     for records in extracted[1:]:
         result, added, upgraded = merge_source(result, records)
         print(f"  merged a secondary source: +{added} new narrators, {upgraded} gaps graded")
