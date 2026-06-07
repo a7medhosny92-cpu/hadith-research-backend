@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from app.qa.rulings import collect_rulings
+from app.qa.rulings import collect_illal, collect_rulings
 from app.search import HadithIndex, HybridSearcher, SearchHit, SharhHit, SharhIndex
 
 #: Given (question, hadith_sources, sharh_sources) → a grounded prose answer.
@@ -125,6 +125,7 @@ def answer_question(
         s.get("text") or s.get("excerpt") or "" for s in sharh_sources
     ]
     rulings = collect_rulings(ruling_texts)
+    illal = collect_illal(ruling_texts)   # stated hidden defects (علل) from the same texts
 
     if synthesize is not None:
         answer, mode = synthesize(question, hadith_sources, sharh_sources), "llm"
@@ -138,4 +139,5 @@ def answer_question(
         "hadith": hadith_sources,
         "sharh": sharh_sources,
         "rulings": rulings,
+        "illal": illal,
     }

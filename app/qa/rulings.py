@@ -244,3 +244,46 @@ def collect_rulings(texts: list[str]) -> list[dict]:
 def has_divergence(rulings: list[dict]) -> bool:
     """True if the scholars disagree (more than one distinct verdict)."""
     return len({r["verdict"] for r in rulings}) > 1
+
+
+# ── العلل: hidden defects stated in the texts ────────────────────────────────────
+# defect type → folded trigger phrases (multi-word / verb forms kept, to stay precise).
+_ILLAL: list[tuple[str, list[str]]] = [
+    ("إرسال", ["الصواب ارساله", "ارسله", "رواه مرسلا", "والمرسل اصح", "ارسلوه"]),
+    ("وقف", ["الصواب وقفه", "وقفه", "رواه موقوفا", "والموقوف اصح", "وقفوه"]),
+    ("تفرّد", ["تفرد به", "لم يروه الا", "انفرد به", "لا يعرف الا من"]),
+    ("اضطراب", ["مضطرب", "اضطرب فيه", "اضطراب في"]),
+    ("شذوذ", ["شاذ", "خالف الثقات", "خولف فيه"]),
+    ("نكارة", ["منكر", "استنكره"]),
+    ("علّة", ["معلول", "اعله", "فيه علة", "المحفوظ خلافه", "وهم فيه"]),
+]
+
+
+def extract_illal(text: str) -> list[dict]:
+    """Stated hidden defects (علل) in ``text`` — one per type, with the critic if named.
+
+    Heuristic and corpus-bound, like :func:`extract_rulings`: it surfaces what the شروح /
+    علل texts *say*, not a verdict of our own."""
+    toks = normalize_for_search(text or "").split()
+    found: dict[str, dict] = {}
+    for kind, phrases in _ILLAL:
+        if kind in found:
+            continue
+        for phrase in phrases:
+            pt = phrase.split()
+            hit = next((i for i in range(len(toks) - len(pt) + 1)
+                        if toks[i:i + len(pt)] == pt and not negated_before(toks, i)), None)
+            if hit is not None:
+                who = _scholar_in([_dewaw(t) for t in toks[max(0, hit - 4):hit + len(pt) + 3]])
+                found[kind] = {"type": kind, "scholar": who}
+                break
+    return list(found.values())
+
+
+def collect_illal(texts: list[str]) -> list[dict]:
+    """Merge stated defects found across several texts (matn + شروح …), one per type."""
+    merged: dict[str, dict] = {}
+    for text in texts:
+        for defect in extract_illal(text):
+            merged.setdefault(defect["type"], defect)
+    return list(merged.values())

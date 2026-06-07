@@ -280,6 +280,14 @@ function rulingsHtml(rulings){
     ? ` <span class="r-diverge">⚠ اختلف العلماء</span>` : "";
   return `<div class="rulings"><span class="r-lbl">أحكام العلماء:</span>${items}${diverge}</div>`;
 }
+// Stated hidden defects (العلل) mentioned in the شروح/تخريج — surfaced, not a verdict.
+function illalHtml(illal){
+  if(!illal || !illal.length) return "";
+  const items = illal.map(d => `<span class="ruling g-daif">${esc(d.type)}`
+    + `${d.scholar ? " — " + esc(d.scholar) : ""}</span>`).join("");
+  return `<div class="rulings"><span class="r-lbl">عللٌ مذكورة:</span>${items}`
+    + ` <span class="r-info" title="عللٌ ذُكرت في الشروح/التخريج؛ تُحقَّق، وليست حكمًا من التطبيق">ⓘ</span></div>`;
+}
 function hadithCard(h){
   const cite = [h.collection, (h.number!=null?"رقم "+h.number:null), (h.page!=null?"ص "+h.page:null)]
     .filter(Boolean).join("  ·  ");
@@ -344,6 +352,7 @@ async function run(){
         + saveChip({kind:"answer", title:query, body:d.answer,
             meta:{engine:d.engine, model:d.model, rulings:d.rulings}}) + `</div>`;
       if(d.rulings && d.rulings.length) html += `<div class="card">${rulingsHtml(d.rulings)}</div>`;
+      if(d.illal && d.illal.length) html += `<div class="card">${illalHtml(d.illal)}</div>`;
       (d.sharh || []).forEach(s => {
         const ref = s.sharh + (s.hadith_number!=null ? ` (عند الحديث ${s.hadith_number})` : "");
         const body = s.text || s.excerpt || "";

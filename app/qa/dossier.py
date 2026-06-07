@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from app.qa.answer import _complete_sharh
 from app.qa.isnad import analyze_isnad, continuity
-from app.qa.rulings import collect_rulings, refine_with_routes
+from app.qa.rulings import collect_illal, collect_rulings, refine_with_routes
 from app.qa.takhrij import analyze_narrations
 from app.rijal import RijalIndex
 from app.search import HadithIndex, SearchHit, SharhIndex, VectorIndex
@@ -59,6 +59,7 @@ def hadith_dossier(
     ruling_texts = [hit.matn] + [s.get("text") or s.get("excerpt") or "" for s in sharh_sources]
     rulings = collect_rulings(ruling_texts)
     refine_with_routes(rulings, takhrij["total"] + 1)
+    illal = collect_illal(ruling_texts)   # stated hidden defects (علل)
 
     # Isnad structure + continuity against the network.
     isnad = analyze_isnad(hit.isnad or "", rijal=rijal).to_dict()
@@ -69,6 +70,7 @@ def hadith_dossier(
         "kind": "hadith",
         "hadith": hit.to_dict(),
         "rulings": rulings,
+        "illal": illal,
         "sharh": sharh_sources,
         "takhrij": takhrij,
         "isnad": isnad,
