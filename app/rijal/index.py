@@ -111,6 +111,7 @@ class RijalIndex:
         self._entries: list[RijalEntry] = []
         self._form_seqs: list[list[list[str]]] = []   # name + alias token-seqs (full matching)
         self._kunya_seqs: list[list[str] | None] = []  # the kunya (reverse-containment only)
+        self._cache: dict[tuple[str, float], "RijalMatch | None"] = {}  # memoise lookups
         if entries:
             self.add(entries)
 
@@ -138,12 +139,20 @@ class RijalIndex:
             self._form_seqs.append(seqs)
             self._kunya_seqs.append(kunya or None)
             n += 1
+        self._cache.clear()   # entries changed → drop memoised lookups
         return n
 
     def count(self) -> int:
         return len(self._entries)
 
     def lookup(self, name: str, *, min_overlap: float = 0.6) -> RijalMatch | None:
+        """Best narrator match, or ``None`` (memoised — the same name recurs across chains)."""
+        key = (name, min_overlap)
+        if key not in self._cache:
+            self._cache[key] = self._lookup(name, min_overlap=min_overlap)
+        return self._cache[key]
+
+    def _lookup(self, name: str, *, min_overlap: float = 0.6) -> RijalMatch | None:
         """Best narrator match, or ``None``.
 
         A match must be a **containment**: either the entry's name is fully inside the query

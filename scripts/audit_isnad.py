@@ -101,11 +101,17 @@ def main() -> None:
     if args.limit:
         sql += f" LIMIT {args.limit}"
 
+    rows = con.execute(sql).fetchall()
+    total = len(rows)
+    print(f"scanning {total} chains (this can take a few minutes on a full rijal)…", flush=True)
+
     counts: Counter[str] = Counter()
     cases: dict[str, list[dict]] = {"P": [], "S": [], "W": [], "A": []}
     scanned = 0
-    for rid, coll, num, isnad in con.execute(sql):
+    for rid, coll, num, isnad in rows:
         scanned += 1
+        if scanned % 500 == 0:
+            print(f"  … {scanned}/{total}", flush=True)
         a = analyze_isnad(isnad, rijal=rijal, canon=canon)
         for code, detail in _flag_chain(a.narrators):
             counts[code] += 1

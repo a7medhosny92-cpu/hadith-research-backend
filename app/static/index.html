@@ -1011,7 +1011,7 @@ const METHODOLOGY = [
     pros:"أحكامٌ منسوبةٌ إلى مصدرها؛ لا يجتهد النظامُ في تعديلٍ أو تجريح، ويُصرّح بالاشتباه بدل أن يخمّن.",
     cons:"تغطيةُ البذرة محدودة؛ فما لم يُعرف الراوي تتوقّف الأداة (يُتوقَّف فيه) حتى تُحمَّل قاعدةٌ أوسع."},
   {h:"الحكم على الإسناد", src:"ناتجُ تحليل الإسناد: درجاتُ الرواة + فحصُ الاتصال + صيغُ التحمّل.",
-    how:"نميّز أوّلًا كلَّ راوٍ مشترَكٍ من سياق سلسلته (تمييز المهمل): «جعفر بن محمد» بجوار «محمد الباقر» و«جابر» هو الصادقُ لا مجهولٌ يشاركه الاسمَ — فالعقدةُ يُحدّدها الجوارُ (الشيوخ والتلاميذ) لا الاسمُ وحده. ثمّ نجمع الإشاراتِ بتحفّظ: مرتبةُ الراوي الأضعف هي الأساس، والعنعنةُ تمنع جزمَ التصحيح حتى يثبت السماع. أمّا تعذُّرُ إيجاد حلقةٍ في شبكتنا فقرينةُ تنبيهٍ لا حكمٌ — قد يكون اختلافَ صيغةِ اسمٍ لا انقطاعًا — فلا يُنزِل حكمًا صحيحَ الرجال (فلا تُحكَم سلسلةٌ من ثقاتٍ في البخاريّ بالضعف لمجرّد ثغرةٍ في الشبكة).",
+    how:"نميّز أوّلًا كلَّ راوٍ مشترَكٍ من سياق سلسلته (تمييز المهمل): «جعفر بن محمد» بجوار «محمد الباقر» و«جابر» هو الصادقُ لا مجهولٌ يشاركه الاسمَ — فالعقدةُ يُحدّدها الجوارُ (الشيوخ والتلاميذ) لا الاسمُ وحده. ثمّ نجمع الإشاراتِ بتحفّظ: مرتبةُ الراوي الأضعف هي الأساس، والراوي المبهمُ (غير المسمَّى، كـ«عن رجلٍ») جهالةٌ تُضعِّف الإسنادَ بذاتها (لا «يُتوقَّف فيه» الذي للمجهول في قاعدتنا)، والعنعنةُ تمنع جزمَ التصحيح حتى يثبت السماع. أمّا تعذُّرُ إيجاد حلقةٍ في شبكتنا فقرينةُ تنبيهٍ لا حكمٌ — قد يكون اختلافَ صيغةِ اسمٍ لا انقطاعًا — فلا يُنزِل حكمًا صحيحَ الرجال (فلا تُحكَم سلسلةٌ من ثقاتٍ في البخاريّ بالضعف لمجرّد ثغرةٍ في الشبكة).",
     pros:"حكمٌ واحدٌ مختصرٌ يجمع القرائنَ مع بيان سببه، ويعيّن الراوي من سياقه لا من اسمه المجرّد.",
     cons:"حكمٌ على ظاهر الرجال والاتصال فقط؛ ليس تصحيحًا تامًّا (يحتاج النظرَ في العلّة والشذوذ)، وليس فتوى، وجودتُه تتبع تغطيةَ قاعدة الرجال والشبكة."},
   {h:"أحكام العلماء على الحديث", src:"نصوصُ الكتب والشروح والتخريج.",
@@ -1157,6 +1157,7 @@ const TECH = [
   {h:"Isnad analysis — app/qa/isnad.py", p:[
     "analyze_isnad: splits the chain on transmission verbs (haddathana/akhbarana/an/sami'tu…), stops at the matn, and detects sama'/'an'ana, tahwil (ح) and whether it reaches the Prophet ﷺ.",
     "Grading: the Prophet ﷺ is excluded (he's the source, not a graded narrator); given a Canonicalizer, each shared name is first resolved from the chain's company (تمييز المهمل), then graded.",
+    "Grading excludes both the Prophet (the source) and the مبهم: _is_mubham flags an unnamed narrator («رجل»، «شيخ له»، «عمّن حدّثه»، «بعض أصحابه»), excepting an unnamed Companion («من أصحاب النبي ﷺ»); such a chain is weakened to «ضعيف» (جهالة), distinct from the paused «يُتوقَّف» of a mere DB gap.",
     "overall_ruling: a concise verdict (weakest narrator + transmission modes), held back conservatively. A missing network link is a CAUTION, not a downgrade — the graph is built from the same corpus with canonical names, so a gap is usually a name-form difference, and must not turn a صحيح البخاري chain of ثقات into «ضعيف». This is the «الحكم على الإسناد» every hadith card loads on demand."]},
   {h:"Takhrij and scholars rulings — app/qa/takhrij.py + rulings.py", p:[
     "analyze_narrations: gathers near-matching narrations of a matn (lexically and semantically), clusters them into «wordings» (verbatim / near / by-meaning), and groups them under the Companion with an «akhrajahu» summary.",
