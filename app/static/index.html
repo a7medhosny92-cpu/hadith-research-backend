@@ -56,6 +56,9 @@
   .isnad{margin-top:8px;color:#4a5a52;font-size:1rem;line-height:2;display:none;
     border-top:1px dashed var(--line);padding-top:10px}
   .isnad.show{display:block}
+  .chain-verdict{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+  .verdict-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+  .v-lbl{color:var(--accent);font-weight:700;font-size:.95rem}
   .sharh{border-inline-start:4px solid var(--accent);background:#f1f8f4}
   .sharh b{color:var(--accent2)}
   .sharh .ex{margin-top:6px;line-height:2.05;color:#33453c}
@@ -379,8 +382,12 @@ function hadithCard(h){
   const cite = [h.collection, (h.number!=null?"رقم "+h.number:null), (h.page!=null?"ص "+h.page:null)]
     .filter(Boolean).join("  ·  ");
   const grade = h.grade ? `<span class="grade ${gradeClass(h.grade)}">${esc(h.grade)}</span>` : "";
+  // the isnad folds open with a chain verdict («الحكم على الإسناد») loaded on demand
   const isnad = h.isnad
-    ? `<div class="toggle">عرض الإسناد ▾</div><div class="isnad">${esc(h.isnad)}</div>` : "";
+    ? `<div class="toggle" data-id="${h.id != null ? h.id : ""}">عرض الإسناد والحكم عليه ▾</div>`
+      + `<div class="isnad"><div class="chain-text">${esc(h.isnad)}</div>`
+      + `<div class="chain-verdict"></div></div>`
+    : "";
   const save = saveChip({kind:"hadith", title:cite, body:h.matn,
     meta:{collection:h.collection, number:h.number, page:h.page, grade:h.grade,
           isnad:h.isnad, rulings:h.rulings}});
@@ -860,6 +867,30 @@ function renderIsnad(d){
   results.innerHTML = html;
 }
 
+// Compact «الحكم على الإسناد» for a hadith card (lazy-loaded from /verify-isnad when the
+// isnad is unfolded) — the same engine as the الإسناد tab: verdict + each راوٍ graded.
+function chainVerdictHtml(d){
+  const a = d.analysis || {}, r = d.ruling, cont = d.continuity;
+  let html = "";
+  if(r){
+    const cls = TONE[r.tone] || "g-other";
+    html += `<div class="verdict-head"><span class="v-lbl">الحكم على الإسناد:</span>`
+      + `<span class="grade ${cls}">${esc(r.grade)}</span></div>`
+      + `<div class="rawi-summary">${esc(r.reason)}</div>`;
+  }
+  (a.narrators || []).forEach((n, i) => {
+    const rij = n.rijal, g = rij && rij.grade;
+    const badge = isProphet(n.name)
+      ? `<span class="grade g-sahih">مصدر الحديث ﷺ</span>`
+      : g ? `<span class="grade ${rijalClass(g)}" title="${esc(rij.verdict || '')}">${esc(g)}</span>`
+          : `<span class="simbadge">غير معروف في القاعدة</span>`;
+    html += `<div class="rawi-item"><span>${i + 1}. ${esc(n.name)} ${isnadVia(n.via)}</span>${badge}</div>`;
+  });
+  if(cont && cont.note) html += `<div class="rawi-summary">${esc(cont.note)}</div>`;
+  if(r && r.disclaimer) html += `<div class="note" style="margin-top:6px">${esc(r.disclaimer)}</div>`;
+  return html || `<div class="note">تعذّر تحليل هذا الإسناد</div>`;
+}
+
 // Study notebook (دفتري): the items you saved with the ★ star, each with your own note.
 const NB_KIND = {hadith:"حديث", narrator:"راوٍ", answer:"جواب", isnad:"إسناد", note:"ملاحظة"};
 const NB_EMPTY = `<div class="state">دفترك فارغ — احفظ حديثًا أو راويًا أو جوابًا بالنجمة ★</div>`;
@@ -1108,12 +1139,20 @@ function renderTech(){
     + TECH.map(methodCard).join("");
 }
 
-// Toggle the isnad (event delegation).
-results.addEventListener("click", e => {
+// Toggle the isnad, and on first open lazily load its chain verdict («الحكم على الإسناد»).
+results.addEventListener("click", async e => {
   if(!e.target.classList.contains("toggle")) return;
-  const isnad = e.target.nextElementSibling;
-  const open = isnad.classList.toggle("show");
-  e.target.textContent = open ? "إخفاء الإسناد ▴" : "عرض الإسناد ▾";
+  const t = e.target, box = t.nextElementSibling;
+  const open = box.classList.toggle("show");
+  t.textContent = open ? "إخفاء الإسناد والحكم ▴" : "عرض الإسناد والحكم عليه ▾";
+  if(!open) return;
+  const vbox = box.querySelector(".chain-verdict"), id = t.dataset.id;
+  if(vbox && id && !vbox.dataset.loaded){
+    vbox.dataset.loaded = "1";
+    vbox.innerHTML = `<div class="note">… جارٍ الحكم على الإسناد</div>`;
+    try { vbox.innerHTML = chainVerdictHtml(await getJSON(`/verify-isnad?hadith_id=${encodeURIComponent(id)}`)); }
+    catch(_){ vbox.innerHTML = `<div class="note">تعذّر تحليل الإسناد</div>`; vbox.dataset.loaded = ""; }
+  }
 });
 
 // Network (الشبكة): click a node to re-centre on that narrator, «رجوع» to step back.
