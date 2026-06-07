@@ -42,6 +42,9 @@ _WS = re.compile(r"\s+")
 # A dash marker «N - باب …» is a chapter heading printed as a numbered line in some
 # editions, not a hadith — recognise it by its leading word so it isn't emitted.
 _HEADING_WORDS = {"باب", "كتاب", "فصل", "جماع", "ابواب", "مقدمه"}
+# A reference entry repeats the previous hadith's matn through a new chain
+# («…مثله» / «…نحوه» / «بهذا الإسناد» / «عن فلانٍ بذلك»). Detected near the text's end.
+_RIMANDO = re.compile(r"مثل|نحو|بمعنا|بذلك|بهذا")
 
 
 @dataclass(slots=True)
@@ -171,10 +174,28 @@ def _first_text_page(data: dict) -> int | None:
     return min(pages) if pages else None
 
 
+def _is_rimando(text: str) -> bool:
+    """Does this entry end by referring to the previous matn («مثله»/«نحوه»/«بذلك»…)?"""
+    return bool(_RIMANDO.search(normalize_for_search(text)[-40:]))
+
+
+def _inherit_rimandi(hadiths: list[ParsedHadith]) -> None:
+    """In a book's reading order, an empty-matn reference entry («…مثله») carries the
+    SAME text as the hadith it points back to — only the chain differs. Give it that
+    matn (marked ``ref``) so the parallel narration is searchable, not blank."""
+    last = ""
+    for h in hadiths:
+        if h.matn and h.matn.strip():
+            last = h.matn
+        elif last and _is_rimando(h.text):
+            h.matn = last
+            h.matn_confidence = "ref"
+
+
 def parse_book_file(path: str | Path, *, default_grade: str | None = None) -> list[ParsedHadith]:
     """Parse a downloaded ``{raw_dir}/books/{id}.json`` file into hadith records."""
     data = json.loads(Path(path).read_text(encoding="utf-8"))
-    return list(
+    hadiths = list(
         iter_hadith(
             int(data["book_id"]),
             data.get("pages", []),
@@ -182,3 +203,5 @@ def parse_book_file(path: str | Path, *, default_grade: str | None = None) -> li
             start_page_id=_first_text_page(data),
         )
     )
+    _inherit_rimandi(hadiths)   # reference entries inherit the matn they point back to
+    return hadiths

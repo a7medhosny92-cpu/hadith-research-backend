@@ -52,6 +52,43 @@ def test_split_by_phrase_when_no_quote():
     assert "عائشة" in isnad
 
 
+def test_split_after_qala_without_colon():
+    # classical texts often drop the colon; the matn must still be recovered, and a
+    # «قال» that only introduces another chain link must NOT be taken as the boundary.
+    text = "حدثنا علي بن محمد قال حدثنا وكيع، عن قيس، قال رأيت يد طلحة شلاء يوم أحد"
+    isnad, matn, conf = split_isnad_matn(text)
+    assert conf == "phrase"
+    assert matn == "رأيت يد طلحة شلاء يوم أحد"
+    assert "وكيع" in isnad
+
+
+def test_markerless_text_is_treated_as_matn():
+    # a tied continuation that shares the previous isnad — no chain of its own
+    isnad, matn, conf = split_isnad_matn("وكان يأمرني فأتزر فيباشرني وأنا حائض")
+    assert conf == "matn-only"
+    assert matn == "وكان يأمرني فأتزر فيباشرني وأنا حائض" and isnad == ""
+
+
+def test_bare_chain_stays_none():
+    assert split_isnad_matn("حدثنا فلان عن أنس عن أبيه")[2] == "none"
+
+
+def test_rimando_inherits_previous_matn():
+    from app.parsing.hadith_extract import ParsedHadith, _inherit_rimandi
+
+    def ph(text, matn):
+        return ParsedHadith(book_id=1, number=0, text=text, isnad="", matn=matn,
+                            matn_confidence="x", grade=None, chapter=None,
+                            volume=None, page=None, page_id=None)
+
+    hs = [ph("حدثنا فلان قال: متن الحديث الأول", "متن الحديث الأول"),
+          ph("حدثنا آخر، عن ابن عمر، مثله موقوفا", ""),     # rimando → inherits
+          ph("حدثنا ثالث عن أنس عن أبيه", "")]              # bare chain → stays empty
+    _inherit_rimandi(hs)
+    assert hs[1].matn == "متن الحديث الأول" and hs[1].matn_confidence == "ref"
+    assert hs[2].matn == ""
+
+
 # ── grading ──────────────────────────────────────────────────────────────────
 def test_grade_in_context():
     assert extract_grade("... إسناده صحيح على شرط مسلم") == "صحيح"
