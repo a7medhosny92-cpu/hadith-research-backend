@@ -15,7 +15,7 @@ KADHIB = "مَنْ كَذَبَ عَلَيَّ مُتَعَمِّدًا فَلْ
 RECORDS = [
     {"book_id": 1284, "number": 110, "matn": KADHIB, "isnad": "حدثنا أبو معمر",
      "grade": "صحيح", "chapter": "العلم", "page": 36, "volume": "1"},
-    {"book_id": 1727, "number": 3, "matn": KADHIB, "isnad": "حدثنا أبو بكر",
+    {"book_id": 1727, "number": 3, "matn": KADHIB, "isnad": "حدثنا قتيبة بن سعيد",
      "grade": "صحيح", "chapter": "المقدمة", "page": 10, "volume": "1"},
     {"book_id": 1198, "number": 33, "matn": "مَنْ كَذَبَ عَلَيَّ مُتَعَمِّدًا فَلْيَتَبَوَّأْ مَقْعَدَهُ مِنَ النَّارِ",
      "isnad": "حدثنا علي بن محمد", "grade": None, "chapter": "السنة", "page": 13, "volume": "1"},

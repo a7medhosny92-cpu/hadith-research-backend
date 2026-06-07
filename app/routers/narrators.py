@@ -19,7 +19,7 @@ router = APIRouter(tags=["rijal"])
 @router.get("/narrator")
 def narrator(
     name: str = Query(..., min_length=2, description="narrator name (any common form)"),
-    limit: int = Query(50, ge=1, le=500, description="max شيوخ / تلاميذ to return"),
+    limit: int | None = Query(None, ge=1, description="max شيوخ / تلاميذ; omit for all"),
     graph: NarratorGraph | None = Depends(get_graph),
     rijal: RijalIndex = Depends(get_rijal),
 ) -> dict:

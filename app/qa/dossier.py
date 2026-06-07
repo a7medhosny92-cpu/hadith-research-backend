@@ -108,8 +108,9 @@ def narrator_sources(grade: dict | None) -> list[dict]:
     return out
 
 
-def narrator_dossier(name: str, graph, rijal: RijalIndex, *, limit: int = 50) -> dict | None:
-    """The راوٍ card: profile + grade + شيوخ/تلاميذ + sources. ``None`` if unknown."""
+def narrator_dossier(name: str, graph, rijal: RijalIndex, *, limit: int | None = None) -> dict | None:
+    """The راوٍ card: profile + grade + شيوخ/تلاميذ + sources. ``None`` if unknown.
+    ``limit=None`` returns **all** شيوخ/تلاميذ (no cap)."""
     node = graph.resolve(name) if graph is not None else None
     if node is None:
         return None

@@ -302,22 +302,23 @@ class NarratorGraph:
                 best = node
         return best
 
-    def _neighbours(self, node_id: int, *, as_teacher: bool, limit: int) -> list[dict]:
+    def _neighbours(self, node_id: int, *, as_teacher: bool, limit: int | None) -> list[dict]:
         col, other = ("teacher", "student") if as_teacher else ("student", "teacher")
         rows = self._con.execute(
             f"SELECT n.name, l.weight FROM link l JOIN narrator n ON n.id = l.{other} "
             f"WHERE l.{col} = ? ORDER BY l.weight DESC LIMIT ?",
-            (node_id, limit),
+            (node_id, -1 if limit is None else limit),   # SQLite LIMIT -1 = no limit (all)
         ).fetchall()
         return [{"name": name, "count": weight} for name, weight in rows]
 
-    def teachers(self, name: str, *, limit: int = 50) -> list[dict]:
-        """The شيوخ of ``name`` — narrators they narrate *from* — most frequent first."""
+    def teachers(self, name: str, *, limit: int | None = None) -> list[dict]:
+        """The شيوخ of ``name`` — narrators they narrate *from* — most frequent first.
+        ``limit=None`` returns **all** of them (no cap)."""
         node = self.resolve(name)
         return self._neighbours(node.id, as_teacher=False, limit=limit) if node else []
 
-    def students(self, name: str, *, limit: int = 50) -> list[dict]:
-        """The تلاميذ of ``name`` — narrators who narrate *from* them."""
+    def students(self, name: str, *, limit: int | None = None) -> list[dict]:
+        """The تلاميذ of ``name`` — narrators who narrate *from* them; ``limit=None`` = all."""
         node = self.resolve(name)
         return self._neighbours(node.id, as_teacher=True, limit=limit) if node else []
 

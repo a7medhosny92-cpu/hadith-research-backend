@@ -194,7 +194,7 @@ def analyze_narrations(
     vectors: VectorIndex | None = None,
     embedder: Embedder | None = None,
     min_overlap: float = _KEEP_OVERLAP,
-    max_candidates: int = 400,
+    max_candidates: int = 3000,   # scan pool — high enough to cover even widespread reports
 ) -> dict:
     """Full takhrij of ``matn``: every narration of the same report, grouped into
     distinct wordings (صيغ) and labelled by closeness to the source.

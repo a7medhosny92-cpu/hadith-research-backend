@@ -143,8 +143,8 @@
   /* network (الشبكة): the interactive, navigable narrator-graph */
   .net-top{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:8px 2px}
   .net-wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;
-    padding:6px;margin:10px 0;box-shadow:0 1px 4px rgba(80,60,20,.06);overflow:hidden}
-  .net{display:block;max-width:100%;height:auto;border-radius:10px;
+    padding:6px;margin:10px 0;box-shadow:0 1px 4px rgba(80,60,20,.06);overflow-x:auto}
+  .net{display:block;border-radius:10px;
     background:radial-gradient(circle at 50% 45%, #fffdf8, #f6f1e6)}
   .net-node{cursor:pointer}
   .net-node circle{stroke:#fff;stroke-width:2;transition:stroke .12s,stroke-width .12s}
@@ -583,12 +583,14 @@ function _netEdge(x1, y1, x2, y2, count){
   return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="net-edge" stroke-width="${w}"></line>`;
 }
 function renderNetwork(d){
-  const teachers = (d.teachers || []).slice(0, 8);
-  const students = (d.students || []).slice(0, 8);
-  const W = Math.max(680, (results.clientWidth || 760) - 48), H = 560;
+  const teachers = d.teachers || [];          // ALL شيوخ — no cap
+  const students = d.students || [];          // ALL تلاميذ — no cap
+  const usable = Math.max(680, (results.clientWidth || 760) - 48);
+  const maxSide = Math.max(teachers.length, students.length, 1);
+  const W = Math.max(usable, maxSide * 82), H = 560;   // widen to fit all; .net-wrap scrolls
   const cx = W / 2, cy = H / 2, R = 32, r = 22;
   const yTop = 92, yBot = H - 92;
-  const xOf = (i, n) => n <= 1 ? W / 2 : W * 0.08 + W * 0.84 * i / (n - 1);
+  const xOf = (i, n) => n <= 1 ? W / 2 : W * 0.06 + W * 0.88 * i / (n - 1);
 
   // edges first (drawn under the nodes), then the nodes themselves
   let edges = "", nodes = "";
@@ -606,8 +608,7 @@ function renderNetwork(d){
   nodes += _netNode(cx, cy, {name: d.name, grade: centerV}, R, true);
 
   const svg = `<svg class="net" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" `
-    + `preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" `
-    + `role="img" aria-label="شبكة الرواة">`
+    + `xmlns="http://www.w3.org/2000/svg" role="img" aria-label="شبكة الرواة">`
     + `<text x="${cx}" y="30" text-anchor="middle" class="net-row">شيوخه — يروي عنهم ↑</text>`
     + `<text x="${cx}" y="${H - 14}" text-anchor="middle" class="net-row">تلاميذه — يروون عنه ↓</text>`
     + edges + nodes + `</svg>`;
