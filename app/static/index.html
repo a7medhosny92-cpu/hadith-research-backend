@@ -64,6 +64,32 @@
   .more{display:block;margin:22px auto;background:var(--card);color:var(--accent);font-family:inherit;
     border:1px solid var(--accent);border-radius:10px;padding:11px 28px;font-size:1rem;cursor:pointer}
   .more:hover{background:var(--accent);color:#fff}
+  /* search (بحث): controls · facet filters · card actions · foldable variants · highlight */
+  .s-ctrls{display:flex;gap:8px;flex-wrap:wrap;margin:10px 2px 6px}
+  .s-ctrl{background:var(--card);color:var(--text);border:1px solid var(--line);
+    border-radius:10px;padding:9px 12px;font-size:.95rem;font-family:inherit;cursor:pointer}
+  .s-ctrl:focus{outline:none;border-color:var(--accent)}
+  .facets{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:6px 2px}
+  .f-lbl{color:var(--accent);font-weight:700;font-size:.9rem;margin-inline-end:2px}
+  .facet{background:var(--card);border:1px solid var(--line);color:var(--accent2);
+    border-radius:999px;padding:5px 13px;font-size:.9rem;cursor:pointer;user-select:none;transition:all .15s}
+  .facet:hover{border-color:var(--accent);background:#f0f7f3}
+  .facet.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .facet b{font-weight:700;opacity:.8;margin-inline-start:3px}
+  .facet.on b{opacity:.95}
+  .clear-filters{color:#b04a3a;cursor:pointer;font-weight:700;font-size:.9rem}
+  .clear-filters:hover{text-decoration:underline}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  .tool{background:var(--card);border:1px solid var(--line);color:var(--accent2);
+    border-radius:9px;padding:5px 13px;font-size:.88rem;cursor:pointer;font-family:inherit;line-height:1}
+  .tool:hover{border-color:var(--accent);background:#f0f7f3}
+  .tool.done{color:var(--accent);border-color:var(--accent);background:#eaf5ef}
+  .var-toggle{color:var(--gold2);cursor:pointer;font-size:.9rem;display:inline-block;
+    margin-top:12px;font-weight:700;user-select:none}
+  .var-toggle:hover{text-decoration:underline;color:var(--accent2)}
+  .variants{display:none;margin-top:8px;border-top:1px dashed var(--line);padding-top:4px}
+  .variants.show{display:block}
+  mark{background:#fbe8b0;color:inherit;border-radius:3px;padding:0 1px}
   #engine,#model{background:var(--card);color:var(--text);border:1px solid var(--line);
     border-radius:10px;padding:11px 12px;font-size:.98rem;font-family:inherit}
   #engine{cursor:pointer}
@@ -325,6 +351,30 @@ function illalHtml(illal){
   return `<div class="rulings"><span class="r-lbl">عللٌ مذكورة:</span>${items}`
     + ` <span class="r-info" title="عللٌ ذُكرت في الشروح/التخريج؛ تُحقَّق، وليست حكمًا من التطبيق">ⓘ</span></div>`;
 }
+// Highlight the query terms inside a matn (tolerant of tashkeel & alef/ya/ta variants).
+let _hlTerms = [];
+const _TASH = "[\\u0617-\\u061A\\u064B-\\u0652\\u0670\\u0640]*";
+function _hlRe(t){
+  const ch = c => "أإآا".includes(c) ? "[أإآا]" : "ةه".includes(c) ? "[ةه]"
+    : "ىي".includes(c) ? "[ىي]" : c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(t.split("").map(ch).join(_TASH), "g");
+}
+function hlMatn(s){
+  let out = esc(s);
+  try { for(const t of _hlTerms) if(t.length >= 2) out = out.replace(_hlRe(t), m => `<mark>${m}</mark>`); }
+  catch(_){}
+  return out;
+}
+function shareTools(text){
+  return `<button class="tool copy-btn" data-text="${esc(text)}" title="نسخ النصّ">⧉ نسخ</button>`
+    + `<button class="tool share-btn" data-text="${esc(text)}" title="مشاركة">↗ مشاركة</button>`;
+}
+function _varRow(m){
+  const cite = [m.collection, (m.number!=null?"رقم "+m.number:null), (m.page!=null?"ص "+m.page:null)]
+    .filter(Boolean).join("  ·  ");
+  const g = m.grade ? `<span class="grade ${gradeClass(m.grade)}">${esc(m.grade)}</span>` : "";
+  return `<div class="rawi-item"><span>${esc(cite)}</span>${g}</div>`;
+}
 function hadithCard(h){
   const cite = [h.collection, (h.number!=null?"رقم "+h.number:null), (h.page!=null?"ص "+h.page:null)]
     .filter(Boolean).join("  ·  ");
@@ -334,10 +384,16 @@ function hadithCard(h){
   const save = saveChip({kind:"hadith", title:cite, body:h.matn,
     meta:{collection:h.collection, number:h.number, page:h.page, grade:h.grade,
           isnad:h.isnad, rulings:h.rulings}});
-  // jump to this hadith's full تخريج (its narrations across the books)
   const trace = `<span class="go-takhrij" data-q="${esc(h.matn)}">تتبّع تخريجه ⟶</span>`;
-  return `<div class="card"><div class="matn">${esc(h.matn)}</div>
-    <div class="cite">${grade}<span>${esc(cite)}</span>${save}</div>${trace}${rulingsHtml(h.rulings)}${isnad}</div>`;
+  // when this is a grouped report, its other rivayat are foldable underneath
+  const variants = h.count > 1
+    ? `<span class="var-toggle">عرض رواياته الأخرى (${h.count}) عبر ${(h.sources||[]).length} مصدرًا ▾</span>`
+      + `<div class="variants">${(h.members || []).map(_varRow).join("")}</div>`
+    : "";
+  const txt = `${h.matn}\n— ${cite}${h.grade ? " · " + h.grade : ""}`;
+  return `<div class="card"><div class="matn">${hlMatn(h.matn)}</div>
+    <div class="cite">${grade}<span>${esc(cite)}</span>${save}</div>
+    <div class="actions">${trace}${shareTools(txt)}</div>${rulingsHtml(h.rulings)}${variants}${isnad}</div>`;
 }
 
 // Reveal long result lists in batches so the window stays responsive even with
@@ -364,6 +420,80 @@ function revealMore(){
   if(left > 0) wrap.firstChild.onclick = revealMore;
 }
 
+// ── Search (بحث): mode/field/group/sort controls, facet filters, report grouping ──
+const searchState = { mode:"lexical", field:"all", group:"report", sort:"relevance",
+                      collection:null, grade:null };
+let searchData = null;   // last /search response (cached for re-sort / facet toggles)
+
+function searchURL(query){
+  const p = new URLSearchParams({q: query, mode: searchState.mode,
+    field: searchState.field, group: searchState.group});
+  if(searchState.collection) p.set("collection", searchState.collection);
+  if(searchState.grade) p.set("grade", searchState.grade);
+  return "/search?" + p.toString();
+}
+async function reSearch(){   // a control/filter changed — refetch with current state
+  const query = q.value.trim();
+  if(!query){ renderSearch(searchData || {count:0, facets:{}, results:[]}); return; }
+  results.innerHTML = `<div class="state">… جارٍ البحث</div>`;
+  try { renderSearch(await getJSON(searchURL(query))); }
+  catch(e){ results.innerHTML = `<div class="state">${esc(e.message || "تعذّر الاتصال")}</div>`; }
+}
+function gradeRank(g){ g = g || ""; if(g.includes("صحيح")) return 3; if(g.includes("حسن")) return 2;
+  if(g.includes("ضعيف") || g.includes("موضوع") || g.includes("منكر")) return 0; return 1; }
+function sortItems(items){
+  if(searchState.sort === "grade")
+    return items.slice().sort((a, b) => gradeRank(b.grade) - gradeRank(a.grade));
+  if(searchState.sort === "collection")
+    return items.slice().sort((a, b) => (a.collection || "").localeCompare(b.collection || "", "ar"));
+  return items;   // relevance = the backend's order
+}
+function searchControls(){
+  const opt = (k, v, label) => `<option value="${v}"${searchState[k] === v ? " selected" : ""}>${label}</option>`;
+  return `<div class="s-ctrls">`
+    + `<select class="s-ctrl" data-k="mode" title="نوع المطابقة">${opt("mode","lexical","لفظيّ")}${opt("mode","semantic","دلاليّ (بالمعنى)")}${opt("mode","hybrid","هجين")}</select>`
+    + `<select class="s-ctrl" data-k="field" title="موضع البحث">${opt("field","all","المتن والإسناد")}${opt("field","matn","المتن فقط")}${opt("field","isnad","الإسناد فقط")}</select>`
+    + `<select class="s-ctrl" data-k="group" title="تجميع الروايات">${opt("group","report","دمج روايات الحديث")}${opt("group","none","عرض كل رواية")}</select>`
+    + `<select class="s-ctrl" data-k="sort" title="الترتيب">${opt("sort","relevance","الأكثر صلة")}${opt("sort","grade","الأصحّ أولًا")}${opt("sort","collection","حسب الكتاب")}</select>`
+    + `</div>`;
+}
+function activeFilters(){
+  const out = [];
+  if(searchState.collection){
+    const c = ((searchData.facets || {}).collections || []).find(x => x.id == searchState.collection);
+    out.push(`الكتاب: ${esc(c ? c.name : searchState.collection)}`);
+  }
+  if(searchState.grade) out.push(`الدرجة: ${esc(searchState.grade)}`);
+  return out.length ? ` · مرشّحات (${out.join("، ")}) <span class="clear-filters">✕ إزالة</span>` : "";
+}
+function facetChips(f){
+  if(!f) return "";
+  const cols = (f.collections || []).slice(0, 12).map(c =>
+    `<span class="facet${searchState.collection == c.id ? " on" : ""}" data-col="${c.id}">`
+    + `${esc(c.name)} <b>${c.count}</b></span>`).join("");
+  const grades = (f.grades || []).map(g =>
+    `<span class="facet${searchState.grade == g.grade ? " on" : ""}" data-grade="${esc(g.grade)}">`
+    + `${esc(g.grade)} <b>${g.count}</b></span>`).join("");
+  if(!cols && !grades) return "";
+  return `<div class="facets">` + (cols ? `<span class="f-lbl">الكتب:</span>${cols}` : "")
+    + (grades ? `<span class="f-lbl">الدرجة:</span>${grades}` : "") + `</div>`;
+}
+function renderSearch(d){
+  searchData = d;
+  const grouped = !!d.groups;
+  const items = sortItems((grouped ? d.groups : d.results) || []);
+  const srcN = ((d.facets || {}).collections || []).length;
+  const summary = grouped ? `${d.group_count} حديثًا · ${d.count} رواية` : `${d.count || 0} نتيجة`;
+  const head = searchControls()
+    + `<div class="note">${summary} · في ${srcN} مصدرًا${activeFilters()}</div>`
+    + facetChips(d.facets);
+  if(!items.length){ results.innerHTML = head + `<div class="state">لا توجد نتائج</div>`; return; }
+  listState = { hits: items, shown: 0, unit: grouped ? "حديثًا" : "نتيجة" };
+  results.innerHTML = head
+    + `<div class="note" id="count"></div><div id="list"></div><div id="more-wrap"></div>`;
+  revealMore();
+}
+
 async function run(){
   const query = q.value.trim();
   if(mode === "method"){ renderMethodology(); return; }   // a static reading page
@@ -373,9 +503,11 @@ async function run(){
   results.innerHTML = `<div class="state">… جارٍ التنفيذ</div>`;
   try{
     if(mode === "search"){
-      const d = await getJSON(`/search?q=${encodeURIComponent(query)}`);
-      renderList(d.results || [], "نتيجة", "لا توجد نتائج");
+      _hlTerms = query.split(/\s+/).filter(t => t.length >= 2);
+      searchState.collection = null; searchState.grade = null;   // fresh query → clear filters
+      renderSearch(await getJSON(searchURL(query)));
     } else if(mode === "ask"){
+      _hlTerms = query.split(/\s+/).filter(t => t.length >= 2);
       if(engineSel.value === "local" && compareBox.checked){ await runCompare(query); return; }
       const eng = engineSel.value;
       const mdl = modelInput.value.trim();
@@ -776,7 +908,7 @@ const METHODOLOGY = [
     pros:"إحالةٌ دقيقةٌ تُمكّنك من الرجوع إلى المطبوع.",
     cons:"الترقيمُ تابعٌ لطبعة turath، وقد يختلف عن طبعةٍ أخرى بين يديك."},
   {h:"البحث: لفظيّ ودلاليّ وهجين", src:"فهرسٌ لفظيّ (FTS) فوق المتون، وفهرسٌ دلاليّ من متّجهاتٍ (embeddings) عربية.",
-    how:"اللفظيّ يطابق الكلمات بعد تطبيع الحروف (الهمزات والألف والتاء المربوطة...). والدلاليّ يفهم المعنى المتقارب ولو اختلف اللفظ. والهجين يدمج النتيجتين بترتيبٍ تبادليّ (RRF). والنتائج غير محدودة العدد.",
+    how:"اللفظيّ يطابق الكلمات بعد تطبيع الحروف (الهمزات والألف والتاء المربوطة...). والدلاليّ يفهم المعنى المتقارب ولو اختلف اللفظ. والهجين يدمج النتيجتين بترتيبٍ تبادليّ (RRF). والنتائج غير محدودة العدد. ونعرضها مرتّبةً (الأكثر صلة، أو الأصحّ، أو حسب الكتاب) مع مرشّحاتٍ بالكتاب والدرجة، ونُبرز مواضعَ كلماتِ سؤالك في المتن. ونجمع روايات الحديث الواحد المتكرّرة عبر الكتب في نتيجةٍ واحدة (مع طيِّ صيغها الأخرى تحتها) كيلا يتكرّر الحديثُ نفسُه، ويمكنك نسخُ المتن أو مشاركتُه.",
     pros:"تجد الحديث بلفظه أو بمعناه، ولو لم تتذكّر نصّه بدقّة.",
     cons:"الدلاليّ تقريبيٌّ بطبعه؛ قد يُقدّم متقاربًا في المعنى ليس مقصودك، ويعتمد على بناء فهرس المتّجهات."},
   {h:"السؤال والمحرّك الذكي (RAG)", src:"نتائجُ البحث نفسها هي مادّة الجواب؛ والمحرّك اللغويّ اختياريّ.",
@@ -951,12 +1083,13 @@ const TECH = [
   {h:"البحث الهجين والتضمين — app/search/", p:[
     "HadithIndex/SharhIndex: SQLite FTS5 فوق المتن المُطبَّع (بحثٌ لفظيّ). VectorIndex: متّجهاتٌ float32 في SQLite، تشابهُ جيب التمام بالمسح الشامل.",
     "Embedder (SentenceTransformer): النموذج Omartificial-Intelligence-Space/Arabic-Triplet-Matryoshka-V2 (بُعد 768)؛ تحميلٌ كسولٌ (إضافةٌ اختيارية).",
-    "HybridSearcher: يدمج اللفظيَّ والدلاليَّ بترتيبٍ تبادليّ (RRF). التضمينُ تزايديّ: embed_cache.db بمفتاح بصمةِ النصّ فلا يُعاد إلّا ما تغيّر، مع تحقّقٍ من المحاذاة."]},
+    "HybridSearcher: يدمج اللفظيَّ والدلاليَّ بترتيبٍ تبادليّ (RRF). التضمينُ تزايديّ: embed_cache.db بمفتاح بصمةِ النصّ فلا يُعاد إلّا ما تغيّر، مع تحقّقٍ من المحاذاة.",
+    "grouping.cluster_reports: عنقدةٌ أحاديّةُ المرور بمعامل التداخل (المشترك ÷ الأصغر) لجمع روايات الحديث الواحد في نتيجةٍ واحدة؛ و/search يُرجِع تَعدادَ الكتب والدرجات (facets) لمرشّحات الواجهة."]},
   {h:"المحرّك اللغويّ — app/qa/llm.py + answer.py", p:[
     "litellm كواجهةٍ موحّدة. ثلاثةُ أوضاع: off (استخراجيٌّ من المصادر، الأأمن)، local (Ollama)، remote (أيّ مزوّد)؛ يُختار بـ ?engine= و?model=.",
     "في كلّ الأحوال يُلزَم المحرّك بالاستناد إلى المصادر المسترجَعة فقط، والاستشهادِ، وعدمِ الاختلاق؛ والمصادرُ تُعاد دائمًا ليبقى الجوابُ قابلًا للتحقّق."]},
   {h:"واجهة البرمجة — app/routers/", p:[
-    "GET /search?q= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /verify-isnad?isnad=|hadith_id= · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
+    "GET /search?q=&mode=&field=&group=&collection=&grade= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /verify-isnad?isnad=|hadith_id= · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
     "الدفتر: GET/POST /notebook و PATCH/DELETE /notebook/{id}. الصيانة: POST /admin/reload (يُفرِغ ذاكرةَ المزوّدين). الصحّة: GET /health و /health/ingestion."]},
   {h:"الإعدادات — app/config.py (.env)", p:[
     "pydantic-settings. أهمُّها: data_dir (=data)، rijal_path (قاعدةُ رجالٍ أوسع)، embedding_model/embedding_dim (768)؛ ومساراتُ ملفّات البيانات خصائصُ مشتقّةٌ من data_dir.",
@@ -997,6 +1130,63 @@ results.addEventListener("click", e => {
   q.value = t.getAttribute("data-q");
   document.querySelector('.modes button[data-mode="takhrij"]').click();  // switch tab (clears view)
   run();                                                                 // then run the takhrij
+});
+
+// Search controls (mode/field/group/sort): re-sort in place, or refetch with the new state.
+results.addEventListener("change", e => {
+  const sel = e.target.closest(".s-ctrl");
+  if(!sel) return;
+  searchState[sel.dataset.k] = sel.value;
+  if(sel.dataset.k === "sort") renderSearch(searchData);   // client-side reorder, no refetch
+  else reSearch();                                          // mode/field/group change the query
+});
+
+// Facet chips (filter by book / grade, toggle off when re-clicked) · «إزالة» clears ·
+// «عرض رواياته الأخرى» unfolds a report's other narrations.
+results.addEventListener("click", e => {
+  if(e.target.closest(".clear-filters")){
+    searchState.collection = null; searchState.grade = null; reSearch(); return;
+  }
+  const f = e.target.closest(".facet");
+  if(f){
+    if(f.dataset.col != null){
+      const id = +f.dataset.col;
+      searchState.collection = (searchState.collection == id) ? null : id;
+    } else if(f.dataset.grade != null){
+      searchState.grade = (searchState.grade === f.dataset.grade) ? null : f.dataset.grade;
+    }
+    reSearch();
+    return;
+  }
+  const vt = e.target.closest(".var-toggle");
+  if(vt){
+    const box = vt.nextElementSibling;
+    if(box){ const open = box.classList.toggle("show");
+      vt.textContent = vt.textContent.replace(/[▾▴]\s*$/, open ? "▴" : "▾"); }
+  }
+});
+
+// Copy / share a hadith (matn + citation). Works offline; share falls back to copy,
+// copy falls back to a temporary textarea where the Clipboard API is unavailable (file://).
+results.addEventListener("click", async e => {
+  const btn = e.target.closest(".copy-btn, .share-btn");
+  if(!btn) return;
+  const text = btn.dataset.text || "";
+  const flash = ok => { const t = btn.dataset.label || btn.textContent;
+    btn.dataset.label = t; btn.classList.add("done");
+    btn.textContent = ok ? "✓ تمّ" : "✗ تعذّر";
+    setTimeout(() => { btn.textContent = t; btn.classList.remove("done"); }, 1200); };
+  if(btn.classList.contains("share-btn") && navigator.share){
+    try{ await navigator.share({text}); }catch(_){}   // user-cancel is not an error
+    return;
+  }
+  try{ await navigator.clipboard.writeText(text); flash(true); }
+  catch(_){
+    try{ const ta = document.createElement("textarea"); ta.value = text;
+      ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta);
+      ta.select(); document.execCommand("copy"); document.body.removeChild(ta); flash(true); }
+    catch(_){ flash(false); }
+  }
 });
 
 // Save (★) / edit a note / delete — all the notebook actions (event delegation, async).
