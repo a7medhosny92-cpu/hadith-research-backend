@@ -147,19 +147,39 @@ def test_alias_extraction_is_conservative():
     assert _aliases("إنما الأعمال بالنيات") == []
 
 
-# ── the «أبي» bug: «my father» must not become a hub, nor be graded as عائشة ──────
-def test_first_person_kinship_excluded_from_graph():
-    # third- AND first-person kinship, plus a bare kunya particle, are not narrators.
+# ── the «أبي» bug: «my father» must not become a hub, but IS a real person ────────
+def test_bare_kinship_is_a_relative_marker():
+    # first- and third-person kinship, plus a bare kunya particle, aren't plain narrators.
     for w in ("أبي", "أمي", "جدي", "أخي", "عمي", "خالي", "أبو", "أبا", "أبيه", "جده"):
         assert _is_relative(w), w
-    # «حدثني أبي» must create no «أبي» node (it would otherwise be everyone's father).
+
+
+def test_my_father_resolves_to_the_real_man_not_a_hub():
+    # «حدثني أبي» must create no «أبي» hub — it resolves to the real father from the nasab.
     g = NarratorGraph()
-    g.add_chain(["عبد الله بن أحمد", "أبي", "الأعمش", "إبراهيم"])
-    g.add_chain(["يعقوب", "أبي", "ابن إسحاق"])
+    g.add_chain(["عبد الله بن أحمد بن حنبل", "أبي", "الأعمش"])   # أبي = أحمد بن حنبل
     g.commit()
     names = {n.name for n in g._nodes()}
-    assert "أبي" not in names
-    assert "عبد الله بن أحمد" in names and "الأعمش" in names
+    assert "أبي" not in names                                    # no bogus father-of-all hub
+    assert "أحمد بن حنبل" in names                               # resolved to the real man
+    assert {t["name"] for t in g.teachers("عبد الله بن أحمد بن حنبل")} == {"أحمد بن حنبل"}
+
+
+def test_apposition_father_is_resolved():
+    g = NarratorGraph()
+    g.add_chain(["أبي بردة", "أبيه أبي موسى", "النبي"])          # apposition names the father
+    g.commit()
+    assert {t["name"] for t in g.teachers("أبي بردة")} == {"أبي موسى"}
+
+
+def test_person_named_ubayy_is_kept_not_treated_as_pronoun():
+    # أُبَيّ بن كعب (a Companion) is a PERSON — «أبي بن …» must survive as a node.
+    g = NarratorGraph()
+    g.add_chain(["الحسن", "أبي بن كعب", "النبي"])
+    g.commit()
+    node = g.resolve("أبي بن كعب")
+    assert node is not None and "كعب" in node.name
+    assert {t["name"] for t in g.teachers("الحسن")} == {"أبي بن كعب"}
 
 
 def test_lookup_refuses_bare_kinship_particles():

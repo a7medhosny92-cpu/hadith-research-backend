@@ -25,15 +25,18 @@ def test_prophet_variants_collapse_to_one_node():
     assert teachers[0]["count"] == 3
 
 
-def test_relatives_make_no_hub_node_and_break_the_chain():
+def test_kinship_resolves_to_the_real_father_not_a_hub():
     g = NarratorGraph(":memory:")
     g.add_chain(["عمرو بن شعيب", "أبيه", "جده"])
     g.add_chain(["بهز بن حكيم", "أبيه", "جده"])
     g.commit()
-    # «أبيه»/«جده» are not nodes, so they never become a shared teacher/student hub
+    # «أبيه»/«جده» are never nodes themselves (no shared bogus hub) …
     assert g.resolve("أبيه") is None
     assert g.resolve("جده") is None
-    assert g.teachers("عمرو بن شعيب") == []
+    # … they resolve to each man's *real* father, taken from his nasab
+    assert {t["name"] for t in g.teachers("عمرو بن شعيب")} == {"شعيب"}
+    assert {t["name"] for t in g.teachers("بهز بن حكيم")} == {"حكيم"}
+    assert g.link_weight("عمرو بن شعيب", "شعيب") == 1     # the two men share no teacher
 
 
 def test_disambiguates_sufyan_from_neighbours():

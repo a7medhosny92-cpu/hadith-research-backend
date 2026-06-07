@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator
 
-from app.parsing.normalize import normalize_for_search
+from app.parsing.normalize import fold_kunya, normalize_for_search
 from app.rijal.grades import classify
 
 # Honorific ligatures (ﷺ ﵁ …), Quranic/honorific marks, and spelled-out eulogies.
@@ -40,11 +40,14 @@ _NON_IDENTIFYING = {normalize_for_search(w) for w in "أبو أبي أبا أم 
 
 
 def _clean_seq(name: str) -> list[str]:
-    """Folded name tokens **in order**, de-duplicated, honorifics/connectors dropped."""
+    """Folded name tokens **in order**, de-duplicated, honorifics/connectors dropped.
+
+    Kunya cases are unified (أبو/أبا/أبي → أبو) before «بن» is dropped, so «أبي موسى»
+    matches «أبو موسى»; «أبي بن …» stays أُبَيّ (a name, not a kunya)."""
     text = _HONORIFIC_PHRASE.sub(" ", _HONORIFIC_CH.sub(" ", name or ""))
     seen: set[str] = set()
     out: list[str] = []
-    for t in normalize_for_search(text).split():
+    for t in fold_kunya(normalize_for_search(text).split()):
         if t and t not in _STOP and t not in seen:
             seen.add(t)
             out.append(t)

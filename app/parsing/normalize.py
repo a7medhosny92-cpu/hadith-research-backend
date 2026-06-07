@@ -51,6 +51,22 @@ def normalize_for_search(text: str) -> str:
     return _WS.sub(" ", text).strip()
 
 
+def fold_kunya(tokens: list[str]) -> list[str]:
+    """Unify the kunya cases أبو/أبا/أبي → «ابو» so «أبو هريرة»/«أبي هريرة» match.
+
+    Exception: «أبي» immediately before «بن» is the *name* أُبَيّ (أُبَيّ بن كعب), not a
+    kunya — kept as «ابي» so a real person isn't confused with a kunya «أبو …». Operates
+    on already-folded (normalize_for_search) tokens."""
+    out: list[str] = []
+    for i, t in enumerate(tokens):
+        if t in ("ابو", "ابا", "ابي"):
+            nxt = tokens[i + 1] if i + 1 < len(tokens) else ""
+            out.append("ابي" if (t == "ابي" and nxt == "بن") else "ابو")
+        else:
+            out.append(t)
+    return out
+
+
 #: Negators that cancel a following verdict — «غير صحيح», «ليس بثقة», «لم يصحّح», «لم
 #: يثبت». Folded forms. «لا/ما» are excluded on purpose: they double as ordinary words
 #: and appear in positive idioms («لا بأس به»).
