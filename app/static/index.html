@@ -254,11 +254,18 @@ document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
   go.textContent = LABELS[mode];
   q.placeholder = PLACEHOLDER[mode];
   syncEngineUI();
-  // «المنهجية» / «البنية» are reading pages with no query — hide the search box.
+  // «المنهجية» / «البنية» / «التقنية» are reading pages with no query — hide the search box.
   const info = mode === "method" || mode === "arch" || mode === "tech";
   q.style.display = info ? "none" : "";
   go.style.display = info ? "none" : "";
-  if(mode === "notebook" || info) run();   // open immediately
+  if(mode === "notebook" || info){
+    run();                                  // these open immediately
+  } else {
+    // a query-based tab: clear the previous tab's output and show this tab's prompt,
+    // so switching never leaves stale content on screen (no need to search first).
+    results.innerHTML = `<div class="state">${esc(PLACEHOLDER[mode] || "اكتب نصًّا في الأعلى واضغط Enter")}</div>`;
+    q.focus();
+  }
 });
 go.onclick = run;
 q.addEventListener("keydown", e => { if (e.key === "Enter") run(); });
