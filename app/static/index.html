@@ -157,6 +157,7 @@
     <button data-mode="isnad">الإسناد</button>
     <button data-mode="notebook">دفتري</button>
     <button data-mode="method">المنهجية</button>
+    <button data-mode="arch">البنية</button>
   </div>
   <input id="q" placeholder="اكتب الحديث أو السؤال…" autofocus>
   <button id="go">ابحث</button>
@@ -191,11 +192,11 @@
 
 <script>
 const LABELS = {search:"ابحث", ask:"اسأل", takhrij:"خرّج", narrator:"اعرض",
-  isnad:"حقّق", notebook:"ابحث", method:"اعرض"};
+  isnad:"حقّق", notebook:"ابحث", method:"اعرض", arch:"اعرض"};
 const PLACEHOLDER = {search:"اكتب الحديث أو السؤال…", ask:"اكتب سؤالك…",
   takhrij:"اكتب متن الحديث…", narrator:"اكتب اسم الراوي…",
   isnad:"الصق الإسناد… أو رقم حديثٍ مفهرس", notebook:"ابحث في دفترك… (فارغ = الكل)",
-  method:""};
+  method:"", arch:""};
 const ENGINE_AR = {
   off: "إجابة استخراجية من المصادر (بدون ذكاء اصطناعي)",
   local: "أُجيب عبر محرّك محلي (Ollama)",
@@ -227,11 +228,11 @@ document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
   go.textContent = LABELS[mode];
   q.placeholder = PLACEHOLDER[mode];
   syncEngineUI();
-  // «المنهجية» is a reading page with no query — hide the search box for it.
-  const info = mode === "method";
+  // «المنهجية» / «البنية» are reading pages with no query — hide the search box.
+  const info = mode === "method" || mode === "arch";
   q.style.display = info ? "none" : "";
   go.style.display = info ? "none" : "";
-  if(mode === "notebook" || mode === "method") run();   // open immediately
+  if(mode === "notebook" || info) run();   // open immediately
 });
 go.onclick = run;
 q.addEventListener("keydown", e => { if (e.key === "Enter") run(); });
@@ -319,6 +320,7 @@ function revealMore(){
 async function run(){
   const query = q.value.trim();
   if(mode === "method"){ renderMethodology(); return; }   // a static reading page
+  if(mode === "arch"){ renderArchitecture(); return; }     // architecture / how it works
   if(!query && mode !== "notebook") return;   // notebook lists everything when empty
   results.innerHTML = `<div class="state">… جارٍ التنفيذ</div>`;
   try{
@@ -621,6 +623,53 @@ function renderMethodology(){
   results.innerHTML =
     `<div class="note">منهجية التطبيق: من أين يأتي كلُّ معطًى، وكيف يُستخرج، وما مزاياه وحدوده</div>`
     + METHODOLOGY.map(methodCard).join("");
+}
+
+// Architecture (البنية): how the app is built, how it works, where it can improve, and
+// its limits. ⚠️ MAINTENANCE: keep BOTH this and METHODOLOGY in sync with the code on
+// every change — they are the user-facing record of how the system works.
+const ARCHITECTURE = [
+  {h:"ما هو هذا التطبيق؟", p:[
+    "أداةٌ لبحث الحديث وتخريجه وتحقيق إسناده من كتب السنة الكبرى، بالعربية الفصحى.",
+    "نظامُ «استرجاعٍ مُعزَّز» (RAG): يَسترجع من النصوص الحقيقية ويَعزو ولا يَختلق — وهذا أصلٌ في هذا الباب حيث الخطأُ في النسبة جسيم.",
+    "يعمل محليًّا على جهازك (خصوصية)، عبر نافذةٍ مكتبية."]},
+  {h:"كيف يعمل؟ — سبع طبقات", p:[
+    "تتدفّق البيانات عبر سبع طبقات من المصدر إلى الواجهة؛ وفيما يلي كلُّ طبقةٍ بإيجاز."]},
+  {h:"١) الجلب", p:[
+    "يُنزّل الكتب من turath.io بأدبٍ: حدُّ سرعة، إعادةُ محاولة، حفظٌ محلّي، واستئنافٌ عبر سجلّ. الفئات: كتب السنة، الشروح، التخريج، العلل، علوم الحديث، التراجم/الرجال."]},
+  {h:"٢) التحليل", p:[
+    "النصُّ يأتي صفحاتٍ غير مُهيكلة؛ فنستخرج الأحاديث (بعلامات • [رقم] أو «رقم -»)، ونفصل الإسناد عن المتن، ونلتقط الحكم والباب، ونربط الشروح بالأرقام، ونبني تراجم الرجال من «تقريب التهذيب» و«الكاشف». ونطبّع الحروف العربية للمطابقة."]},
+  {h:"٣) الفهارس", p:[
+    "فهرسٌ لفظيّ (FTS) للمطابقة الحرفية، وفهرسٌ دلاليّ (متّجهات) للمعنى، وشبكةُ الرواة (شيوخ/تلاميذ من الأسانيد)، وقاعدةُ درجات الرجال (نحو 10٬500 راوٍ)."]},
+  {h:"٤) الاسترجاع الهجين", p:[
+    "يدمج اللفظيّ والدلاليّ بترتيبٍ تبادليّ (RRF) مع مرشّحات (الكتاب، الدرجة) — فتجد الحديث بلفظه أو بمعناه."]},
+  {h:"٥) علوم الحديث", p:[
+    "الجزء «الذكيّ»، وهو بقواعد مُحكمةٍ لا بتعلّمٍ آليّ: التخريج (جمع الطرق في صِيَغ تحت الصحابي)، وتحليلُ الإسناد مع «الحكم على الإسناد»، وأحكامُ العلماء بالطبقات، وشبكةُ الرجال مع حلّ المشترك."]},
+  {h:"٦) المحرّك اللغوي (اختياري)", p:[
+    "مفتاحٌ بثلاثة أوضاع: «بدون ذكاء اصطناعي» (استخراجيّ، الأأمن)، أو «محلّي» (Ollama)، أو «سحابيّ» (أيّ مزوّد). وهو مُلزَمٌ بالاستشهاد من المصادر المسترجَعة فقط وعدمِ الاختلاق."]},
+  {h:"٧) الواجهة", p:[
+    "خادمُ FastAPI (بحث، سؤال، تخريج، تحقيق إسناد، راوٍ، دفتر) ونافذةٌ مكتبية بالعربية مع هذه الألسنة."]},
+  {h:"المبدأ الحاكم", p:[
+    "يَسترجع ويُوثّق ولا يَختلق؛ ويُميَّز دائمًا المنقولُ (نصُّ المصدر ونسبتُه = موثوق) عن التحليليّ (الفصلُ والمطابقةُ والحكم = اجتهاديٌّ يُراجَع) — كما تُفصّله صفحة «المنهجية»."]},
+  {h:"أين يمكن أن يتحسّن", p:[
+    "• تحليلٌ أدقّ لفصل الإسناد/المتن واستخراج الحكم (قواعد أكثر أو نموذج).",
+    "• تخصيصُ نموذج المتّجهات على نصوص الحديث → دلالةٌ أدقّ في المجال.",
+    "• رجالٌ أوسع (تهذيب الكمال كاملًا، الجرح والتعديل) و«رأيٌ ثانٍ» عند اختلاف ابن حجر والذهبي.",
+    "• مطابقةُ الأسماء بالترتيب لا بالمجموعة فقط (تمييز «يزيد بن جابر» عن «جابر بن يزيد»).",
+    "• النظرُ في العلّة والشذوذ، لا الرجال والاتصال فحسب.",
+    "• مُعيدُ ترتيبٍ (reranker) بعد الاسترجاع، والانتقالُ إلى Postgres + pgvector للتوسّع."]},
+  {h:"الحدود وإخلاءُ المسؤولية", p:[
+    "• أداةُ دراسةٍ لا فتوى؛ وحكمُ الإسناد على ظاهر الرجال والاتصال، لا تصحيحٌ تامّ (يحتاج العلّة والشذوذ).",
+    "• تعتمد على turath.io؛ وجودةُ الرقمنة والترقيم تختلف بين الطبعات.",
+    "• الاستخراجُ اجتهاديّ (الفصل، المطابقة، الحكم) → يُراجَع على المطبوع.",
+    "• تغطيةُ الرجال ممتازةٌ للكتب الستة؛ ومَن سواهم قد يبقى «يُتوقَّف فيه».",
+    "• الدلاليّ بنموذجٍ عامّ (غير مُخصَّص) ويستهلك ذاكرةً.",
+    "• محليٌّ لمستخدمٍ واحد؛ لا مزامنةَ بين أجهزة."]},
+];
+function renderArchitecture(){
+  results.innerHTML =
+    `<div class="note">بنية التطبيق: كيف يعمل، وأين يمكن أن يتحسّن، وما حدوده</div>`
+    + ARCHITECTURE.map(methodCard).join("");
 }
 
 // Toggle the isnad (event delegation).
