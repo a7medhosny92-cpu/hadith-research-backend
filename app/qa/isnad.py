@@ -36,6 +36,12 @@ _SKIP = {"قال", "قالا", "قالوا", "يعني", "قالت", "ح"}
 # by a transmission verb (… قال حدثنا … keeps going); the rest always begin the matn.
 _MATN_HARD = {"يقول", "تقول", "مرفوعا", "رفعه", "يرفعه", "نحوه", "مثله", "بنحوه", "بمثله", "فقال"}
 _MATN_SOFT = {"قال", "قالت"}
+# «أنّ / أنّه / أنّها» opens the report (matn) — «… عن ابن عمر أنّ رسول الله ﷺ قال …».
+# If its subject is the Prophet the chain is marfūʿ and he is the terminal narrator;
+# otherwise the report has begun and the chain ends. (Without this, «أن رسول الله» glued
+# onto the previous name, making bogus nodes like «ابن عمر أن رسول الله ﷺ».)
+_MATN_ANNA = {"ان", "انه", "انها"}
+_PROPHET_HEAD = {"النبي", "نبي", "رسول"}
 # Tokens still inside a Prophet reference (his name + the eulogy); the first token
 # outside this set ends the Prophet's (terminal) name and starts the matn.
 _EULOGY = {"النبي", "نبي", "رسول", "الله", "صلي", "عليه", "وسلم", "واله", "وصحبه", "سلم"}
@@ -117,6 +123,16 @@ def analyze_isnad(text: str, rijal: "RijalIndex | None" = None) -> IsnadAnalysis
                 break
             via, buf = _VIA[conn], []
             continue
+        # «أنّ» opens the report: end the current narrator. If it is about the Prophet
+        # («… أنّ رسول الله ﷺ قال») the chain is marfūʿ and he is the terminal narrator;
+        # otherwise the report (matn) has begun → stop.
+        if folded in _MATN_ANNA or (folded[:1] == "و" and folded[1:] in _MATN_ANNA):
+            if flush():
+                break
+            if nxt in _PROPHET_HEAD:
+                via, buf = None, []
+                continue
+            break
         # matn boundary: the isnad ends where the report (matn) begins
         nxt_is_via = nxt in _VIA or (nxt[:1] == "و" and nxt[1:] in _VIA)
         if folded in _MATN_HARD or (folded in _MATN_SOFT and not nxt_is_via):

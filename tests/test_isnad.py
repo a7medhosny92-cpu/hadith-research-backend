@@ -31,6 +31,22 @@ def test_parses_narrators_and_modes():
     assert a.has_anana and not a.has_tahwil
 
 
+def test_anna_opens_a_marfu_report_to_the_prophet():
+    # «… عن ابن عمر أنّ رسول الله ﷺ قال …» — «أنّ» must end the narrator and let the
+    # Prophet be terminal, not glue «أن رسول الله» onto «ابن عمر».
+    a = analyze_isnad("عن سالم عن ابن عمر أن رسول الله صلى الله عليه وسلم قال خذوا")
+    names = [n["name"] for n in a.narrators]
+    assert names[:2] == ["سالم", "ابن عمر"]
+    assert a.reaches_prophet                              # marfūʿ — reaches the Prophet
+    assert not any("أن" in n.split() for n in names)      # no «… أن رسول الله» bogus node
+
+
+def test_anna_with_non_prophet_subject_ends_the_chain():
+    # «… عن ابن عمر أنّ رجلاً سأل …» — not marfūʿ; the chain stops, no bogus «رجلا» narrator.
+    names = [n["name"] for n in analyze_isnad("عن ابن عمر أن رجلا سأل النبي").narrators]
+    assert names == ["ابن عمر"]
+
+
 def test_detects_tahwil_with_waw_connectors():
     a = analyze_isnad("حدثنا أبو بكر، حدثنا غندر، عن شعبة ح وحدثنا محمد، عن منصور")
     assert a.has_tahwil
