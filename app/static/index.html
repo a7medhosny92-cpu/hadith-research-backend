@@ -51,6 +51,8 @@
   .g-daif{background:#f6ddd5;color:#a5381f}
   .g-other{background:#ebe4d4;color:#6c6149}
   .toggle{color:var(--accent);cursor:pointer;font-size:.9rem;margin-top:10px;user-select:none;font-weight:700}
+  .go-takhrij{color:var(--gold2);cursor:pointer;font-size:.9rem;margin-top:10px;display:inline-block;font-weight:700}
+  .go-takhrij:hover{text-decoration:underline;color:var(--accent2)}
   .isnad{margin-top:8px;color:#4a5a52;font-size:1rem;line-height:2;display:none;
     border-top:1px dashed var(--line);padding-top:10px}
   .isnad.show{display:block}
@@ -332,8 +334,10 @@ function hadithCard(h){
   const save = saveChip({kind:"hadith", title:cite, body:h.matn,
     meta:{collection:h.collection, number:h.number, page:h.page, grade:h.grade,
           isnad:h.isnad, rulings:h.rulings}});
+  // jump to this hadith's full تخريج (its narrations across the books)
+  const trace = `<span class="go-takhrij" data-q="${esc(h.matn)}">تتبّع تخريجه ⟶</span>`;
   return `<div class="card"><div class="matn">${esc(h.matn)}</div>
-    <div class="cite">${grade}<span>${esc(cite)}</span>${save}</div>${rulingsHtml(h.rulings)}${isnad}</div>`;
+    <div class="cite">${grade}<span>${esc(cite)}</span>${save}</div>${trace}${rulingsHtml(h.rulings)}${isnad}</div>`;
 }
 
 // Reveal long result lists in batches so the window stays responsive even with
@@ -377,24 +381,39 @@ async function run(){
       const mdl = modelInput.value.trim();
       let url = `/ask?q=${encodeURIComponent(query)}&engine=${eng}`;
       if(mdl && eng !== "off") url += `&model=${encodeURIComponent(mdl)}`;
-      const d = await getJSON(url);
-      let html = "";
-      if(d.warning) html += `<div class="warn">${esc(d.warning)}</div>`;
+      // the synthesized answer AND the full list of hadith that contain the question
+      const [d, s] = await Promise.all([
+        getJSON(url), getJSON(`/search?q=${encodeURIComponent(query)}`)]);
+      const hits = s.results || [];
+      // the answer block (engine + answer + أحكام + علل + شرح) — shown below the list
+      let ans = "";
+      if(d.warning) ans += `<div class="warn">${esc(d.warning)}</div>`;
       if(d.engine){
         const tag = (ENGINE_AR[d.engine] || esc(d.engine)) + (d.model ? ` · ${esc(d.model)}` : "");
-        html += `<div class="engine-tag">${tag}</div>`;
+        ans += `<div class="engine-tag">${tag}</div>`;
       }
-      html += `<div class="card"><div class="answer">${esc(d.answer)}</div>`
+      ans += `<div class="card"><div class="answer">${esc(d.answer)}</div>`
         + saveChip({kind:"answer", title:query, body:d.answer,
             meta:{engine:d.engine, model:d.model, rulings:d.rulings}}) + `</div>`;
-      if(d.rulings && d.rulings.length) html += `<div class="card">${rulingsHtml(d.rulings)}</div>`;
-      if(d.illal && d.illal.length) html += `<div class="card">${illalHtml(d.illal)}</div>`;
-      (d.sharh || []).forEach(s => {
-        const ref = s.sharh + (s.hadith_number!=null ? ` (عند الحديث ${s.hadith_number})` : "");
-        const body = s.text || s.excerpt || "";
-        html += `<div class="card sharh"><b>${esc(ref)}</b><div class="ex">${esc(body)}</div></div>`;
+      if(d.rulings && d.rulings.length) ans += `<div class="card">${rulingsHtml(d.rulings)}</div>`;
+      if(d.illal && d.illal.length) ans += `<div class="card">${illalHtml(d.illal)}</div>`;
+      (d.sharh || []).forEach(sh => {
+        const ref = sh.sharh + (sh.hadith_number!=null ? ` (عند الحديث ${sh.hadith_number})` : "");
+        const body = sh.text || sh.excerpt || "";
+        ans += `<div class="card sharh"><b>${esc(ref)}</b><div class="ex">${esc(body)}</div></div>`;
       });
-      results.innerHTML = html;
+      // count + where + a navigable list of the matching hadith (choose one to explore)
+      const srcN = new Set(hits.map(h => h.collection).filter(Boolean)).size;
+      if(!hits.length){
+        results.innerHTML = `<div class="note">لم نعثر على أحاديثَ مطابقة لسؤالك؛ وهذه خلاصة المصادر:</div>` + ans;
+      } else {
+        listState = { hits, shown: 0, unit: "حديثًا" };
+        results.innerHTML =
+          `<div class="note">سؤالك ورد في أحاديثَ عبر <b>${srcN}</b> مصدرًا — اختر حديثًا للاطّلاع على موضعه وإسناده وتخريجه:</div>`
+          + `<div class="note" id="count"></div><div id="list"></div><div id="more-wrap"></div>`
+          + `<div class="comp-head">خلاصة الجواب من المصادر</div>` + ans;
+        revealMore();
+      }
     } else if(mode === "takhrij"){
       renderTakhrij(await getJSON(`/takhrij?q=${encodeURIComponent(query)}`));
     } else if(mode === "narrator"){
@@ -969,6 +988,15 @@ results.addEventListener("click", e => {
   if(e.target.closest(".net-back")){ netBack(); return; }
   const node = e.target.closest("[data-nav]");
   if(node) navigateNet(node.getAttribute("data-nav"));
+});
+
+// «تتبّع تخريجه ⟶» on a hadith card → jump to the تخريج tab and trace that matn.
+results.addEventListener("click", e => {
+  const t = e.target.closest(".go-takhrij");
+  if(!t) return;
+  q.value = t.getAttribute("data-q");
+  document.querySelector('.modes button[data-mode="takhrij"]').click();  // switch tab (clears view)
+  run();                                                                 // then run the takhrij
 });
 
 // Save (★) / edit a note / delete — all the notebook actions (event delegation, async).
