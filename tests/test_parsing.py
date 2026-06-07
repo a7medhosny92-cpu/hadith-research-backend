@@ -73,6 +73,22 @@ def test_bare_chain_stays_none():
     assert split_isnad_matn("حدثنا فلان عن أنس عن أبيه")[2] == "none"
 
 
+def test_stray_trailing_quote_does_not_swallow_the_matn():
+    # a lone unmatched " at the end must not hijack extraction into an empty matn
+    isnad, matn, conf = split_isnad_matn('حدثنا علي بن محمد قال: حدثنا وكيع، عن قيس، قال: رأيت يد طلحة شلاء "')
+    assert matn == "رأيت يد طلحة شلاء"
+    assert "وكيع" in isnad
+
+
+def test_anna_prophet_introduces_the_matn():
+    # «أنّ النبيَّ ﷺ …» with no «قال» — the matn begins at the Prophet reference
+    isnad, matn, conf = split_isnad_matn(
+        "حدثنا فلان، عن سالم، أن عبد الله حدثه، أن النبي ﷺ كان ينزل تحت سرحة ضخمة")
+    assert conf == "phrase"
+    assert matn == "النبي ﷺ كان ينزل تحت سرحة ضخمة"
+    assert "سالم" in isnad and "حدثه" in isnad
+
+
 def test_rimando_inherits_previous_matn():
     from app.parsing.hadith_extract import ParsedHadith, _inherit_rimandi
 

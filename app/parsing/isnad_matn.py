@@ -43,6 +43,13 @@ _CHAIN_AHEAD = re.compile(
                              ("حدثنا", "حدثني", "أخبرنا", "أخبرني", "أنبأنا", "أنبأني", "ثنا"))
 )
 _MIN_MATN = 10   # a recovered matn must be at least this many chars to be believable
+# «أنّ النبيَّ ﷺ …» / «أنّ رسولَ الله …» introduces a (marfūʿ) matn that carries no «قال».
+_ANNA = re.compile(
+    r"(?:%s)\s+(?=%s)" % (
+        "|".join(flexible_word(w) for w in ("أن", "أنه", "أنها")),
+        "|".join(flexible_word(w) for w in ("النبي", "النبى", "نبي", "رسول")),
+    )
+)
 # A gap between two quoted spans that signals the matn has ended and an editor's note /
 # takhrij begins — so we do NOT merge the next span into the matn.
 _EDITORIAL = re.compile(r"أبو عبد الله|تنبيه|انظر|أخرجه|رواه|أخرجاه|تحفة|الأطراف|قلت|\(\s*\d")
@@ -82,9 +89,11 @@ def split_isnad_matn(text: str) -> tuple[str, str, str]:
                 end = close_i
             else:
                 break
-        isnad = text[:start].strip(_STRIP)
         matn = _WS.sub(" ", _QUOTE_CHARS.sub(" ", text[start:end + 1])).strip(_STRIP)
-        return isnad, matn, "quote"
+        if matn:                       # a real quoted matn
+            return text[:start].strip(_STRIP), matn, "quote"
+        # else: a stray/unmatched quote (e.g. a trailing ") — ignore it and fall through to the
+        # phrase strategies, which run on the full text (still holding the real matn).
 
     intros = list(_INTRO.finditer(text))
     if intros:
@@ -97,6 +106,13 @@ def split_isnad_matn(text: str) -> tuple[str, str, str]:
         after = text[m.end():].strip(_STRIP)
         if len(after) >= _MIN_MATN and not _CHAIN_AHEAD.match(after):
             return text[:m.start()].strip(_STRIP), after, "phrase"
+
+    # «أنّ النبيَّ ﷺ …» with no «قال» at all: the matn begins at the Prophet reference.
+    annas = list(_ANNA.finditer(text))
+    if annas:
+        after = text[annas[-1].end():].strip(_STRIP)
+        if len(after) >= _MIN_MATN:
+            return text[:annas[-1].start()].strip(_STRIP), after, "phrase"
 
     # no transmission marker at all → there is no chain here; the whole text is the matn
     # (e.g. a tied continuation «وكان يأمرني فأتزر…» that shares the previous isnad).
