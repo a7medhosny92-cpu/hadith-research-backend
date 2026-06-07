@@ -182,6 +182,7 @@
     <button data-mode="notebook">دفتري</button>
     <button data-mode="method">المنهجية</button>
     <button data-mode="arch">البنية</button>
+    <button data-mode="tech">التقنية</button>
   </div>
   <input id="q" placeholder="اكتب الحديث أو السؤال…" autofocus>
   <button id="go">ابحث</button>
@@ -216,12 +217,12 @@
 
 <script>
 const LABELS = {search:"ابحث", ask:"اسأل", takhrij:"خرّج", narrator:"اعرض",
-  network:"تنقّل", isnad:"حقّق", notebook:"ابحث", method:"اعرض", arch:"اعرض"};
+  network:"تنقّل", isnad:"حقّق", notebook:"ابحث", method:"اعرض", arch:"اعرض", tech:"اعرض"};
 const PLACEHOLDER = {search:"اكتب الحديث أو السؤال…", ask:"اكتب سؤالك…",
   takhrij:"اكتب متن الحديث…", narrator:"اكتب اسم الراوي…",
   network:"اكتب اسم الراوي للتنقّل في شبكته…",
   isnad:"الصق الإسناد… أو رقم حديثٍ مفهرس", notebook:"ابحث في دفترك… (فارغ = الكل)",
-  method:"", arch:""};
+  method:"", arch:"", tech:""};
 const ENGINE_AR = {
   off: "إجابة استخراجية من المصادر (بدون ذكاء اصطناعي)",
   local: "أُجيب عبر محرّك محلي (Ollama)",
@@ -254,7 +255,7 @@ document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
   q.placeholder = PLACEHOLDER[mode];
   syncEngineUI();
   // «المنهجية» / «البنية» are reading pages with no query — hide the search box.
-  const info = mode === "method" || mode === "arch";
+  const info = mode === "method" || mode === "arch" || mode === "tech";
   q.style.display = info ? "none" : "";
   go.style.display = info ? "none" : "";
   if(mode === "notebook" || info) run();   // open immediately
@@ -354,6 +355,7 @@ async function run(){
   const query = q.value.trim();
   if(mode === "method"){ renderMethodology(); return; }   // a static reading page
   if(mode === "arch"){ renderArchitecture(); return; }     // architecture / how it works
+  if(mode === "tech"){ renderTech(); return; }              // full technical reference
   if(!query && mode !== "notebook") return;   // notebook lists everything when empty
   results.innerHTML = `<div class="state">… جارٍ التنفيذ</div>`;
   try{
@@ -854,6 +856,82 @@ function renderArchitecture(){
   results.innerHTML =
     `<div class="note">بنية التطبيق: كيف يعمل، وأين يمكن أن يتحسّن، وما حدوده</div>`
     + ARCHITECTURE.map(methodCard).join("");
+}
+
+// Technical reference (التقنية): the precise implementation — modules, algorithms, data
+// files, endpoints, config, build. ⚠️ MAINTENANCE: keep this in sync with the code on
+// every change, alongside METHODOLOGY (provenance) and ARCHITECTURE (overview).
+const TECH = [
+  {h:"نظرة عامّة تقنيّة", p:[
+    "خادمُ FastAPI (Python) يخدم واجهةً واحدة (app/static/index.html: HTML/JS/SVG خالص، بلا مكتبات خارجية) داخل نافذةٍ مكتبية (pywebview). كلُّ شيءٍ محلّيٌّ ويعمل دون اتصال.",
+    "التخزين كلُّه ملفّات SQLite (بحثٌ نصّيّ FTS5، ومتّجهاتٌ كـ BLOB) — لا قاعدة بيانات خارجية. التطبيع اللغويّ بـ stdlib فقط؛ والإضافات الثقيلة (التضمين، المحرّك اللغويّ) اختيارية.",
+    "المبدأ: طبقةُ التجميع (app/qa) تُعيد استعمال المحرّكات (بحث، تخريج، إسناد، رجال) ولا تُكرّرها، وكلُّ معطًى يرجع إلى نصٍّ مصدريّ يُمكن التحقّق منه."]},
+  {h:"تخطيط المشروع — الوحدات", p:[
+    "app/parsing — التحليل النصّيّ: normalize (تطبيع + fold_kunya)، html_clean، hadith_extract، isnad_matn، grading، rijal_extract، sharh_extract.",
+    "app/rijal — الرجال: index (RijalIndex: المطابقة)، graph (NarratorGraph: الشبكة)، canon (Canonicalizer: التوحيد)، grades (classify + RANKS)، وبذرةٌ موثّقة seed.jsonl.",
+    "app/qa — علوم الحديث: isnad، rulings (الأحكام والعلل)، takhrij، answer (الإجابة المستندة)، dossier (البطاقات المجمّعة)، intent، llm.",
+    "app/search — الاسترجاع: index (HadithIndex/SharhIndex فوق FTS5)، vectors (VectorIndex)، embeddings (Embedder)، hybrid (HybridSearcher: دمج RRF).",
+    "app/routers — نقاط النهاية؛ app/main + app/config (الإعدادات)؛ scripts/ — أدوات البناء؛ tests/ — نحو 223 اختبارًا."]},
+  {h:"خطّ المعالجة — scripts", p:[
+    "scripts.ingest: تنزيل الكتب من turath.io (حدُّ سرعة، إعادةُ محاولة، استئنافٌ عبر manifest.json) ← data/raw/turath/{id}.json.",
+    "scripts.parse: تحليلُ الصفحات إلى JSONL مُهيكل (متن/إسناد/حكم/باب + ربطُ الشروح) ← data/processed/*.jsonl و sharh/.",
+    "scripts.index: فهارسُ FTS5 ← data/index.db و data/sharh_index.db. scripts.build_graph: شبكةُ الرواة (تمريرتان) ← data/narrators.db.",
+    "scripts.build_rijal: درجاتُ الرجال (تقريب التهذيب + الكاشف) ← data/rijal.jsonl. scripts.embed: فهرسُ المتّجهات (تزايديّ) ← data/vectors.db + data/embed_cache.db.",
+    "scripts.update: يُنسّق ذلك كلَّه (checkout main ← pull ← deps ← الخطوات ٤-٨)، وكلُّها idempotent يُعاد تشغيلها بأمان."]},
+  {h:"ملفّات البيانات — data/", p:[
+    "raw/turath/{id}.json: الكتاب الخام. processed/*.jsonl: الأحاديث المُهيكلة. manifest.json: حالةُ التنزيل (للاستئناف).",
+    "index.db و sharh_index.db: فهرسا FTS5 (متون وشروح). narrators.db: شبكةُ الرواة (جدولا narrator و link). rijal.jsonl: تراجمُ الرجال المبنيّة.",
+    "vectors.db: متّجهاتُ المتون (float32 BLOB). embed_cache.db: ذاكرةٌ بمفتاح بصمةِ النصّ للتضمين التزايديّ. notebook.db: دفترُ المستخدم (منفصلٌ لا يُمَسّ عند إعادة البناء).",
+    "كلُّ ما تحت data/ مُستثنًى من git (محليّ)، ويُعاد بناؤه من المصدر."]},
+  {h:"التطبيع والمطابقة — app/parsing/normalize.py", p:[
+    "normalize_for_search: يُسقط التشكيل، ويوحّد الهمزات/الألف/الياء/التاء المربوطة، ويزيل غيرَ العربيّ؛ ليطابق رغم اختلاف الرسم.",
+    "fold_kunya: يوحّد صِيَغ الكنية أبو/أبا/أبي ← «ابو»، إلّا «أبي بن…» فتبقى أُبَيّ (اسمٌ لا كنية). يُستعمَل في الرسم والرجال معًا لتطابقٍ متّسق.",
+    "negated_before: يُلغي حكمًا سبقَه نفيٌ (غير/ليس/لم…) ضمن نافذةٍ قصيرة."]},
+  {h:"قاعدة الرجال — app/rijal/index.py", p:[
+    "RijalEntry: name، aliases، kunya، grade_text، category، rank، death_year، source، opinions. تُطابَق على الاسم + الألقاب + الكنية.",
+    "lookup(name): معاملُ التداخل (المشترك ÷ الأصغر) فوق مجموعات الرموز المنظّفة؛ الصيغةُ المُحتواةُ في الاستعلام = إصابةٌ واثقة والأخصُّ يفوز؛ والمتساوون = ambiguous (يُعلَّم لا يُخمَّن).",
+    "حُرّاسٌ: _order_ok (الرموز المشتركة بالترتيب نفسه: «يزيد بن جابر» ≠ «جابر بن يزيد»)، ورفضُ استعلامٍ جسيمٍ غيرِ مميِّز (أبو/أبي/أم/عبد وحدها).",
+    "classify (grades.py): يربط عبارةَ الحكم بمرتبةٍ على سُلَّم RANKS (صحابي ١٠ … كذاب ٠)."]},
+  {h:"التوحيد — app/rijal/canon.py", p:[
+    "Canonicalizer: غلافٌ مذكِّر (memoized) فوق lookup. canonical(surface, context): إصابةٌ واثقة (score=1.0 غير ملتبسة) ← الاسم القانونيّ؛ ملتبسة ← مرشّحون يُرجَّحون بالسياق؛ وإلّا تُترَك الصيغةُ كما هي.",
+    "associations (قرائنُ السياق) = ملفّاتُ «صحبة» كلّ راوٍ المستخرَجةُ من تمريرة البناء الأولى — انظر صفحة المنهجية «كيف تُبنى الشبكة»."]},
+  {h:"شبكة الرواة — app/rijal/graph.py", p:[
+    "NarratorGraph: SQLite بجدولين — narrator(id, norm, name, freq) و link(teacher, student, weight). هويّةُ العقدة = مجموعةُ رموز الاسم المطويّة مرتّبةً (norm).",
+    "add_chain(names, canon): يُسجّل الروابطَ المتجاورة (تلميذ→شيخ)؛ يوحّد النبيَّ ﷺ في عقدة، ويحلّ المشترك، ويستدعي canon، ويعالج القرابة.",
+    "القرابة: «أبيه/جده/أمه/أخيه…» تُحَلُّ إلى الشخص (تصريحٌ أو نسبُ المجاور) أو إلى عقدةٍ موسومةٍ مرتبطة «والد/جدّ… فلان» (is_unnamed_kin)؛ ودليلُ اللاحقة يمنع رفعَها إلى الابن.",
+    "resolve(name): مطابقةٌ دقيقةٌ ثمّ احتواءٌ بأعلى تكرار. teachers/students/link_weight/adjacency للاستعلام."]},
+  {h:"تحليل الإسناد — app/qa/isnad.py", p:[
+    "analyze_isnad: يقسم السلسلةَ على صِيَغ التحمّل (حدثنا/أخبرنا/عن/سمعت…)، ويتوقّف عند المتن، ويرصد السماع/العنعنة والتحويل (ح) وبلوغَ النبيّ ﷺ.",
+    "overall_ruling: حكمٌ مختصرٌ على ظاهر الرجال + الاتصال + صِيَغ التحمّل (بتحفّظ). continuity: فحصُ كلّ حلقةٍ في الشبكة (معروفة/غير معروفة)."]},
+  {h:"التخريج وأحكام العلماء — app/qa/takhrij.py + rulings.py", p:[
+    "analyze_narrations: يجمع روايات المتن المتقاربة (لفظيًّا ودلاليًّا)، يعنقدها في «صِيَغ» (بلفظه/بنحوه/بمعناه)، ويجمعها تحت الصحابيّ مع خلاصة «أخرجه».",
+    "extract_rulings/collect_rulings: التقاطُ أحكام النقّاد بأنماطٍ نصّية، مرتّبةً بالطبقة، مع حلّ «حسن صحيح» بالطرق وإبرازِ الاختلاف.",
+    "extract_illal/collect_illal: العللُ المذكورة (إرسال/وقف/تفرّد/اضطراب/شذوذ/نكارة/علّة) مع احترام النفي — تُعرَض ولا تُعدّ حكمًا من التطبيق."]},
+  {h:"البحث الهجين والتضمين — app/search/", p:[
+    "HadithIndex/SharhIndex: SQLite FTS5 فوق المتن المُطبَّع (بحثٌ لفظيّ). VectorIndex: متّجهاتٌ float32 في SQLite، تشابهُ جيب التمام بالمسح الشامل.",
+    "Embedder (SentenceTransformer): النموذج Omartificial-Intelligence-Space/Arabic-Triplet-Matryoshka-V2 (بُعد 768)؛ تحميلٌ كسولٌ (إضافةٌ اختيارية).",
+    "HybridSearcher: يدمج اللفظيَّ والدلاليَّ بترتيبٍ تبادليّ (RRF). التضمينُ تزايديّ: embed_cache.db بمفتاح بصمةِ النصّ فلا يُعاد إلّا ما تغيّر، مع تحقّقٍ من المحاذاة."]},
+  {h:"المحرّك اللغويّ — app/qa/llm.py + answer.py", p:[
+    "litellm كواجهةٍ موحّدة. ثلاثةُ أوضاع: off (استخراجيٌّ من المصادر، الأأمن)، local (Ollama)، remote (أيّ مزوّد)؛ يُختار بـ ?engine= و?model=.",
+    "في كلّ الأحوال يُلزَم المحرّك بالاستناد إلى المصادر المسترجَعة فقط، والاستشهادِ، وعدمِ الاختلاق؛ والمصادرُ تُعاد دائمًا ليبقى الجوابُ قابلًا للتحقّق."]},
+  {h:"واجهة البرمجة — app/routers/", p:[
+    "GET /search?q= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /verify-isnad?isnad=|hadith_id= · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
+    "الدفتر: GET/POST /notebook و PATCH/DELETE /notebook/{id}. الصيانة: POST /admin/reload (يُفرِغ ذاكرةَ المزوّدين). الصحّة: GET /health و /health/ingestion."]},
+  {h:"الإعدادات — app/config.py (.env)", p:[
+    "pydantic-settings. أهمُّها: data_dir (=data)، rijal_path (قاعدةُ رجالٍ أوسع)، embedding_model/embedding_dim (768)؛ ومساراتُ ملفّات البيانات خصائصُ مشتقّةٌ من data_dir.",
+    "المحرّك: llm_default_engine (off)، llm_local_model (ollama/qwen2.5:7b)، llm_remote_model (anthropic/claude-sonnet-4-6)، llm_temperature/llm_timeout، ollama_api_base، anthropic_api_key/openai_api_key.",
+    "الجلب: turath_rate_per_sec (4)، turath_max_retries (4)، hadith_category_ids (6,7,8,9,10,26)."]},
+  {h:"البناء والاختبارات", p:[
+    "scripts.update: ١) checkout main ٢) pull ٣) deps ٤) ingest ٥) parse ٦) index ٧) build_graph ٨) build_rijal (+ تضمينٌ تزايديّ). كلُّها idempotent وقابلةٌ للاستئناف، والبناءُ يستبدل الملفَّ ذرّيًّا.",
+    "الاختبار: python -m pytest (نحو 223 اختبارًا). التكامل المستمرّ (CI): pytest + فحصُ بناء جملة الواجهة (node --check) عبر GitHub Actions."]},
+  {h:"صيانة الصفحات المرجعية", p:[
+    "ثلاثُ صفحاتٍ تبقى مطابِقةً للكود في كلّ تحديث: «المنهجية» (مصدرُ كلّ معطًى ولماذا يُوثَق)، و«البنية» (نظرةٌ عامّة)، و«التقنية» (هذه — التفصيلُ الكامل للتنفيذ).",
+    "القاعدة: أيُّ تغييرٍ في السلوك أو البنية يُرافقه تحديثُ ما يلزم من هذه الصفحات، فتبقى مرجعًا حيًّا لا يَشيخ."]},
+];
+function renderTech(){
+  results.innerHTML =
+    `<div class="note">التوثيق التقنيّ الكامل: الوحدات والخوارزميّات وملفّات البيانات ونقاط الواجهة والإعدادات — مرجعٌ للصيانة والتطوير، يُحدَّث مع كلّ تغيير</div>`
+    + TECH.map(methodCard).join("");
 }
 
 // Toggle the isnad (event delegation).
