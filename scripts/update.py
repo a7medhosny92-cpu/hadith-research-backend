@@ -51,12 +51,16 @@ def main() -> None:
     # forces it on (and installs the embeddings extra) for the first-time setup.
     semantic = args.semantic or get_settings().vector_index_path.exists()
 
-    step("1/5  Pull the latest code from GitHub", ["git", "pull", "--ff-only"])
+    # Always update from main, even if a previous session left the checkout on another
+    # branch — otherwise `git pull` would fast-forward the wrong branch and silently miss
+    # the latest code. (Local data lives under data/, which is gitignored, so switching is safe.)
+    step("1/8  Switch to the main branch", ["git", "checkout", "main"])
+    step("2/8  Pull the latest code from GitHub", ["git", "pull", "--ff-only"])
     # Include the desktop window (pywebview) and the LLM switch (litellm) so the app
     # and the local/remote «brain» work out of the box after an update; add the
     # embeddings stack too when semantic search is in use.
     extras = ".[dev,desktop,llm,embeddings]" if semantic else ".[dev,desktop,llm]"
-    step("2/5  Refresh dependencies", [PY, "-m", "pip", "install", "-e", extras, "-q"])
+    step("3/8  Refresh dependencies", [PY, "-m", "pip", "install", "-e", extras, "-q"])
 
     if args.code_only:
         print("\nDone — code is up to date. (Re-run without --code-only to refresh the corpus too.)")
@@ -65,13 +69,13 @@ def main() -> None:
     ingest = [PY, "-X", "utf8", "-m", "scripts.ingest"]
     ingest += (["--categories", "6", "7", "8", "9", "10", "26"] if args.full
                else ["--priority", "--with-commentaries"])
-    step("3/7  Download new/updated books (resumable — may take a while)", ingest)
-    step("4/7  Parse raw pages into structured JSONL", [PY, "-X", "utf8", "-m", "scripts.parse"])
-    step("5/7  Rebuild the search indexes", [PY, "-X", "utf8", "-m", "scripts.index"])
-    step("6/7  Build the narrator network", [PY, "-X", "utf8", "-m", "scripts.build_graph"])
+    step("4/8  Download new/updated books (resumable — may take a while)", ingest)
+    step("5/8  Parse raw pages into structured JSONL", [PY, "-X", "utf8", "-m", "scripts.parse"])
+    step("6/8  Rebuild the search indexes", [PY, "-X", "utf8", "-m", "scripts.index"])
+    step("7/8  Build the narrator network", [PY, "-X", "utf8", "-m", "scripts.build_graph"])
     # Full narrator gradings (تقريب التهذيب + الكاشف) → decisive isnad verdicts. Downloads
     # the small رجال sources if missing; resumable and idempotent.
-    step("7/7  Build the رجال gradings (تقريب التهذيب + الكاشف)",
+    step("8/8  Build the رجال gradings (تقريب التهذيب + الكاشف)",
          [PY, "-X", "utf8", "-m", "scripts.build_rijal"])
     if semantic:
         why = "" if args.semantic else " (keeping your existing semantic index aligned)"
