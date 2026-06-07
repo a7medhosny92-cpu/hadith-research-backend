@@ -81,6 +81,9 @@ def main() -> None:
         why = "" if args.semantic else " (keeping your existing semantic index aligned)"
         step(f"+ semantic  Build the vector index — incremental, only new/changed matns{why}",
              [PY, "-X", "utf8", "-m", "scripts.embed"])
+    # Refresh the isnad-audit report (the «التدقيق» review tab) so it reflects the new data.
+    step("+ تدقيق  Build the isnad audit report (review tab)",
+         [PY, "-X", "utf8", "-m", "scripts.audit_isnad"])
     print("\nDone — code, corpus and indexes are all up to date.")
 
 

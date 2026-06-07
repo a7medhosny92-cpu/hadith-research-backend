@@ -140,6 +140,8 @@
   .rawi-item{display:flex;justify-content:space-between;gap:10px;align-items:center;
     padding:8px 4px;border-bottom:1px solid var(--line);font-size:1.08rem}
   .rawi-summary{margin-top:10px;color:#3a3328;line-height:2.1;font-size:1.08rem}
+  .audit-case{cursor:pointer;transition:background .12s}
+  .audit-case:hover{background:#f0f7f3}
   .sources{margin:16px 2px;color:var(--muted);font-size:.92rem;line-height:1.9;
     border-top:1px dashed var(--line);padding-top:10px}
   .rulings{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);
@@ -227,6 +229,7 @@
     <button data-mode="isnad">الإسناد</button>
     <button data-mode="notebook">دفتري</button>
     <span class="bar-sep"></span>
+    <button data-mode="audit" class="doc">التدقيق</button>
     <button data-mode="method" class="doc">المنهجية</button>
     <button data-mode="arch" class="doc">البنية</button>
     <button data-mode="tech" class="doc">التقنية</button>
@@ -264,12 +267,12 @@
 
 <script>
 const LABELS = {search:"ابحث", ask:"اسأل", takhrij:"خرّج", narrator:"اعرض",
-  network:"تنقّل", isnad:"حقّق", notebook:"ابحث", method:"اعرض", arch:"اعرض", tech:"اعرض"};
+  network:"تنقّل", isnad:"حقّق", notebook:"ابحث", method:"اعرض", arch:"اعرض", tech:"اعرض", audit:"اعرض"};
 const PLACEHOLDER = {search:"اكتب الحديث أو السؤال…", ask:"اكتب سؤالك…",
   takhrij:"اكتب متن الحديث…", narrator:"اكتب اسم الراوي…",
   network:"اكتب اسم الراوي للتنقّل في شبكته…",
   isnad:"الصق الإسناد… أو رقم حديثٍ مفهرس", notebook:"ابحث في دفترك… (فارغ = الكل)",
-  method:"", arch:"", tech:""};
+  method:"", arch:"", tech:"", audit:""};
 const ENGINE_AR = {
   off: "إجابة استخراجية من المصادر (بدون ذكاء اصطناعي)",
   local: "أُجيب عبر محرّك محلي (Ollama)",
@@ -301,8 +304,8 @@ document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
   go.textContent = LABELS[mode];
   q.placeholder = PLACEHOLDER[mode];
   syncEngineUI();
-  // «المنهجية» / «البنية» / «التقنية» are reading pages with no query — hide the search box.
-  const info = mode === "method" || mode === "arch" || mode === "tech";
+  // «المنهجية» / «البنية» / «التقنية» / «التدقيق» are reading pages with no query — hide the box.
+  const info = mode === "method" || mode === "arch" || mode === "tech" || mode === "audit";
   q.style.display = info ? "none" : "";
   go.style.display = info ? "none" : "";
   if(mode === "notebook" || info){
@@ -529,6 +532,7 @@ async function run(){
   if(mode === "method"){ renderMethodology(); return; }   // a static reading page
   if(mode === "arch"){ renderArchitecture(); return; }     // architecture / how it works
   if(mode === "tech"){ renderTech(); return; }              // full technical reference
+  if(mode === "audit"){ renderAudit(); return; }            // isnad audit — cases to review
   if(!query && mode !== "notebook") return;   // notebook lists everything when empty
   results.innerHTML = `<div class="state">… جارٍ التنفيذ</div>`;
   try{
@@ -985,13 +989,13 @@ const METHODOLOGY = [
     "مثال: «الزهري عن أنس عن النبي»؛ «أنس» مجرّد. صحبةُ «أنس بن مالك» تضمّ الزهري، وصحبةُ «أنس بن سيرين» لا، فيُحمَل على «أنس بن مالك» ويجتمعان في عقدةٍ واحدة.",
     "ولأنّ الرسم يُبنى من الصفر في كلّ مرّة، فكلَّما تحسّنت البيانات (رجالٌ أوسع، أنسابٌ أكمل) ارتقت إعادةُ البناء تلقائيًّا بالأسماء الملتبسة والمجهولة إلى أسمائها الحقيقيّة."]},
   {h:"درجات الرواة (الجرح والتعديل)", src:"بذرةٌ منتقاةٌ موثّقةٌ من «تقريب التهذيب» (والصحابةُ عدولٌ بالإجماع)، وتتوسّع بقاعدة رجالٍ كاملةٍ عبر RIJAL_PATH.",
-    how:"نصنّف حكمَ كلّ راوٍ إلى مرتبةٍ بحسب مراتب الجرح والتعديل (ثقة، صدوق، لين، مجهول، ضعيف، متروك...)، ونأخذ بالطرف الأضعف عند الحكم.",
-    pros:"أحكامٌ منسوبةٌ إلى مصدرها؛ لا يجتهد النظامُ في تعديلٍ أو تجريح.",
+    how:"نطابق اسمَ الراوي بقاعدة الرجال بالاحتواء (أن يكون الاسمُ المعروف داخلَ ما ورد في الإسناد أو العكس)، لا بمجرّد مشاركةِ كلمةٍ شائعة (فلا يُخلَط «محمد بن عبد الله بن نمير» بـ«عبد الله بن عمر»، ولا تُطابَق الكنيةُ الشائعة «أبو بكر» إلّا إذا ذُكر بها)؛ فإن شارك الاسمَ أكثرُ من راوٍ تُرك «مشترَكًا» ولم نخمّن. والنبيُّ ﷺ مصدرُ الحديث لا راوٍ يُجرَّح. ثمّ نصنّف حكمَ كلّ راوٍ إلى مرتبةٍ (ثقة، صدوق، لين، مجهول، ضعيف، متروك...) ونأخذ بالطرف الأضعف.",
+    pros:"أحكامٌ منسوبةٌ إلى مصدرها؛ لا يجتهد النظامُ في تعديلٍ أو تجريح، ويُصرّح بالاشتباه بدل أن يخمّن.",
     cons:"تغطيةُ البذرة محدودة؛ فما لم يُعرف الراوي تتوقّف الأداة (يُتوقَّف فيه) حتى تُحمَّل قاعدةٌ أوسع."},
   {h:"الحكم على الإسناد", src:"ناتجُ تحليل الإسناد: درجاتُ الرواة + فحصُ الاتصال + صيغُ التحمّل.",
-    how:"نجمع ثلاث إشاراتٍ بتحفّظ: مرتبةَ الراوي الأضعف، والانقطاعَ الظاهر (حلقةٌ غير معروفةٍ في الشبكة) يُنزِل الحكم، والعنعنةَ تمنع جزمَ التصحيح حتى يثبت السماع.",
-    pros:"حكمٌ واحدٌ مختصرٌ يجمع القرائنَ مع بيان سببه.",
-    cons:"حكمٌ على ظاهر الرجال والاتصال فقط؛ ليس تصحيحًا تامًّا (يحتاج النظرَ في العلّة والشذوذ)، وليس فتوى، وجودتُه تتبع تغطيةَ قاعدة الرجال."},
+    how:"نميّز أوّلًا كلَّ راوٍ مشترَكٍ من سياق سلسلته (تمييز المهمل): «جعفر بن محمد» بجوار «محمد الباقر» و«جابر» هو الصادقُ لا مجهولٌ يشاركه الاسمَ — فالعقدةُ يُحدّدها الجوارُ (الشيوخ والتلاميذ) لا الاسمُ وحده. ثمّ نجمع الإشاراتِ بتحفّظ: مرتبةُ الراوي الأضعف هي الأساس، والعنعنةُ تمنع جزمَ التصحيح حتى يثبت السماع. أمّا تعذُّرُ إيجاد حلقةٍ في شبكتنا فقرينةُ تنبيهٍ لا حكمٌ — قد يكون اختلافَ صيغةِ اسمٍ لا انقطاعًا — فلا يُنزِل حكمًا صحيحَ الرجال (فلا تُحكَم سلسلةٌ من ثقاتٍ في البخاريّ بالضعف لمجرّد ثغرةٍ في الشبكة).",
+    pros:"حكمٌ واحدٌ مختصرٌ يجمع القرائنَ مع بيان سببه، ويعيّن الراوي من سياقه لا من اسمه المجرّد.",
+    cons:"حكمٌ على ظاهر الرجال والاتصال فقط؛ ليس تصحيحًا تامًّا (يحتاج النظرَ في العلّة والشذوذ)، وليس فتوى، وجودتُه تتبع تغطيةَ قاعدة الرجال والشبكة."},
   {h:"أحكام العلماء على الحديث", src:"نصوصُ الكتب والشروح والتخريج.",
     how:"نلتقط أحكامَ النقّاد بأنماطٍ نصّيّة (صحّحه فلان، ضعّفه فلان، قال الترمذيّ: حسنٌ صحيح...)، ونستنبط الضمنيّ (ما في الصحيحين فعلى شرطهما)، ونرتّبها بالطبقة، ونضع «هـ» بعد سنة الوفاة، ونُبرز اختلافَ العلماء، ونحلّ «حسن صحيح» بعدد الطرق.",
     pros:"يُظهر الحكمَ بصاحبه وعصره، ويكشف مواضعَ اختلاف النقّاد بدل إخفائها.",
@@ -1103,7 +1107,7 @@ const TECH = [
     "scripts.ingest: download books from turath.io (rate limit, retry, resume via manifest.json) → data/raw/turath/{id}.json.",
     "scripts.parse: parse pages into structured JSONL (matn/isnad/grade/bab + sharh linking) → data/processed/*.jsonl and sharh/.",
     "scripts.index: FTS5 indexes → data/index.db and data/sharh_index.db. scripts.build_graph: the narrator network (two passes) → data/narrators.db.",
-    "scripts.build_rijal: narrator gradings (Taqrib al-Tahdhib + al-Kashif) → data/rijal.jsonl. scripts.embed: the vector index (incremental) → data/vectors.db + data/embed_cache.db.",
+    "scripts.build_rijal: narrator gradings (Taqrib al-Tahdhib + al-Kashif) → data/rijal.jsonl. scripts.embed: the vector index (incremental) → data/vectors.db + data/embed_cache.db. scripts.audit_isnad: the isnad review report → data/audit.json (the «التدقيق» tab).",
     "scripts.update: orchestrates all of it (checkout main → pull → deps → steps 4-8); every step is idempotent and safe to re-run."]},
   {h:"Data files — data/", p:[
     "raw/turath/{id}.json: the raw book. processed/*.jsonl: structured hadith. manifest.json: download state (for resume).",
@@ -1120,12 +1124,13 @@ const TECH = [
     "Together these recover the matn for entries (common in ʿilal works) where the splitter had left it inside the isnad field — restoring it to search, to the narrator graph (the matn no longer pollutes the chain), and to takhrij."]},
   {h:"Rijal database — app/rijal/index.py", p:[
     "RijalEntry: name, aliases, kunya, grade_text, category, rank, death_year, source, opinions. Matched on name + aliases + kunya.",
-    "lookup(name): overlap coefficient (shared ÷ smaller) over cleaned token sets; a form contained in the query is a confident hit and the most specific wins; ties are ambiguous (flagged, not guessed).",
+    "lookup(name): containment-only — a match needs the entry's name inside the query (most specific wins, keeping a man distinct from his longer-named son), or the cited name to be a partial of the entry. Names that merely SHARE a common token (محمد بن عبد الله بن نمير vs عبد الله بن عمر) are not a match; the kunya matches only when the man is cited BY it (query within the kunya). Ties are ambiguous (flagged, not guessed).",
     "Guards: _order_ok (shared tokens in the same order: «يزيد بن جابر» ≠ «جابر بن يزيد»), and rejecting a bulky non-identifying query (Abu/Abi/Umm/Abd alone).",
     "classify (grades.py): maps a verdict phrase to a rank on the RANKS scale (Companion 10 … liar 0)."]},
   {h:"Unification — app/rijal/canon.py", p:[
     "Canonicalizer: a memoized wrapper over lookup. canonical(surface, context): a confident hit (score 1.0, unambiguous) → the canonical name; ambiguous → candidates weighted by context; otherwise the surface form is kept as-is.",
-    "associations (context cues) = each narrator «companions» profile gathered in the first build pass — see the Methodology page «how the network is built»."]},
+    "associations (context cues) = each narrator «companions» profile gathered in the first build pass — see the Methodology page «how the network is built».",
+    "The verdict reuses this (تمييز المهمل): /verify-isnad builds the company profiles from the live network (graph.adjacency()) and passes the Canonicalizer to analyze_isnad, so a shared name in a chain — «جعفر بن محمد» beside محمد الباقر/جابر → الصادق — is identified from its links before grading, not from the bare name."]},
   {h:"Narrator network — app/rijal/graph.py", p:[
     "NarratorGraph: SQLite with two tables — narrator(id, norm, name, freq) and link(teacher, student, weight). A node identity = its sorted folded name-token set (norm).",
     "add_chain(names, canon): records adjacent links (student→teacher); collapses the Prophet ﷺ into one node, resolves shared names, calls canon, and handles kinship.",
@@ -1133,7 +1138,8 @@ const TECH = [
     "resolve(name): exact match, then containment by highest frequency. teachers/students/link_weight/adjacency for querying."]},
   {h:"Isnad analysis — app/qa/isnad.py", p:[
     "analyze_isnad: splits the chain on transmission verbs (haddathana/akhbarana/an/sami'tu…), stops at the matn, and detects sama'/'an'ana, tahwil (ح) and whether it reaches the Prophet ﷺ.",
-    "overall_ruling: a concise verdict on the apparent state of the men + continuity + transmission modes (held back conservatively). continuity: checks each link against the network (known/unknown). This is the «الحكم على الإسناد» every hadith card now loads on demand."]},
+    "Grading: the Prophet ﷺ is excluded (he's the source, not a graded narrator); given a Canonicalizer, each shared name is first resolved from the chain's company (تمييز المهمل), then graded.",
+    "overall_ruling: a concise verdict (weakest narrator + transmission modes), held back conservatively. A missing network link is a CAUTION, not a downgrade — the graph is built from the same corpus with canonical names, so a gap is usually a name-form difference, and must not turn a صحيح البخاري chain of ثقات into «ضعيف». This is the «الحكم على الإسناد» every hadith card loads on demand."]},
   {h:"Takhrij and scholars rulings — app/qa/takhrij.py + rulings.py", p:[
     "analyze_narrations: gathers near-matching narrations of a matn (lexically and semantically), clusters them into «wordings» (verbatim / near / by-meaning), and groups them under the Companion with an «akhrajahu» summary.",
     "extract_rulings/collect_rulings: capture critics verdicts by text patterns, ordered by era, resolving «hasan sahih» by the number of routes and flagging divergence.",
@@ -1147,7 +1153,7 @@ const TECH = [
     "litellm as a unified interface. Three modes: off (extractive from the sources, the safest), local (Ollama), remote (any provider); selected with ?engine= and ?model=.",
     "In every mode the engine is constrained to rely only on the retrieved sources, to cite, and not to fabricate; the sources are always returned so the answer stays verifiable."]},
   {h:"API — app/routers/", p:[
-    "GET /search?q=&mode=&field=&group=&collection=&grade= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /verify-isnad?isnad=|hadith_id= · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
+    "GET /search?q=&mode=&field=&group=&collection=&grade= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /verify-isnad?isnad=|hadith_id= · GET /audit (isnad review report) · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
     "Notebook: GET/POST /notebook and PATCH/DELETE /notebook/{id}. Maintenance: POST /admin/reload (clears the provider caches). Health: GET /health and /health/ingestion."]},
   {h:"Settings — app/config.py (.env)", p:[
     "pydantic-settings. The main ones: data_dir (=data), rijal_path (a larger rijal base), embedding_model/embedding_dim (768); the data file paths are properties derived from data_dir.",
@@ -1165,6 +1171,37 @@ function renderTech(){
     `<div class="tech-en" dir="ltr"><div class="note">Full technical reference: modules, algorithms, data files, API endpoints and settings — a maintenance and development reference, kept in sync with every change.</div>`
     + TECH.map(methodCard).join("")
     + `</div>`;
+}
+
+// Audit (التدقيق): the prebuilt list of chains whose narrator grading is likely wrong —
+// for manual review. Each case opens its isnad on click. Built by scripts.audit_isnad.
+async function renderAudit(){
+  results.innerHTML = `<div class="state">… جارٍ تحميل تقرير التدقيق</div>`;
+  let d;
+  try { d = await getJSON("/audit"); }
+  catch(e){ results.innerHTML = `<div class="state">${esc(e.message || "تعذّر التحميل")}</div>`; return; }
+  if(!d.available){
+    results.innerHTML =
+      `<div class="note">لم يُبْنَ تقريرُ التدقيق بعد. شغّل في الطرفية ثم أعد فتح هذه الصفحة:</div>`
+      + `<div class="card"><div class="answer">python -m scripts.audit_isnad</div></div>`
+      + `<div class="note">يفحص كلَّ الأسانيد ويجمع الحالات المشتبهة لمراجعتها يدويًّا (يمكن إضافتُه إلى update.bat ليتجدّد تلقائيًّا).</div>`;
+    return;
+  }
+  let html = `<div class="note">تقريرُ التدقيق — فُحص <b>${d.scanned}</b> إسنادًا · قاعدةُ رجالٍ ${d.rijal_entries} · ${esc(d.generated)}</div>`
+    + `<div class="note">حالاتٌ يُنصح بمراجعتها يدويًّا (قرائنُ اشتباهٍ لا أحكام). اضغط أيّ حالةٍ لفتح إسنادها وحكمِه.</div>`;
+  ["P", "W", "S", "A"].forEach(code => {
+    const total = (d.counts || {})[code] || 0;
+    if(!total) return;
+    const cases = (d.cases || {})[code] || [];
+    html += `<div class="comp-head">${esc((d.labels || {})[code] || code)} <span class="simbadge">(${total})</span></div>`;
+    cases.forEach(c => {
+      const cite = [c.collection, (c.number != null ? "رقم " + c.number : null)].filter(Boolean).join("  ·  ");
+      html += `<div class="rawi-item audit-case" data-id="${c.id}"><span>${esc(c.detail)}</span>`
+        + `<span class="simbadge">${esc(cite)} ⟶</span></div>`;
+    });
+    if(cases.length < total) html += `<div class="note">… و${total - cases.length} حالةً أخرى في التقرير</div>`;
+  });
+  results.innerHTML = html;
 }
 
 // Toggle the isnad, and on first open lazily load its chain verdict («الحكم على الإسناد»).
@@ -1197,6 +1234,15 @@ results.addEventListener("click", e => {
   q.value = t.getAttribute("data-q");
   document.querySelector('.modes button[data-mode="takhrij"]').click();  // switch tab (clears view)
   run();                                                                 // then run the takhrij
+});
+
+// Audit (التدقيق): click a flagged case to open its isnad analysis (الإسناد tab).
+results.addEventListener("click", e => {
+  const row = e.target.closest(".audit-case");
+  if(!row) return;
+  q.value = row.dataset.id;                                            // the hadith's index id
+  document.querySelector('.modes button[data-mode="isnad"]').click();  // → الإسناد tab
+  run();
 });
 
 // Search controls (mode/field/group/sort): re-sort in place, or refetch with the new state.
