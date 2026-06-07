@@ -59,10 +59,15 @@ _FALLBACK: list[tuple[str, list[str]]] = [
     ("ثقة", ["وثقه", "وثقوه", "وثق", "ثقات"]),
 ]
 # Where a name ends and the biography begins — cut the name at the first of these.
-# «عن»/«سمع» start the teachers list (الكاشف: «name سمع … وعنه …»); «مات/توفي» the death.
+# «عن»/«سمع» start the teachers list (الكاشف: «name سمع … وعنه …»); a death/event/relation
+# word begins the biography. A broad set (incl. feminine/inflected forms: ماتت، توفيت، كانت،
+# وقيل، and events: أسلم، ولد، تزوّج، ولي، ذكره، والدة…) keeps the name from swallowing the
+# whole tarjama — e.g. «… أم سلمة أم المؤمنين [تزوجها النبي …]» or «عمر … العدوي [يقال له …]».
 _NAME_CUT = re.compile(
-    r"\s(?:عن|عنه|وعنه|سمع|سمعت|مات|توفي|توفى|من|قال|قيل|روى|يروي|وكان|كان|نزيل|نزل|سكن|"
-    r"وفد|أصله|وثقه|ضعفه|تركه|كذبه|وقال|له|رمي|اختلط|صنف|مشهور|تابعي|مخضرم|صحابي|صحابية|شهد)\s"
+    r"\s(?:عن|عنه|وعنه|سمع|سمعت|مات|ماتت|توفي|توفى|توفيت|من|قال|قالت|قيل|وقيل|يقال|ويقال|روى|يروي|"
+    r"وكان|كان|كانت|وكانت|نزيل|نزل|سكن|وفد|أصله|وثقه|ضعفه|تركه|كذبه|وقال|له|وله|ولها|لها|رمي|اختلط|"
+    r"صنف|مشهور|تابعي|مخضرم|صحابي|صحابية|صحبة|شهد|ولد|ولدت|قتل|قتلت|استشهد|عاش|عاشت|تزوج|"
+    r"تزوجت|تزوجها|ولي|وليت|بايع|أدرك|صحب|صحبت|ذكره|ذكرها|والد|والدة|مولى|ولأبيه|خليفة)\s"
 )
 # ضبط fragments (orthography notes) stripped from the name.
 _NOISE = re.compile(
