@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Iterable, Iterator
 
 from app.parsing.html_clean import arabic_digits_to_int, clean_block
+from app.parsing.normalize import normalize_for_search
 
 # Entry boundary: a line starting with «NUM- » (a real tarjama) or «[] » (a cross-
 # reference / تمييز line we skip). Numbers are Arabic-Indic in the source.
@@ -71,6 +72,21 @@ _NOISE = re.compile(
 )
 _KUNYA = re.compile(r"(?<!\w)(أبو|أبا|أبي|أم)\s+(\S+)")
 _WS = re.compile(r"\s+")
+
+# Laqab / shuhra cues: «المعروف بـ…», «يقال له…», «لقبه…» introduce another name the man
+# is known by — captured as an alias so a chain that cites him by it links to one person.
+# Group A needs the particle بـ; group B (لقبه/يقال له) is followed by the laqab directly.
+_ALIAS_CUE = re.compile(
+    r"(?:(?:المعروف|المشهور|يعرف|يُعرف|الملقب|يلقب|يُلقب)\s+بـ?\s*"
+    r"|(?:لقبه|يقال\s+له|ويقال\s+له)\s+)"
+)
+# Where the captured laqab ends — the first biography word / verb / verdict.
+_ALIAS_STOP = {normalize_for_search(w) for w in (
+    "عن عنه وعنه سمع سمعت روى يروي مات توفي توفى من قال قيل وكان كان نزيل نزل سكن وثقه "
+    "ضعفه تركه كذبه له رمي اختلط صنف صاحب مشهور تابعي مخضرم صحابي صحابية شهد في على وفي "
+    "ثقة صدوق ضعيف مقبول لين مستور مجهول متروك حافظ امام ثبت وهو وهي احد بفتح بضم بكسر "
+    "بسكون ايضا"
+).split()}
 
 
 # OCR sometimes glues the verdict to the next word («صدوقتوفي», «ثقةمات»); split them.
@@ -139,6 +155,30 @@ def _death_year(body: str) -> int | None:
     return _parse_year(take)
 
 
+def _aliases(body: str) -> list[str]:
+    """Other names the man is *known by* (laqab/shuhra), captured conservatively.
+
+    Only clear cues count, the laqab is cut at the first biography word and capped at
+    three tokens, and a bare single token is kept only when it is a nisba («الأعمش») —
+    so we never invent a spurious alias (e.g. «المشهور بشر» yields nothing)."""
+    out: list[str] = []
+    for cue in _ALIAS_CUE.finditer(body):
+        words: list[str] = []
+        for raw in body[cue.end():].split():
+            tok = raw.strip("،.؛:؟»«()[]\"'")
+            folded = normalize_for_search(tok.lstrip("و"))
+            if not folded or folded in _ALIAS_STOP:
+                break
+            words.append(tok)
+            if len(words) >= 3:
+                break
+        alias = _WS.sub(" ", " ".join(words)).strip(" -،")
+        name_like = len(alias.split()) >= 2 or (alias.startswith("ال") and len(alias) >= 4)
+        if name_like and 3 <= len(alias) <= 40 and not any(c.isdigit() for c in alias):
+            out.append(alias)
+    return list(dict.fromkeys(out))   # de-duplicated, order preserved
+
+
 def _trim_name(text: str) -> str:
     # the name ends at the first biography cue (عن/سمع/مات …) OR the first verdict word,
     # whichever comes first — al-Dhahabī puts the رتبة («ثقة») right before «سمع».
@@ -191,6 +231,9 @@ def _entry_to_record(number: int | None, body: str, source: str) -> dict | None:
     kunya = _KUNYA.search(name)   # the narrator's own kunya, not a student's
     if kunya:
         record["kunya"] = f"{kunya.group(1)} {kunya.group(2)}"
+    aliases = _aliases(body)      # laqab/shuhra the man is also known by
+    if aliases:
+        record["aliases"] = aliases
     year = _death_year(body)
     if year:
         record["death_year"] = year

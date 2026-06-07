@@ -132,21 +132,35 @@ class NarratorGraph:
         )
         return cur.lastrowid
 
-    def add_chain(self, names: Iterable[str]) -> None:
+    def add_chain(self, names: Iterable[str], *, canon=None) -> None:
         """Record a chain: each name narrates *from* the next one (تلميذ → شيخ).
 
         Every Prophet reference collapses to one canonical node; a shared name (سفيان …)
         is resolved from the *whole chain* (a telltale شيخ/تلميذ may be more than one link
         away); relational pronouns (أبيه/جده) create **no** node and break the link on
-        both sides (so they don't form a hub)."""
+        both sides (so they don't form a hub).
+
+        When a :class:`~app.rijal.canon.Canonicalizer` is supplied, each surface name is
+        also mapped to its رجال canonical identity (الاسم/الكنية/اللقب موحَّدة) so the same
+        man written differently collapses to one node — using the *rest of the chain* as
+        context to break ties, and keeping the surface form when unsure."""
         names = list(names)
+        ctx_tokens = [canon.tokens(n) for n in names] if canon is not None else None
         ids: list[int | None] = []
         for i, name in enumerate(names):
             if _is_relative(name):
                 ids.append(None)            # a pronoun — not a node; breaks the chain here
                 continue
             others = [n for j, n in enumerate(names) if j != i]
-            canonical = PROPHET_NODE if is_prophet(name) else disambiguate(name, others)
+            if is_prophet(name):
+                canonical = PROPHET_NODE
+            else:
+                canonical = disambiguate(name, others)
+                if canon is not None:
+                    context = frozenset().union(
+                        *(t for j, t in enumerate(ctx_tokens) if j != i)
+                    ) if len(names) > 1 else frozenset()
+                    canonical = canon.canonical(canonical, context)
             ids.append(self._node_id(canonical))
         for student, teacher in zip(ids, ids[1:]):
             if not student or not teacher or student == teacher:
@@ -216,6 +230,20 @@ class NarratorGraph:
             "SELECT weight FROM link WHERE teacher = ? AND student = ?", (t.id, s.id)
         ).fetchone()
         return row[0] if row else 0
+
+    def adjacency(self) -> dict[str, list[str]]:
+        """Every node → the names of *all* its neighbours (شيوخ ∪ تلاميذ).
+
+        Used to derive each narrator's «recorded company» for context disambiguation —
+        the telltale names that decide which of two homonyms a bare ism refers to."""
+        name_by_id = {n.id: n.name for n in self._nodes()}
+        adj: dict[str, set[str]] = {}
+        for teacher, student in self._con.execute("SELECT teacher, student FROM link"):
+            tn, sn = name_by_id.get(teacher), name_by_id.get(student)
+            if tn and sn:
+                adj.setdefault(tn, set()).add(sn)
+                adj.setdefault(sn, set()).add(tn)
+        return {name: sorted(neigh) for name, neigh in adj.items()}
 
     def count(self) -> int:
         return self._con.execute("SELECT count(*) FROM narrator").fetchone()[0]

@@ -118,7 +118,10 @@ class RijalIndex:
                 source=raw.get("source"),
                 opinions=raw.get("opinions"),
             )
-            seqs = [s for s in (_clean_seq(f) for f in (entry.name, *entry.aliases)) if s]
+            # Match on the name, its aliases, AND the kunya — so a chain that cites a man
+            # by his kunya (أبو هريرة) links to his entry even without an explicit alias.
+            forms = (entry.name, *entry.aliases, *( (entry.kunya,) if entry.kunya else () ))
+            seqs = [s for s in (_clean_seq(f) for f in forms) if s]
             self._entries.append(entry)
             self._forms.append([set(s) for s in seqs])
             self._form_seqs.append(seqs)
