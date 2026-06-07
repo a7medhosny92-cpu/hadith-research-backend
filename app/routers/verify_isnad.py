@@ -14,7 +14,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.config import get_settings
 from app.qa.isnad import analyze_isnad, continuity, overall_ruling
 from app.rijal import RijalIndex, load_entries
+from app.rijal.canon import Canonicalizer
 from app.rijal.graph import NarratorGraph
+from app.rijal.index import _clean_tokens
 from app.routers.search import get_index
 from app.search import HadithIndex
 
@@ -41,6 +43,26 @@ def get_graph() -> NarratorGraph | None:
     return _graph()
 
 
+@lru_cache(maxsize=1)
+def _canonicalizer() -> Canonicalizer:
+    """A Canonicalizer whose «company» profiles come from the built network, so the verdict
+    can identify a shared name (مهمل) from the chain it sits in — the same context tier the
+    network uses. Falls back to context-free matching when no graph is present."""
+    rijal = _rijal_index()
+    graph = _graph()
+    if graph is None or not graph.count():
+        return Canonicalizer(rijal)
+    profiles = {
+        name: set().union(*(_clean_tokens(nb) for nb in neigh)) if neigh else set()
+        for name, neigh in graph.adjacency().items()
+    }
+    return Canonicalizer(rijal, associations=profiles)
+
+
+def get_canon() -> Canonicalizer:
+    return _canonicalizer()
+
+
 @router.get("/verify-isnad")
 def verify_isnad(
     hadith_id: int | None = Query(None, description="indexed hadith whose isnad to analyse"),
@@ -48,6 +70,7 @@ def verify_isnad(
     index: HadithIndex = Depends(get_index),
     rijal: RijalIndex = Depends(get_rijal),
     graph: NarratorGraph | None = Depends(get_graph),
+    canon: Canonicalizer = Depends(get_canon),
 ) -> dict:
     if hadith_id is not None:
         hit = index.get(hadith_id)
@@ -59,7 +82,8 @@ def verify_isnad(
     else:
         raise HTTPException(status_code=422, detail="provide hadith_id or isnad")
 
-    analysis = analyze_isnad(chain, rijal=rijal).to_dict()
+    # canon resolves a shared name from the chain's company before grading (تمييز المهمل)
+    analysis = analyze_isnad(chain, rijal=rijal, canon=canon).to_dict()
     result = {"source": source, "analysis": analysis}
     if graph is not None and graph.count():
         result["continuity"] = continuity(analysis["narrators"], graph)
