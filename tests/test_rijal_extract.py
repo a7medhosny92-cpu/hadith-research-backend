@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.parsing.rijal_extract import iter_narrators
+from app.parsing.rijal_extract import _trim_name, iter_narrators
 from app.rijal.grades import classify
 from app.rijal.index import RijalIndex
 from scripts.build_rijal import dedupe_against_seed, merge_source
@@ -52,6 +52,29 @@ def test_companion_not_misread_as_layyin():
     """«من السابقين الأولين» must classify as صحابي, never لين (substring trap)."""
     bilal = next(r for r in _records() if r["name"].startswith("بلال"))
     assert classify(bilal["grade"])[0] == "صحابي"
+
+
+def test_name_does_not_swallow_the_biography():
+    # تقريب Companion entries put the biography (death/events/titles) right after the name;
+    # the name must stop at the first biographical cue, not absorb the whole tarjama. These
+    # inputs are real over-captured names observed in a built rijal.jsonl.
+    assert _trim_name(
+        "هند بنت أبي أمية ابن المغيرة المخزومية أم سلمة أم المؤمنين تزوجها النبي ماتت سنة"
+    ) == "هند بنت أبي أمية ابن المغيرة المخزومية أم سلمة أم المؤمنين"
+    assert _trim_name("أم سليم بنت ملحان ابن خالد الأنصارية والدة أنس ابن مالك") \
+        == "أم سليم بنت ملحان ابن خالد الأنصارية"
+    assert "الفاروق" not in _trim_name("عمر ابن الخطاب القرشي العدوي يقال له الفاروق")
+    assert "ولد" not in _trim_name("عبد الله ابن صفوان الجمحي أبو صفوان المكي ولد على عهد").split()
+    # a plain name (+ nasab/nisba/kunya) is left intact — no false cut
+    assert _trim_name("سفيان بن سعيد الثوري أبو عبد الله") == "سفيان بن سعيد الثوري أبو عبد الله"
+    assert _trim_name("مالك بن أنس") == "مالك بن أنس"
+
+
+def test_companion_entry_name_is_trimmed():
+    # via the full pipeline: a Companion entry's name stops before the biography.
+    page = "١- أم سليم بنت ملحان الأنصارية والدة أنس ابن مالك صحابية لها أحاديث ع"
+    recs = list(iter_narrators([{"pg": 1, "text": page}]))
+    assert recs[0]["name"] == "أم سليم بنت ملحان الأنصارية"
 
 
 def test_bracketed_verdict_is_kept():
