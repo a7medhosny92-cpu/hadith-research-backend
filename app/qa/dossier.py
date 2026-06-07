@@ -16,6 +16,7 @@ from app.qa.isnad import analyze_isnad, continuity
 from app.qa.rulings import collect_illal, collect_rulings, refine_with_routes
 from app.qa.takhrij import analyze_narrations
 from app.rijal import RijalIndex
+from app.rijal.graph import is_unnamed_kin
 from app.search import HadithIndex, SearchHit, SharhIndex, VectorIndex
 from app.search.embeddings import Embedder
 
@@ -112,12 +113,14 @@ def narrator_dossier(name: str, graph, rijal: RijalIndex, *, limit: int = 50) ->
     node = graph.resolve(name) if graph is not None else None
     if node is None:
         return None
-    grade = rijal.lookup(node.name)
+    # A synthetic «father/grandfather of X» node is a real but *unnamed* link — never
+    # grade it (it would otherwise be mis-matched to X himself in the رijال database).
+    grade = None if is_unnamed_kin(node.name) else rijal.lookup(node.name)
     grade_d = grade.to_dict() if grade else None
 
     def _graded(people: list[dict]) -> list[dict]:
         for p in people:                      # tag each neighbour with its grade (for the graph view)
-            m = rijal.lookup(p["name"])
+            m = None if is_unnamed_kin(p["name"]) else rijal.lookup(p["name"])
             p["grade"] = m.entry.category if m else None
         return people
 

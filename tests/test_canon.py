@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from app.parsing.rijal_extract import _aliases
 from app.rijal.canon import Canonicalizer
-from app.rijal.graph import NarratorGraph, _is_relative
+from app.rijal.graph import NarratorGraph, _is_relative, is_unnamed_kin
 from app.rijal.index import RijalIndex, _clean_tokens
 
 # A small authority resembling the full DB: full names, some kunya, a few homonyms.
@@ -180,6 +180,64 @@ def test_person_named_ubayy_is_kept_not_treated_as_pronoun():
     node = g.resolve("أبي بن كعب")
     assert node is not None and "كعب" in node.name
     assert {t["name"] for t in g.teachers("الحسن")} == {"أبي بن كعب"}
+
+
+def test_unnamed_ancestor_keeps_the_link_anchored():
+    # an unidentifiable grandfather is kept as «جدّ X» (anchored), so the link survives.
+    g = NarratorGraph()
+    g.add_chain(["عمرو بن شعيب", "أبيه", "جده", "النبي"])
+    g.add_chain(["بهز بن حكيم", "أبيه", "جده", "النبي"])
+    g.commit()
+    assert {t["name"] for t in g.teachers("شعيب")} == {"جدّ عمرو بن شعيب"}
+    assert is_unnamed_kin("جدّ عمرو بن شعيب")
+    assert "جدّ عمرو بن شعيب" != "جدّ بهز بن حكيم"          # anchored, so no shared hub
+
+
+def test_unnamed_ancestor_is_not_misgraded():
+    from app.qa.dossier import narrator_dossier
+    g = NarratorGraph()
+    g.add_chain(["عمرو بن شعيب", "أبيه", "جده", "النبي"])
+    g.commit()
+    rij = RijalIndex([{"name": "عمرو بن شعيب", "grade": "ثقة"}])
+    d = narrator_dossier("جدّ عمرو بن شعيب", g, rij)
+    assert d is not None and d["grade"] is None            # NOT graded as عمرو بن شعيب himself
+    nb = narrator_dossier("شعيب", g, rij)
+    grandfather = next(t for t in nb["teachers"] if is_unnamed_kin(t["name"]))
+    assert grandfather["grade"] is None                    # nor as a neighbour
+
+
+def test_all_kinship_relations_are_anchored():
+    # the placeholder applies to EVERY unidentified kinship link, not just the father.
+    g = NarratorGraph()
+    g.add_chain(["مسدد بن مسرهد", "أخيه", "النبي"])     # brother  → أخو …
+    g.add_chain(["وكيع بن الجراح", "أمه", "النبي"])      # mother   → والدة …
+    g.add_chain(["يحيى بن سعيد", "عمه", "النبي"])        # uncle    → عمّ …
+    g.commit()
+    assert {t["name"] for t in g.teachers("مسدد بن مسرهد")} == {"أخو مسدد بن مسرهد"}
+    assert {t["name"] for t in g.teachers("وكيع بن الجراح")} == {"والدة وكيع بن الجراح"}
+    assert {t["name"] for t in g.teachers("يحيى بن سعيد")} == {"عمّ يحيى بن سعيد"}
+    for ph in ("أخو مسدد بن مسرهد", "والدة وكيع بن الجراح", "عمّ يحيى بن سعيد"):
+        assert is_unnamed_kin(ph)
+
+
+def test_rebuild_upgrades_placeholder_when_data_improves():
+    # «… عن أبيه عن جده» — when richer رجال data later names the man, a *rebuild* promotes
+    # the placeholder to the real person (the build reads current data from scratch).
+    chains = [["بهز بن حكيم", "أبيه", "جده", "النبي"]]
+
+    def build(entries):
+        canon = Canonicalizer(RijalIndex(entries))
+        g = NarratorGraph()
+        for ch in chains:
+            g.add_chain(ch, canon=canon)
+        g.commit()
+        return {n.name for n in g._nodes()}
+
+    sparse = build([{"name": "بهز بن حكيم", "grade": "صدوق"}])
+    assert any(is_unnamed_kin(n) for n in sparse)                       # grandfather unnamed
+    rich = build([{"name": "بهز بن حكيم بن معاوية بن حيدة", "grade": "صدوق"}])
+    assert not any(is_unnamed_kin(n) for n in rich)                     # …now named
+    assert "معاوية بن حيدة" in rich                                     # the real grandfather
 
 
 def test_lookup_refuses_bare_kinship_particles():

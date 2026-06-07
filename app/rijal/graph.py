@@ -71,48 +71,70 @@ def _is_relative(name: str) -> bool:
     return len(toks) == 1 and next(iter(toks)) in _RELATIVE
 
 
-# Possessive kinship reference to a *real* man named only by relation: «أبيه» (his
-# father), «جده» (his grandfather), or bare «أبي» («my father»). These are resolved to the
-# actual ancestor — never a graph hub. «أبي بن كعب» / «أبي بكر» are NOT this (a person /
-# kunya): «أبي» is a relation only when it carries a possessive (أبيه) or stands alone.
-_KIN_FATHER = {"ابيه", "ابيها"}                   # always «his/her father»
-_KIN_GRAND = {"جده", "جدها", "جدته"}              # always «his/her grandfather»
+# A kinship reference names a *real* person only by relation: «أبيه» (his father), «جده»
+# (his grandfather), «أمه» (his mother), «أخيه» (his brother), «عمه/خاله» (his uncle),
+# «ابنه» (his son)… or a bare first-person form («أبي» = my father). Each is resolved to
+# the actual person, or kept as an *anchored* placeholder «<label> فلان» — never a hub.
+# «أبي بن كعب»/«أبي بكر» are NOT this (a person / a kunya): a first-person form counts only
+# when bare.
 _NASAB_TOK = {"بن", "ابن"}
+# normalized first token → (placeholder label, nasab degree: 1=father, 2=grandfather,
+# 0=not a lineal ancestor, so only an apposition or a placeholder can name him).
+_KIN: dict[str, tuple[str, int]] = {
+    "ابيه": ("والد", 1), "ابيها": ("والد", 1), "ابي": ("والد", 1),
+    "جده": ("جدّ", 2), "جدها": ("جدّ", 2), "جدي": ("جدّ", 2), "جدته": ("جدّة", 2),
+    "امه": ("والدة", 0), "امها": ("والدة", 0), "امي": ("والدة", 0),
+    "اخيه": ("أخو", 0), "اخيها": ("أخو", 0), "اخي": ("أخو", 0), "اخته": ("أخت", 0),
+    "عمه": ("عمّ", 0), "عمها": ("عمّ", 0), "عمي": ("عمّ", 0),
+    "خاله": ("خال", 0), "خالها": ("خال", 0), "خالي": ("خال", 0),
+    "ابنه": ("نجل", 0), "ابنها": ("نجل", 0), "ابني": ("نجل", 0),
+    "بنته": ("بنت", 0), "بنتي": ("بنت", 0),
+}
+# First-person forms (أبي/جدي/أخي…) count only when *bare* — «أبي بكر» is a kunya, not «my
+# father»; «أبي بن كعب» the name أُبَيّ. («أبو» folds to it but isn't here → bare أبو drops.)
+_KIN_FIRST_PERSON = {"ابي", "جدي", "امي", "اخي", "عمي", "خالي", "ابني", "بنتي"}
+# Placeholder label prefixes (deliberately NOT «أم»/«ابن», which begin real names like
+# «أم سلمة» / «ابن عباس») — used to spot a synthetic node so it isn't graded.
+_KIN_LABELS = {"والد", "والدة", "جدّ", "جد", "جدّة", "أخو", "أخت", "عمّ", "خال", "نجل", "بنت"}
 
 
-def _kin_degree(name: str) -> str | None:
-    """``"father"`` / ``"grand"`` if ``name`` is a kinship reference, else ``None``.
-
-    «أبي» counts only when bare (else «أبي بكر» is a kunya, «أبي بن كعب» the name أُبَيّ)."""
+def _kin_relation(name: str) -> tuple[str, int] | None:
+    """``(label, degree)`` if ``name`` is a kinship reference, else ``None``."""
     toks = normalize_for_search(name or "").split()
     if not toks:
         return None
-    head, bare = toks[0], len(toks) == 1
-    if head in _KIN_FATHER or (head in ("ابي", "ابو") and bare):
-        return "father"
-    if head in _KIN_GRAND or (head == "جدي" and bare):
-        return "grand"
-    return None
-
-
-def _resolve_kin(name: str, owner: str | None) -> str | None:
-    """The real ancestor a kinship reference points to, or ``None`` if unidentifiable.
-
-    Two structural cues, no hand-kept lists: an **apposition** names him in place
-    («أبيه أبي موسى» → «أبي موسى»); otherwise the **nasab** of the adjacent narrator gives
-    him («عبد الله بن أحمد بن حنبل» → father «أحمد بن حنبل»). Grandfather walks one more up,
-    which in the «عن أبيه عن جده» pattern is just the father of the already-resolved أبيه."""
-    apposition = " ".join((name or "").split()[1:]).strip()
-    if apposition:
-        return apposition
-    if not owner:
+    head, info = toks[0], _KIN.get(toks[0])
+    if info is None or (head in _KIN_FIRST_PERSON and len(toks) > 1):
         return None
-    parts = owner.split()
+    return info
+
+
+def _ancestor_from_nasab(anchor: str, degree: int) -> str:
+    """The ``degree``-th ancestor named inside ``anchor``'s nasab, or '' if not that deep:
+    «عمرو بن شعيب» @1 → «شعيب»; «عبد الله بن أحمد بن حنبل» @1 → «أحمد بن حنبل»."""
+    parts = anchor.split()
     norm = [normalize_for_search(p) for p in parts]
-    for k, tok in enumerate(norm):                 # the father = the nasab after the first بن
-        if tok in _NASAB_TOK and k + 1 < len(parts):
-            return " ".join(parts[k + 1:]).strip()
-    return None
+    seen = 0
+    for k, tok in enumerate(norm):
+        if tok in _NASAB_TOK:
+            seen += 1
+            if seen == degree and k + 1 < len(parts):
+                return " ".join(parts[k + 1:]).strip()
+    return ""
+
+
+def _kin_node(label: str, anchor: str) -> str:
+    """A synthetic, *anchored* node for an unnamed relative — «والد فلان» / «أخو فلان».
+
+    Keyed to one specific narrator, so the link is kept without inventing a name and
+    without a hub: «جدّ عمرو بن شعيب» ≠ «جدّ بهز بن حكيم»."""
+    return f"{label} {anchor}"
+
+
+def is_unnamed_kin(name: str) -> bool:
+    """True for a synthetic «<relation> of X» node (a real but unnamed link), so the rijal
+    layer doesn't mis-grade it as X himself."""
+    return bool(name) and name.split(" ", 1)[0] in _KIN_LABELS
 
 
 # Shared bare names (المشترك): same name, different men. Disambiguate by the company
@@ -210,14 +232,34 @@ class NarratorGraph:
         resolved: list[str | None] = [None] * n
         # pass 1 — ordinary narrators (everything that is not a kinship reference)
         for i, name in enumerate(names):
-            if not _is_relative(name) and _kin_degree(name) is None:
+            if not _is_relative(name) and _kin_relation(name) is None:
                 resolved[i] = _canonical(name, i)
-        # pass 2 — kinship references, resolved against the already-known adjacent narrator
+        # pass 2 — kinship references: name the person when the text allows (an apposition,
+        # or the anchor's nasab for father/grandfather), else keep the link via an *anchored*
+        # «<relation> of X» node. Never dropped while there is a specific narrator (anchor).
+        anchor: str | None = None
         for i, name in enumerate(names):
-            if resolved[i] is not None or _kin_degree(name) is None:
-                continue                                  # other relatives → left as None
-            ancestor = _resolve_kin(name, resolved[i - 1] if i else None)
-            resolved[i] = _canonical(ancestor, i) if ancestor else None
+            rel = _kin_relation(name)
+            if rel is None:
+                if resolved[i] is not None and len(name_tokens(resolved[i])) >= 2:
+                    anchor = resolved[i]                # a specific narrator to anchor on
+                continue
+            label, degree = rel
+            apposition = " ".join(name.split()[1:]).strip()   # «أبيه أبي موسى» → «أبي موسى»
+            if apposition:
+                resolved[i] = _canonical(apposition, i)
+                anchor = resolved[i]                    # the named relative is the new anchor
+                continue
+            if anchor is None:
+                continue                                # nothing specific to attach to → break
+            named = _ancestor_from_nasab(anchor, degree) if degree else ""
+            if not named:
+                resolved[i] = _kin_node(label, anchor)
+            else:
+                # an ancestor's name is a *suffix* of the son's nasab, so the canonicaliser
+                # may pull it back up to the son — keep the raw ancestor name when it does.
+                cand = _canonical(named, i)
+                resolved[i] = named if name_tokens(cand) == name_tokens(anchor) else cand
 
         ids = [self._node_id(x) if x else None for x in resolved]
         for student, teacher in zip(ids, ids[1:]):
