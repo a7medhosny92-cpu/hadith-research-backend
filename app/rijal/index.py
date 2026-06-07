@@ -35,9 +35,26 @@ _STOP = {normalize_for_search(w) for w in (
 ).split()}
 
 
-def _clean_tokens(name: str) -> set[str]:
+def _clean_seq(name: str) -> list[str]:
+    """Folded name tokens **in order**, de-duplicated, honorifics/connectors dropped."""
     text = _HONORIFIC_PHRASE.sub(" ", _HONORIFIC_CH.sub(" ", name or ""))
-    return {t for t in normalize_for_search(text).split() if t and t not in _STOP}
+    seen: set[str] = set()
+    out: list[str] = []
+    for t in normalize_for_search(text).split():
+        if t and t not in _STOP and t not in seen:
+            seen.add(t)
+            out.append(t)
+    return out
+
+
+def _clean_tokens(name: str) -> set[str]:
+    return set(_clean_seq(name))
+
+
+def _order_ok(q_seq: list[str], f_seq: list[str], shared: set[str]) -> bool:
+    """True if the shared tokens appear in the same relative order in both — so a query
+    «يزيد بن جابر» does NOT match a form «جابر بن يزيد» (a different man)."""
+    return [t for t in q_seq if t in shared] == [t for t in f_seq if t in shared]
 
 
 @dataclass(slots=True)
@@ -80,6 +97,7 @@ class RijalIndex:
     def __init__(self, entries: Iterable[dict] | None = None) -> None:
         self._entries: list[RijalEntry] = []
         self._forms: list[list[set[str]]] = []  # token set per name form (canonical + aliases)
+        self._form_seqs: list[list[list[str]]] = []  # the same forms, tokens kept in order
         if entries:
             self.add(entries)
 
@@ -97,9 +115,10 @@ class RijalIndex:
                 death_year=raw.get("death_year"),
                 source=raw.get("source"),
             )
-            forms = [t for t in (_clean_tokens(f) for f in (entry.name, *entry.aliases)) if t]
+            seqs = [s for s in (_clean_seq(f) for f in (entry.name, *entry.aliases)) if s]
             self._entries.append(entry)
-            self._forms.append(forms)
+            self._forms.append([set(s) for s in seqs])
+            self._form_seqs.append(seqs)
             n += 1
         return n
 
@@ -115,27 +134,33 @@ class RijalIndex:
         بن عمر»). Only when no form is contained do we fall back to fuzzy overlap.
         Equally-specific rivals (سفيان ↦ ابن عيينة/الثوري) are flagged ambiguous.
         """
-        query = _clean_tokens(name)
+        query_seq = _clean_seq(name)
+        query = set(query_seq)
         if not query:
             return None
 
         contained: list[tuple[int, RijalEntry]] = []   # (specificity, entry)
         partial: list[tuple[float, RijalEntry]] = []    # (overlap, entry)
-        for entry, forms in zip(self._entries, self._forms):
+        for entry, seqs in zip(self._entries, self._form_seqs):
             specificity = 0
             best_overlap = 0.0
-            for form in forms:
+            for seq in seqs:
+                form = set(seq)
                 # a bare single-token form (an ism like «عمر») can't confidently identify
                 # a more fully-named query («خالد بن عمر») — only an exact bare-name query
                 # («عن أنس») may match it. This kills score-1.0 over-grading.
                 if len(form) == 1 and len(query) > 1:
                     continue
-                shared = len(query & form)
+                shared = query & form
                 if not shared:
                     continue
-                if shared == len(form):  # form ⊆ query
+                # the shared tokens must be in the same order in both, else it's a
+                # different man whose name is the reverse («يزيد بن جابر» vs «جابر بن يزيد»)
+                if not _order_ok(query_seq, seq, shared):
+                    continue
+                if len(shared) == len(form):  # form ⊆ query
                     specificity = max(specificity, len(form))
-                best_overlap = max(best_overlap, shared / min(len(query), len(form)))
+                best_overlap = max(best_overlap, len(shared) / min(len(query), len(form)))
             if specificity:
                 contained.append((specificity, entry))
             elif best_overlap >= min_overlap:
