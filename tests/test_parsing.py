@@ -105,6 +105,21 @@ def test_rimando_inherits_previous_matn():
     assert hs[2].matn == ""
 
 
+def test_rimando_recognised_mid_text_before_an_illa_note():
+    from app.parsing.hadith_extract import ParsedHadith, _inherit_rimandi
+
+    def ph(text, matn):
+        return ParsedHadith(book_id=1, number=0, text=text, isnad="", matn=matn,
+                            matn_confidence="x", grade=None, chapter=None,
+                            volume=None, page=None, page_id=None)
+
+    # «نحوه» sits mid-text, followed by an علّة comment — still a parallel of the previous
+    hs = [ph("حدثنا فلان قال: متن الحديث", "متن الحديث"),
+          ph("حدثناه آخر، عن علي، عن النبي ﷺ نحوه. أبو حذيفة كثير الوهم لا يحكم له", "")]
+    _inherit_rimandi(hs)
+    assert hs[1].matn == "متن الحديث" and hs[1].matn_confidence == "ref"
+
+
 # ── grading ──────────────────────────────────────────────────────────────────
 def test_grade_in_context():
     assert extract_grade("... إسناده صحيح على شرط مسلم") == "صحيح"
