@@ -7,6 +7,7 @@ Prophet ﷺ). Narrator grading needs a rijal database — flagged in the notes.
 
 from __future__ import annotations
 
+import json
 from functools import lru_cache
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -90,3 +91,19 @@ def verify_isnad(
     # The single bottom-line verdict «الحكم على الإسناد» (rijal + اتصال + عنعنة).
     result["ruling"] = overall_ruling(analysis, result.get("continuity"))
     return result
+
+
+@router.get("/audit")
+def audit() -> dict:
+    """The prebuilt isnad-audit report (``scripts.audit_isnad``) for the «التدقيق» tab —
+    the chains whose narrator grading is likely wrong, to be reviewed by hand. Returns
+    ``{available: False}`` when the report hasn't been built yet."""
+    path = get_settings().data_dir / "audit.json"
+    if not path.exists():
+        return {"available": False}
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"available": False}
+    report["available"] = True
+    return report
