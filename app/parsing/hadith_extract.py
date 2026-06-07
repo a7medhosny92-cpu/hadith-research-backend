@@ -42,9 +42,11 @@ _WS = re.compile(r"\s+")
 # A dash marker «N - باب …» is a chapter heading printed as a numbered line in some
 # editions, not a hadith — recognise it by its leading word so it isn't emitted.
 _HEADING_WORDS = {"باب", "كتاب", "فصل", "جماع", "ابواب", "مقدمه"}
-# A reference entry repeats the previous hadith's matn through a new chain
-# («…مثله» / «…نحوه» / «بهذا الإسناد» / «عن فلانٍ بذلك»). Detected near the text's end.
-_RIMANDO = re.compile(r"مثل|نحو|بمعنا|بذلك|بهذا")
+# A reference entry repeats the previous hadith's matn through a new chain. We match the
+# reference word-forms ANYWHERE in the entry (not only its tail), so a «نحوه» that sits before
+# an علّة note — «… عن النبي ﷺ نحوه. أبو حذيفة … كثير الوهم» — is still caught. Matched as token
+# prefixes: نحوه/نحو ذلك · مثله/مثل ذلك · بنحوه/بمثله · بمعناه · بهذا الإسناد · بذلك.
+_RIMANDO_RE = re.compile(r"^(?:ب?نحو|ب?مثل|بمعنا|بذلك|بهذا)")
 
 
 @dataclass(slots=True)
@@ -175,8 +177,8 @@ def _first_text_page(data: dict) -> int | None:
 
 
 def _is_rimando(text: str) -> bool:
-    """Does this entry end by referring to the previous matn («مثله»/«نحوه»/«بذلك»…)?"""
-    return bool(_RIMANDO.search(normalize_for_search(text)[-40:]))
+    """Does this entry refer back to the previous matn («مثله»/«نحوه»/«بهذا الإسناد»…)?"""
+    return any(_RIMANDO_RE.match(tok) for tok in normalize_for_search(text).split())
 
 
 def _inherit_rimandi(hadiths: list[ParsedHadith]) -> None:
