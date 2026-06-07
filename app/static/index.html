@@ -16,8 +16,12 @@
   body{margin:0;background:var(--bg);color:var(--text);
     font-family:"Amiri","Scheherazade New","Traditional Arabic","Segoe UI",serif;
     font-size:17px;line-height:1.9;
+    -webkit-user-select:text;user-select:text;   /* let the user select & copy any text freely */
     background-image:radial-gradient(circle at 1px 1px, rgba(168,125,39,.055) 1px, transparent 0);
     background-size:22px 22px;}
+  /* but the interactive chrome (buttons, chips, toggles) stays unselectable */
+  .modes button,#go,.tool,.save-btn,.more,.s-ctrl,.go-takhrij,.clear-filters{
+    -webkit-user-select:none;user-select:none}
   header{padding:22px 24px 18px;border-bottom:2px solid var(--gold);
     background:linear-gradient(180deg,#fbf8f1,#f2ebdb)}
   header h1{margin:0;font-size:1.95rem;font-weight:700;color:var(--accent2);letter-spacing:.3px}
@@ -31,6 +35,11 @@
   .modes button:hover{border-color:var(--accent);background:#f0f7f3}
   .modes button.active{background:var(--accent);border-color:var(--accent);color:#fff;
     box-shadow:0 2px 8px rgba(31,122,82,.25)}
+  /* the reference/documentation tabs are grouped to the left, behind a divider, and muted */
+  .bar-sep{align-self:stretch;width:1px;background:var(--line);margin:3px 6px}
+  .modes button.doc{color:var(--muted);background:transparent}
+  .modes button.doc:hover{color:var(--accent2)}
+  .modes button.doc.active{color:#fff}
   #q{flex:1;min-width:240px;background:var(--card);color:var(--text);font-family:inherit;
     border:1px solid var(--line);border-radius:10px;padding:12px 16px;font-size:1.15rem}
   #q:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(31,122,82,.12)}
@@ -217,9 +226,10 @@
     <button data-mode="network">الشبكة</button>
     <button data-mode="isnad">الإسناد</button>
     <button data-mode="notebook">دفتري</button>
-    <button data-mode="method">المنهجية</button>
-    <button data-mode="arch">البنية</button>
-    <button data-mode="tech">التقنية</button>
+    <span class="bar-sep"></span>
+    <button data-mode="method" class="doc">المنهجية</button>
+    <button data-mode="arch" class="doc">البنية</button>
+    <button data-mode="tech" class="doc">التقنية</button>
   </div>
   <input id="q" placeholder="اكتب الحديث أو السؤال…" autofocus>
   <button id="go">ابحث</button>
