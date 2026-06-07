@@ -167,6 +167,10 @@
   .m-h{color:var(--accent2);font-size:1.3rem;margin:0 0 12px;font-weight:700;
     border-bottom:2px solid var(--gold);padding-bottom:8px}
   .m-p{line-height:2.1;color:#3a3328;margin:8px 0;font-size:1.08rem}
+  /* the Technical page is written in English → render it left-to-right */
+  .tech-en{direction:ltr;text-align:left}
+  .tech-en .m-h{font-family:"Segoe UI",system-ui,sans-serif;font-size:1.2rem}
+  .tech-en .m-p{font-family:"Segoe UI",system-ui,sans-serif;font-size:1rem;line-height:1.7}
   .m-row{display:flex;gap:10px;margin:9px 0;line-height:2;font-size:1.05rem;align-items:flex-start}
   .m-row span:last-child{flex:1;color:#3a3328}
   .m-lbl{flex:0 0 92px;font-weight:700;font-size:.92rem;padding-top:2px}
@@ -293,6 +297,9 @@ document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
   go.style.display = info ? "none" : "";
   if(mode === "notebook" || info){
     run();                                  // these open immediately
+  } else if(mode === "search"){
+    renderSearchIntro();                    // show the filters up front, before any query
+    q.focus();
   } else {
     // a query-based tab: clear the previous tab's output and show this tab's prompt,
     // so switching never leaves stale content on screen (no need to search first).
@@ -441,7 +448,7 @@ function searchURL(query){
 }
 async function reSearch(){   // a control/filter changed — refetch with current state
   const query = q.value.trim();
-  if(!query){ renderSearch(searchData || {count:0, facets:{}, results:[]}); return; }
+  if(!query){ renderSearchIntro(); return; }   // no query yet → just (re)show the controls
   results.innerHTML = `<div class="state">… جارٍ البحث</div>`;
   try { renderSearch(await getJSON(searchURL(query))); }
   catch(e){ results.innerHTML = `<div class="state">${esc(e.message || "تعذّر الاتصال")}</div>`; }
@@ -484,6 +491,12 @@ function facetChips(f){
   if(!cols && !grades) return "";
   return `<div class="facets">` + (cols ? `<span class="f-lbl">الكتب:</span>${cols}` : "")
     + (grades ? `<span class="f-lbl">الدرجة:</span>${grades}` : "") + `</div>`;
+}
+// Pre-search panel: the controls shown up front so the search can be configured before
+// typing. (Facet filters need results to count, so they appear once there are results.)
+function renderSearchIntro(){
+  results.innerHTML = searchControls()
+    + `<div class="state">اضبط خيارات البحث (المطابقة · الموضع · التجميع · الترتيب) ثم اكتب الحديث واضغط «ابحث»</div>`;
 }
 function renderSearch(d){
   searchData = d;
@@ -1066,77 +1079,82 @@ function renderArchitecture(){
 // files, endpoints, config, build. ⚠️ MAINTENANCE: keep this in sync with the code on
 // every change, alongside METHODOLOGY (provenance) and ARCHITECTURE (overview).
 const TECH = [
-  {h:"نظرة عامّة تقنيّة", p:[
-    "خادمُ FastAPI (Python) يخدم واجهةً واحدة (app/static/index.html: HTML/JS/SVG خالص، بلا مكتبات خارجية) داخل نافذةٍ مكتبية (pywebview). كلُّ شيءٍ محلّيٌّ ويعمل دون اتصال.",
-    "التخزين كلُّه ملفّات SQLite (بحثٌ نصّيّ FTS5، ومتّجهاتٌ كـ BLOB) — لا قاعدة بيانات خارجية. التطبيع اللغويّ بـ stdlib فقط؛ والإضافات الثقيلة (التضمين، المحرّك اللغويّ) اختيارية.",
-    "المبدأ: طبقةُ التجميع (app/qa) تُعيد استعمال المحرّكات (بحث، تخريج، إسناد، رجال) ولا تُكرّرها، وكلُّ معطًى يرجع إلى نصٍّ مصدريّ يُمكن التحقّق منه."]},
-  {h:"تخطيط المشروع — الوحدات", p:[
-    "app/parsing — التحليل النصّيّ: normalize (تطبيع + fold_kunya)، html_clean، hadith_extract، isnad_matn، grading، rijal_extract، sharh_extract.",
-    "app/rijal — الرجال: index (RijalIndex: المطابقة)، graph (NarratorGraph: الشبكة)، canon (Canonicalizer: التوحيد)، grades (classify + RANKS)، وبذرةٌ موثّقة seed.jsonl.",
-    "app/qa — علوم الحديث: isnad، rulings (الأحكام والعلل)، takhrij، answer (الإجابة المستندة)، dossier (البطاقات المجمّعة)، intent، llm.",
-    "app/search — الاسترجاع: index (HadithIndex/SharhIndex فوق FTS5)، vectors (VectorIndex)، embeddings (Embedder)، hybrid (HybridSearcher: دمج RRF).",
-    "app/routers — نقاط النهاية؛ app/main + app/config (الإعدادات)؛ scripts/ — أدوات البناء؛ tests/ — نحو 223 اختبارًا."]},
-  {h:"خطّ المعالجة — scripts", p:[
-    "scripts.ingest: تنزيل الكتب من turath.io (حدُّ سرعة، إعادةُ محاولة، استئنافٌ عبر manifest.json) ← data/raw/turath/{id}.json.",
-    "scripts.parse: تحليلُ الصفحات إلى JSONL مُهيكل (متن/إسناد/حكم/باب + ربطُ الشروح) ← data/processed/*.jsonl و sharh/.",
-    "scripts.index: فهارسُ FTS5 ← data/index.db و data/sharh_index.db. scripts.build_graph: شبكةُ الرواة (تمريرتان) ← data/narrators.db.",
-    "scripts.build_rijal: درجاتُ الرجال (تقريب التهذيب + الكاشف) ← data/rijal.jsonl. scripts.embed: فهرسُ المتّجهات (تزايديّ) ← data/vectors.db + data/embed_cache.db.",
-    "scripts.update: يُنسّق ذلك كلَّه (checkout main ← pull ← deps ← الخطوات ٤-٨)، وكلُّها idempotent يُعاد تشغيلها بأمان."]},
-  {h:"ملفّات البيانات — data/", p:[
-    "raw/turath/{id}.json: الكتاب الخام. processed/*.jsonl: الأحاديث المُهيكلة. manifest.json: حالةُ التنزيل (للاستئناف).",
-    "index.db و sharh_index.db: فهرسا FTS5 (متون وشروح). narrators.db: شبكةُ الرواة (جدولا narrator و link). rijal.jsonl: تراجمُ الرجال المبنيّة.",
-    "vectors.db: متّجهاتُ المتون (float32 BLOB). embed_cache.db: ذاكرةٌ بمفتاح بصمةِ النصّ للتضمين التزايديّ. notebook.db: دفترُ المستخدم (منفصلٌ لا يُمَسّ عند إعادة البناء).",
-    "كلُّ ما تحت data/ مُستثنًى من git (محليّ)، ويُعاد بناؤه من المصدر."]},
-  {h:"التطبيع والمطابقة — app/parsing/normalize.py", p:[
-    "normalize_for_search: يُسقط التشكيل، ويوحّد الهمزات/الألف/الياء/التاء المربوطة، ويزيل غيرَ العربيّ؛ ليطابق رغم اختلاف الرسم.",
-    "fold_kunya: يوحّد صِيَغ الكنية أبو/أبا/أبي ← «ابو»، إلّا «أبي بن…» فتبقى أُبَيّ (اسمٌ لا كنية). يُستعمَل في الرسم والرجال معًا لتطابقٍ متّسق.",
-    "negated_before: يُلغي حكمًا سبقَه نفيٌ (غير/ليس/لم…) ضمن نافذةٍ قصيرة."]},
-  {h:"قاعدة الرجال — app/rijal/index.py", p:[
-    "RijalEntry: name، aliases، kunya، grade_text، category، rank، death_year، source، opinions. تُطابَق على الاسم + الألقاب + الكنية.",
-    "lookup(name): معاملُ التداخل (المشترك ÷ الأصغر) فوق مجموعات الرموز المنظّفة؛ الصيغةُ المُحتواةُ في الاستعلام = إصابةٌ واثقة والأخصُّ يفوز؛ والمتساوون = ambiguous (يُعلَّم لا يُخمَّن).",
-    "حُرّاسٌ: _order_ok (الرموز المشتركة بالترتيب نفسه: «يزيد بن جابر» ≠ «جابر بن يزيد»)، ورفضُ استعلامٍ جسيمٍ غيرِ مميِّز (أبو/أبي/أم/عبد وحدها).",
-    "classify (grades.py): يربط عبارةَ الحكم بمرتبةٍ على سُلَّم RANKS (صحابي ١٠ … كذاب ٠)."]},
-  {h:"التوحيد — app/rijal/canon.py", p:[
-    "Canonicalizer: غلافٌ مذكِّر (memoized) فوق lookup. canonical(surface, context): إصابةٌ واثقة (score=1.0 غير ملتبسة) ← الاسم القانونيّ؛ ملتبسة ← مرشّحون يُرجَّحون بالسياق؛ وإلّا تُترَك الصيغةُ كما هي.",
-    "associations (قرائنُ السياق) = ملفّاتُ «صحبة» كلّ راوٍ المستخرَجةُ من تمريرة البناء الأولى — انظر صفحة المنهجية «كيف تُبنى الشبكة»."]},
-  {h:"شبكة الرواة — app/rijal/graph.py", p:[
-    "NarratorGraph: SQLite بجدولين — narrator(id, norm, name, freq) و link(teacher, student, weight). هويّةُ العقدة = مجموعةُ رموز الاسم المطويّة مرتّبةً (norm).",
-    "add_chain(names, canon): يُسجّل الروابطَ المتجاورة (تلميذ→شيخ)؛ يوحّد النبيَّ ﷺ في عقدة، ويحلّ المشترك، ويستدعي canon، ويعالج القرابة.",
-    "القرابة: «أبيه/جده/أمه/أخيه…» تُحَلُّ إلى الشخص (تصريحٌ أو نسبُ المجاور) أو إلى عقدةٍ موسومةٍ مرتبطة «والد/جدّ… فلان» (is_unnamed_kin)؛ ودليلُ اللاحقة يمنع رفعَها إلى الابن.",
-    "resolve(name): مطابقةٌ دقيقةٌ ثمّ احتواءٌ بأعلى تكرار. teachers/students/link_weight/adjacency للاستعلام."]},
-  {h:"تحليل الإسناد — app/qa/isnad.py", p:[
-    "analyze_isnad: يقسم السلسلةَ على صِيَغ التحمّل (حدثنا/أخبرنا/عن/سمعت…)، ويتوقّف عند المتن، ويرصد السماع/العنعنة والتحويل (ح) وبلوغَ النبيّ ﷺ.",
-    "overall_ruling: حكمٌ مختصرٌ على ظاهر الرجال + الاتصال + صِيَغ التحمّل (بتحفّظ). continuity: فحصُ كلّ حلقةٍ في الشبكة (معروفة/غير معروفة)."]},
-  {h:"التخريج وأحكام العلماء — app/qa/takhrij.py + rulings.py", p:[
-    "analyze_narrations: يجمع روايات المتن المتقاربة (لفظيًّا ودلاليًّا)، يعنقدها في «صِيَغ» (بلفظه/بنحوه/بمعناه)، ويجمعها تحت الصحابيّ مع خلاصة «أخرجه».",
-    "extract_rulings/collect_rulings: التقاطُ أحكام النقّاد بأنماطٍ نصّية، مرتّبةً بالطبقة، مع حلّ «حسن صحيح» بالطرق وإبرازِ الاختلاف.",
-    "extract_illal/collect_illal: العللُ المذكورة (إرسال/وقف/تفرّد/اضطراب/شذوذ/نكارة/علّة) مع احترام النفي — تُعرَض ولا تُعدّ حكمًا من التطبيق."]},
-  {h:"البحث الهجين والتضمين — app/search/", p:[
-    "HadithIndex/SharhIndex: SQLite FTS5 فوق المتن المُطبَّع (بحثٌ لفظيّ). VectorIndex: متّجهاتٌ float32 في SQLite، تشابهُ جيب التمام بالمسح الشامل.",
-    "Embedder (SentenceTransformer): النموذج Omartificial-Intelligence-Space/Arabic-Triplet-Matryoshka-V2 (بُعد 768)؛ تحميلٌ كسولٌ (إضافةٌ اختيارية).",
-    "HybridSearcher: يدمج اللفظيَّ والدلاليَّ بترتيبٍ تبادليّ (RRF). التضمينُ تزايديّ: embed_cache.db بمفتاح بصمةِ النصّ فلا يُعاد إلّا ما تغيّر، مع تحقّقٍ من المحاذاة.",
-    "grouping.cluster_reports: عنقدةٌ أحاديّةُ المرور بمعامل التداخل (المشترك ÷ الأصغر) لجمع روايات الحديث الواحد في نتيجةٍ واحدة؛ و/search يُرجِع تَعدادَ الكتب والدرجات (facets) لمرشّحات الواجهة."]},
-  {h:"المحرّك اللغويّ — app/qa/llm.py + answer.py", p:[
-    "litellm كواجهةٍ موحّدة. ثلاثةُ أوضاع: off (استخراجيٌّ من المصادر، الأأمن)، local (Ollama)، remote (أيّ مزوّد)؛ يُختار بـ ?engine= و?model=.",
-    "في كلّ الأحوال يُلزَم المحرّك بالاستناد إلى المصادر المسترجَعة فقط، والاستشهادِ، وعدمِ الاختلاق؛ والمصادرُ تُعاد دائمًا ليبقى الجوابُ قابلًا للتحقّق."]},
-  {h:"واجهة البرمجة — app/routers/", p:[
+  {h:"Technical overview", p:[
+    "A FastAPI (Python) server serves a single UI (app/static/index.html: plain HTML/JS/SVG, no external libraries) inside a desktop window (pywebview). Everything is local and works offline.",
+    "All storage is SQLite files (FTS5 full-text search, vectors as BLOBs) — no external database. Text normalization uses the standard library only; the heavy extras (embeddings, the LLM engine) are optional.",
+    "Principle: the orchestration layer (app/qa) reuses the engines (search, takhrij, isnad, rijal) instead of duplicating them, and every datum traces back to a verifiable source text."]},
+  {h:"Project layout — modules", p:[
+    "app/parsing — text analysis: normalize (folding + fold_kunya), html_clean, hadith_extract, isnad_matn, grading, rijal_extract, sharh_extract.",
+    "app/rijal — narrators: index (RijalIndex: matching), graph (NarratorGraph: the network), canon (Canonicalizer: unification), grades (classify + RANKS), and a curated seed.jsonl.",
+    "app/qa — hadith sciences: isnad, rulings (verdicts and ʿilal), takhrij, answer (grounded answering), dossier (aggregated cards), intent, llm.",
+    "app/search — retrieval: index (HadithIndex/SharhIndex over FTS5), vectors (VectorIndex), embeddings (Embedder), hybrid (HybridSearcher: RRF fusion), grouping (report clustering).",
+    "app/routers — endpoints; app/main + app/config (settings); scripts/ — build tools; tests/ — ~240 tests."]},
+  {h:"Processing pipeline — scripts", p:[
+    "scripts.ingest: download books from turath.io (rate limit, retry, resume via manifest.json) → data/raw/turath/{id}.json.",
+    "scripts.parse: parse pages into structured JSONL (matn/isnad/grade/bab + sharh linking) → data/processed/*.jsonl and sharh/.",
+    "scripts.index: FTS5 indexes → data/index.db and data/sharh_index.db. scripts.build_graph: the narrator network (two passes) → data/narrators.db.",
+    "scripts.build_rijal: narrator gradings (Taqrib al-Tahdhib + al-Kashif) → data/rijal.jsonl. scripts.embed: the vector index (incremental) → data/vectors.db + data/embed_cache.db.",
+    "scripts.update: orchestrates all of it (checkout main → pull → deps → steps 4-8); every step is idempotent and safe to re-run."]},
+  {h:"Data files — data/", p:[
+    "raw/turath/{id}.json: the raw book. processed/*.jsonl: structured hadith. manifest.json: download state (for resume).",
+    "index.db and sharh_index.db: the FTS5 indexes (matns and commentaries). narrators.db: the narrator network (narrator and link tables). rijal.jsonl: the built narrator biographies.",
+    "vectors.db: matn vectors (float32 BLOB). embed_cache.db: a cache keyed by text fingerprint for incremental embedding. notebook.db: the user notebook (separate, untouched on rebuild).",
+    "Everything under data/ is git-ignored (local) and rebuilt from source."]},
+  {h:"Normalization and matching — app/parsing/normalize.py", p:[
+    "normalize_for_search: drops tashkeel, unifies hamza/alef/ya/ta-marbuta, removes non-Arabic — so text matches despite spelling differences.",
+    "fold_kunya: unifies the kunya forms Abu/Aba/Abi → «ابو», except «أبي بن…» which stays Ubayy (a name, not a kunya). Used in both the graph and rijal for consistent matching.",
+    "negated_before: cancels a verdict preceded by a negation (غير/ليس/لم…) within a short window."]},
+  {h:"Isnad/matn split and recovery — app/parsing/isnad_matn.py", p:[
+    "split_isnad_matn(text) → (isnad, matn, confidence). Strategies in order: the first quoted span; the last «قال …:» speech-introducer; then two fallbacks — split after the last «قال» even without a colon (when real matn follows, not another chain link), or, if there is no transmission marker at all, treat the whole text as the matn (a tied continuation that shares the previous isnad).",
+    "hadith_extract._inherit_rimandi: in a book reading order, an empty-matn reference entry («…مثله / …نحوه / بهذا الإسناد / …بذلك») inherits the previous hadith matn (marked confidence «ref»), so the parallel narration is searchable by its text instead of showing blank.",
+    "Together these recover the matn for entries (common in ʿilal works) where the splitter had left it inside the isnad field — restoring it to search, to the narrator graph (the matn no longer pollutes the chain), and to takhrij."]},
+  {h:"Rijal database — app/rijal/index.py", p:[
+    "RijalEntry: name, aliases, kunya, grade_text, category, rank, death_year, source, opinions. Matched on name + aliases + kunya.",
+    "lookup(name): overlap coefficient (shared ÷ smaller) over cleaned token sets; a form contained in the query is a confident hit and the most specific wins; ties are ambiguous (flagged, not guessed).",
+    "Guards: _order_ok (shared tokens in the same order: «يزيد بن جابر» ≠ «جابر بن يزيد»), and rejecting a bulky non-identifying query (Abu/Abi/Umm/Abd alone).",
+    "classify (grades.py): maps a verdict phrase to a rank on the RANKS scale (Companion 10 … liar 0)."]},
+  {h:"Unification — app/rijal/canon.py", p:[
+    "Canonicalizer: a memoized wrapper over lookup. canonical(surface, context): a confident hit (score 1.0, unambiguous) → the canonical name; ambiguous → candidates weighted by context; otherwise the surface form is kept as-is.",
+    "associations (context cues) = each narrator «companions» profile gathered in the first build pass — see the Methodology page «how the network is built»."]},
+  {h:"Narrator network — app/rijal/graph.py", p:[
+    "NarratorGraph: SQLite with two tables — narrator(id, norm, name, freq) and link(teacher, student, weight). A node identity = its sorted folded name-token set (norm).",
+    "add_chain(names, canon): records adjacent links (student→teacher); collapses the Prophet ﷺ into one node, resolves shared names, calls canon, and handles kinship.",
+    "Kinship: «أبيه/جده/أمه/أخيه…» resolves to the actual person (an explicit name, or the neighbour nasab) or to a labelled, linked node «father/grandfather… of X» (is_unnamed_kin); a suffix guard prevents promoting it to the son.",
+    "resolve(name): exact match, then containment by highest frequency. teachers/students/link_weight/adjacency for querying."]},
+  {h:"Isnad analysis — app/qa/isnad.py", p:[
+    "analyze_isnad: splits the chain on transmission verbs (haddathana/akhbarana/an/sami'tu…), stops at the matn, and detects sama'/'an'ana, tahwil (ح) and whether it reaches the Prophet ﷺ.",
+    "overall_ruling: a concise verdict on the apparent state of the men + continuity + transmission modes (held back conservatively). continuity: checks each link against the network (known/unknown). This is the «الحكم على الإسناد» every hadith card now loads on demand."]},
+  {h:"Takhrij and scholars rulings — app/qa/takhrij.py + rulings.py", p:[
+    "analyze_narrations: gathers near-matching narrations of a matn (lexically and semantically), clusters them into «wordings» (verbatim / near / by-meaning), and groups them under the Companion with an «akhrajahu» summary.",
+    "extract_rulings/collect_rulings: capture critics verdicts by text patterns, ordered by era, resolving «hasan sahih» by the number of routes and flagging divergence.",
+    "extract_illal/collect_illal: stated defects (irsal/waqf/tafarrud/idtirab/shudhudh/nakara/ʿilla) with negation respected — shown, not counted as the app own verdict."]},
+  {h:"Hybrid search and embeddings — app/search/", p:[
+    "HadithIndex/SharhIndex: SQLite FTS5 over the normalized matn (lexical search). VectorIndex: float32 vectors in SQLite, cosine similarity by full scan.",
+    "Embedder (SentenceTransformer): the model Omartificial-Intelligence-Space/Arabic-Triplet-Matryoshka-V2 (768-dim); lazily loaded (optional extra).",
+    "HybridSearcher: fuses lexical and semantic with Reciprocal Rank Fusion (RRF), and drops body-less rows (empty matn) from results. Embedding is incremental: embed_cache.db keyed by text fingerprint re-embeds only what changed, with an alignment check.",
+    "grouping.cluster_reports: single-pass clustering by overlap coefficient (shared ÷ smaller) to merge narrations of one hadith into a single result; /search also returns book and grade counts (facets) for the UI filters."]},
+  {h:"The LLM engine — app/qa/llm.py + answer.py", p:[
+    "litellm as a unified interface. Three modes: off (extractive from the sources, the safest), local (Ollama), remote (any provider); selected with ?engine= and ?model=.",
+    "In every mode the engine is constrained to rely only on the retrieved sources, to cite, and not to fabricate; the sources are always returned so the answer stays verifiable."]},
+  {h:"API — app/routers/", p:[
     "GET /search?q=&mode=&field=&group=&collection=&grade= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /verify-isnad?isnad=|hadith_id= · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
-    "الدفتر: GET/POST /notebook و PATCH/DELETE /notebook/{id}. الصيانة: POST /admin/reload (يُفرِغ ذاكرةَ المزوّدين). الصحّة: GET /health و /health/ingestion."]},
-  {h:"الإعدادات — app/config.py (.env)", p:[
-    "pydantic-settings. أهمُّها: data_dir (=data)، rijal_path (قاعدةُ رجالٍ أوسع)، embedding_model/embedding_dim (768)؛ ومساراتُ ملفّات البيانات خصائصُ مشتقّةٌ من data_dir.",
-    "المحرّك: llm_default_engine (off)، llm_local_model (ollama/qwen2.5:7b)، llm_remote_model (anthropic/claude-sonnet-4-6)، llm_temperature/llm_timeout، ollama_api_base، anthropic_api_key/openai_api_key.",
-    "الجلب: turath_rate_per_sec (4)، turath_max_retries (4)، hadith_category_ids (6,7,8,9,10,26)."]},
-  {h:"البناء والاختبارات", p:[
-    "scripts.update: ١) checkout main ٢) pull ٣) deps ٤) ingest ٥) parse ٦) index ٧) build_graph ٨) build_rijal (+ تضمينٌ تزايديّ). كلُّها idempotent وقابلةٌ للاستئناف، والبناءُ يستبدل الملفَّ ذرّيًّا.",
-    "الاختبار: python -m pytest (نحو 223 اختبارًا). التكامل المستمرّ (CI): pytest + فحصُ بناء جملة الواجهة (node --check) عبر GitHub Actions."]},
-  {h:"صيانة الصفحات المرجعية", p:[
-    "ثلاثُ صفحاتٍ تبقى مطابِقةً للكود في كلّ تحديث: «المنهجية» (مصدرُ كلّ معطًى ولماذا يُوثَق)، و«البنية» (نظرةٌ عامّة)، و«التقنية» (هذه — التفصيلُ الكامل للتنفيذ).",
-    "القاعدة: أيُّ تغييرٍ في السلوك أو البنية يُرافقه تحديثُ ما يلزم من هذه الصفحات، فتبقى مرجعًا حيًّا لا يَشيخ."]},
+    "Notebook: GET/POST /notebook and PATCH/DELETE /notebook/{id}. Maintenance: POST /admin/reload (clears the provider caches). Health: GET /health and /health/ingestion."]},
+  {h:"Settings — app/config.py (.env)", p:[
+    "pydantic-settings. The main ones: data_dir (=data), rijal_path (a larger rijal base), embedding_model/embedding_dim (768); the data file paths are properties derived from data_dir.",
+    "Engine: llm_default_engine (off), llm_local_model (ollama/qwen2.5:7b), llm_remote_model (anthropic/claude-sonnet-4-6), llm_temperature/llm_timeout, ollama_api_base, anthropic_api_key/openai_api_key.",
+    "Fetching: turath_rate_per_sec (4), turath_max_retries (4), hadith_category_ids (6,7,8,9,10,26)."]},
+  {h:"Build and tests", p:[
+    "scripts.update: 1) checkout main 2) pull 3) deps 4) ingest 5) parse 6) index 7) build_graph 8) build_rijal (+ incremental embedding). Every step is idempotent and resumable, and a build replaces the file atomically.",
+    "Testing: python -m pytest (~240 tests). CI: pytest + a UI syntax check (node --check) via GitHub Actions."]},
+  {h:"Maintaining the reference pages", p:[
+    "Three pages stay in sync with the code on every update: «Methodology» (where each datum comes from and why it is trustworthy), «Architecture» (the overview), and «Technical» (this one — the full implementation detail).",
+    "Rule: any change in behaviour or structure is accompanied by updating whatever these pages need, so they stay a living reference that never goes stale."]},
 ];
 function renderTech(){
   results.innerHTML =
-    `<div class="note">التوثيق التقنيّ الكامل: الوحدات والخوارزميّات وملفّات البيانات ونقاط الواجهة والإعدادات — مرجعٌ للصيانة والتطوير، يُحدَّث مع كلّ تغيير</div>`
-    + TECH.map(methodCard).join("");
+    `<div class="tech-en" dir="ltr"><div class="note">Full technical reference: modules, algorithms, data files, API endpoints and settings — a maintenance and development reference, kept in sync with every change.</div>`
+    + TECH.map(methodCard).join("")
+    + `</div>`;
 }
 
 // Toggle the isnad, and on first open lazily load its chain verdict («الحكم على الإسناد»).
@@ -1176,6 +1194,7 @@ results.addEventListener("change", e => {
   const sel = e.target.closest(".s-ctrl");
   if(!sel) return;
   searchState[sel.dataset.k] = sel.value;
+  if(!q.value.trim()){ renderSearchIntro(); return; }      // pre-search: keep the panel, save the choice
   if(sel.dataset.k === "sort") renderSearch(searchData);   // client-side reorder, no refetch
   else reSearch();                                          // mode/field/group change the query
 });
@@ -1264,6 +1283,9 @@ results.addEventListener("click", async e => {
     }catch(_){}
   }
 });
+
+// On first load the search tab is active — show its filters up front, before any query.
+renderSearchIntro();
 </script>
 </body>
 </html>
