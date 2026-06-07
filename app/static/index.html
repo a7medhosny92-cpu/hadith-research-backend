@@ -1182,9 +1182,9 @@ async function renderAudit(){
   catch(e){ results.innerHTML = `<div class="state">${esc(e.message || "تعذّر التحميل")}</div>`; return; }
   if(!d.available){
     results.innerHTML =
-      `<div class="note">لم يُبْنَ تقريرُ التدقيق بعد. شغّل في الطرفية ثم أعد فتح هذه الصفحة:</div>`
-      + `<div class="card"><div class="answer">python -m scripts.audit_isnad</div></div>`
-      + `<div class="note">يفحص كلَّ الأسانيد ويجمع الحالات المشتبهة لمراجعتها يدويًّا (يمكن إضافتُه إلى update.bat ليتجدّد تلقائيًّا).</div>`;
+      `<div class="note">لم يُبْنَ تقريرُ التدقيق بعد. انقر نقرًا مزدوجًا على <b>audit.bat</b>، أو شغّل الأمر التالي بِبيئة المشروع (نفس بايثون الذي يستعمله update.bat)، ثم أعد فتح هذه الصفحة:</div>`
+      + `<div class="card"><div class="answer">.venv\\Scripts\\python.exe -m scripts.audit_isnad</div></div>`
+      + `<div class="note">يفحص كلَّ الأسانيد ويجمع الحالات المشتبهة لمراجعتها يدويًّا (ويتجدّد تلقائيًّا مع update.bat).</div>`;
     return;
   }
   let html = `<div class="note">تقريرُ التدقيق — فُحص <b>${d.scanned}</b> إسنادًا · قاعدةُ رجالٍ ${d.rijal_entries} · ${esc(d.generated)}</div>`
