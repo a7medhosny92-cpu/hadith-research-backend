@@ -10,6 +10,7 @@ one in memory from the parsed JSONL. Tests override this dependency.
 
 from __future__ import annotations
 
+from collections import Counter
 from functools import lru_cache
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -18,6 +19,7 @@ from app.config import get_settings
 from app.qa.rulings import extract_rulings
 from app.search import HadithIndex, HybridSearcher, VectorIndex
 from app.search.embeddings import Embedder
+from app.search.grouping import cluster_reports
 
 router = APIRouter(tags=["search"])
 
@@ -63,6 +65,10 @@ def search(
         description="lexical (words, uncapped) | semantic (meaning) | hybrid (both, fused). "
         "semantic/hybrid need the vector index (scripts.embed) and are top-k.",
     ),
+    group: str = Query(
+        "none", pattern="^(none|report)$",
+        description="report → cluster variants of the same hadith into one result",
+    ),
     index: HadithIndex = Depends(get_index),
     vectors: VectorIndex | None = Depends(get_vectors),
     embedder: Embedder | None = Depends(get_embedder),
@@ -74,12 +80,36 @@ def search(
         q, limit=eff_limit, collection_id=collection, grade=grade, field=field, mode=mode
     )
     effective = mode if (mode == "lexical" or searcher.semantic_ready()) else "lexical"
+    out = {"query": q, "mode": effective, "count": len(hits), "facets": _facets(hits)}
+    if group == "report":
+        groups = cluster_reports(hits)
+        out["group_count"] = len(groups)
+        out["groups"] = [_group_dict(members) for members in groups]
+    else:
+        out["results"] = [_with_rulings(h.to_dict()) for h in hits]
+    return out
+
+
+def _facets(hits: list) -> dict:
+    """Counts to drive filter chips: by collection (book) and by grade, most common first."""
+    collections = Counter((h.book_id, h.collection) for h in hits)
+    grades = Counter(h.grade for h in hits if h.grade)
     return {
-        "query": q,
-        "mode": effective,
-        "count": len(hits),
-        "results": [_with_rulings(h.to_dict()) for h in hits],
+        "collections": [
+            {"id": bid, "name": name, "count": c}
+            for (bid, name), c in collections.most_common()
+        ],
+        "grades": [{"grade": g, "count": c} for g, c in grades.most_common()],
     }
+
+
+def _group_dict(members: list) -> dict:
+    """One report: the most-relevant member as the headline + its variants and sources."""
+    head = _with_rulings(members[0].to_dict())
+    head["count"] = len(members)
+    head["sources"] = sorted({m.collection for m in members if m.collection})
+    head["members"] = [_with_rulings(m.to_dict()) for m in members]
+    return head
 
 
 def _with_rulings(record: dict) -> dict:
