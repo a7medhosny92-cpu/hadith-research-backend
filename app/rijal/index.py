@@ -33,6 +33,10 @@ _HONORIFIC_PHRASE = re.compile(
 _STOP = {normalize_for_search(w) for w in (
     "قال قالت يقول سمع سمعت يحدث أنه حدثنا حدثني أخبرنا أخبرني عن نا ثنا يعني المنبر بن ابن"
 ).split()}
+# A query that, cleaned, is *only* one of these identifies no one — a bare kunya particle
+# (أبو/أبي/أبا), «أم», or «عبد». We refuse to match rather than guess: «أبي» would otherwise
+# hit «عائشة بنت أبي بكر» through «بنت أبي بكر», and «عبد» any «عبد الله».
+_NON_IDENTIFYING = {normalize_for_search(w) for w in "أبو أبي أبا أم عبد".split()}
 
 
 def _clean_seq(name: str) -> list[str]:
@@ -144,6 +148,8 @@ class RijalIndex:
         query = set(query_seq)
         if not query:
             return None
+        if len(query) == 1 and query_seq[0] in _NON_IDENTIFYING:
+            return None     # a bare kinship/connector particle — identifies no one
 
         contained: list[tuple[int, RijalEntry]] = []   # (specificity, entry)
         partial: list[tuple[float, RijalEntry]] = []    # (overlap, entry)

@@ -39,19 +39,25 @@ _PROPHET = {"النبي", "رسول", "الله", "نبي"}
 _EULOGY_TOKENS = {"صلي", "عليه", "وسلم", "واله", "وصحبه", "سلم", "عن"}
 # The single canonical node every Prophet reference collapses to.
 PROPHET_NODE = "النبي ﷺ"
-# Relational pronouns (عن أبيه عن جده): real in the text but not graph-able narrators —
-# every «أبيه» would otherwise merge into one bogus hub that is everyone's teacher.
-_RELATIVE = {normalize_for_search(w) for w in (
-    "أبيه أبيها أمه أمها جده جدها جدته ابنه ابنها بنته عمه عمها خاله خالها أخيه أخيها أخته"
-).split()}
-
-
 def name_tokens(text: str) -> frozenset[str]:
     """Folded tokens for narrator-name matching (kunya cases أبو/أبا/أبي unified)."""
     out = set()
     for t in normalize_for_search(text or "").split():
         out.add("ابو" if t in ("ابو", "ابا", "ابي") else t)
     return frozenset(out)
+
+
+# Kinship words that are real in the text but not graph-able narrators: third-person
+# possessives (عن أبيه عن جده) AND first-person (حدثني أبي عن أمي), plus a bare kunya
+# particle (أبو/أبي/أبا on its own). Without the first-person forms, every «أبي» («my
+# father») merges into one bogus hub that becomes everyone's teacher. Built through
+# name_tokens so the folding (أبي → ابو) matches the test in _is_relative.
+_RELATIVE: set[str] = set()
+for _w in (
+    "أبيه أبيها أمه أمها جده جدها جدته ابنه ابنها بنته عمه عمها خاله خالها أخيه أخيها أخته "
+    "أبي أمي جدي جدتي ابني ابنتي بنتي أخي أختي عمي عمتي خالي خالتي أبو أبا"
+).split():
+    _RELATIVE |= name_tokens(_w)
 
 
 def is_prophet(name: str) -> bool:

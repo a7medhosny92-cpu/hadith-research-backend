@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from app.parsing.rijal_extract import _aliases
 from app.rijal.canon import Canonicalizer
-from app.rijal.graph import NarratorGraph
+from app.rijal.graph import NarratorGraph, _is_relative
 from app.rijal.index import RijalIndex, _clean_tokens
 
 # A small authority resembling the full DB: full names, some kunya, a few homonyms.
@@ -145,3 +145,34 @@ def test_alias_extraction_is_conservative():
     # never invents one: «المشهور بشر» (a man named بشر) yields nothing
     assert _aliases("بشر بن المفضل المشهور بشر ثقة") == []
     assert _aliases("إنما الأعمال بالنيات") == []
+
+
+# ── the «أبي» bug: «my father» must not become a hub, nor be graded as عائشة ──────
+def test_first_person_kinship_excluded_from_graph():
+    # third- AND first-person kinship, plus a bare kunya particle, are not narrators.
+    for w in ("أبي", "أمي", "جدي", "أخي", "عمي", "خالي", "أبو", "أبا", "أبيه", "جده"):
+        assert _is_relative(w), w
+    # «حدثني أبي» must create no «أبي» node (it would otherwise be everyone's father).
+    g = NarratorGraph()
+    g.add_chain(["عبد الله بن أحمد", "أبي", "الأعمش", "إبراهيم"])
+    g.add_chain(["يعقوب", "أبي", "ابن إسحاق"])
+    g.commit()
+    names = {n.name for n in g._nodes()}
+    assert "أبي" not in names
+    assert "عبد الله بن أحمد" in names and "الأعمش" in names
+
+
+def test_lookup_refuses_bare_kinship_particles():
+    # «أبي» must NOT resolve to «عائشة بنت أبي بكر» (matched through «بنت أبي بكر»).
+    rij = RijalIndex([
+        {"name": "عائشة بنت أبي بكر", "kunya": "أم عبد الله", "grade": "صحابي", "death_year": 57},
+        {"name": "عبد الله بن عمر", "grade": "صحابي"},
+    ])
+    for q in ("أبي", "أبو", "أبا", "أم", "عبد"):
+        assert rij.lookup(q) is None, q
+    assert rij.lookup("عبد الله بن عمر") is not None        # a real name still resolves
+
+
+def test_canon_keeps_bare_particle_as_surface():
+    # the canonicalizer leaves a bare particle untouched (no false identity).
+    assert _canon().canonical("أبي") == "أبي"
