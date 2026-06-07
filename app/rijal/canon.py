@@ -32,6 +32,7 @@ class Canonicalizer:
         self._rijal = rijal
         self._assoc = associations or {}
         self._resolve_cache: dict[str, tuple[str | None, tuple[str, ...]]] = {}
+        self._cand_cache: dict[str, tuple[str, ...]] = {}
         self._tok_cache: dict[str, frozenset[str]] = {}
 
     def tokens(self, name: str) -> frozenset[str]:
@@ -55,15 +56,34 @@ class Canonicalizer:
             return (match.entry.name, ())
         return (None, tuple(dict.fromkeys([match.entry.name, *match.alternatives])))
 
+    def _candidates(self, surface: str) -> tuple[str, ...]:
+        """Names of every known man this surface could be (cached) — the homonym set."""
+        key = " ".join(_clean_seq(surface))
+        cached = self._cand_cache.get(key)
+        if cached is None:
+            cached = self._cand_cache[key] = tuple(
+                dict.fromkeys(e.name for e in self._rijal.candidates(surface))
+            )
+        return cached
+
     def canonical(self, surface: str, context: frozenset[str] = frozenset()) -> str:
         """The canonical name for ``surface``; falls back to ``surface`` when unsure.
 
-        ``context`` is the cleaned token set of the *other* narrators in the same chain,
-        used only to break ties between equally-named men.
+        ``context`` is the cleaned token set of the *other* narrators in the same chain.
         """
         seq = _clean_seq(surface)
         if not seq:
             return surface
+        # تمييز المهمل — «the chain before the name»: when several known men share this
+        # surface, let the chain's company decide who it is BEFORE trusting the bare name.
+        # This stops a Companion's kunya, or a متروك namesake, from winning on the name alone
+        # when the company the link actually keeps fits a different, known narrator.
+        if context:
+            cands = self._candidates(surface)
+            if len(cands) > 1:
+                picked = self._pick(cands, context)
+                if picked:
+                    return picked
         key = " ".join(seq)            # order-preserving (يزيد بن جابر ≠ جابر بن يزيد)
         res = self._resolve_cache.get(key)
         if res is None:
