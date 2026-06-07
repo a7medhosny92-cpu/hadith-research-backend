@@ -74,6 +74,26 @@ def test_prophet_is_not_graded_as_a_narrator(rijal):
     assert a.rijal_assessment["known"] == 3 and a.rijal_assessment["unknown"] == 0
 
 
+def test_mubham_unnamed_narrator_is_a_real_jahala(rijal):
+    from app.qa.isnad import overall_ruling
+
+    # «عن رجلٍ» — unnamed: a genuine جهالة (a defect in the text), not «unknown in our DB».
+    a = analyze_isnad("حدثنا مالك، عن رجل، عن عبد الله بن عمر", rijal=rijal)
+    rajul = next(n for n in a.narrators if n["name"] == "رجل")
+    assert rajul["mubham"] is True and rajul["rijal"] is None
+    assert a.rijal_assessment["mubham"] == 1
+    # it weakens the chain even though مالك/ابن عمر are sound — and it's not a paused «يُتوقَّف»
+    r = overall_ruling(a.to_dict())
+    assert r["tone"] == "daif" and "مبهم" in r["reason"]
+
+
+def test_unnamed_companion_is_not_flagged_mubham(rijal):
+    # «رجلٌ من أصحاب النبي ﷺ» is an unnamed Companion — عدول, not a جهالة
+    from app.qa.isnad import _is_mubham
+    assert not _is_mubham("رجل من أصحاب النبي")
+    assert _is_mubham("رجل") and _is_mubham("شيخ له") and _is_mubham("بعض أصحابه")
+
+
 def test_analyze_without_rijal_is_unchanged():
     a = analyze_isnad("حدثنا مالك، عن نافع")
     assert a.rijal_assessment is None

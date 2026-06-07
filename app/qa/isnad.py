@@ -71,7 +71,24 @@ class IsnadAnalysis:
         return asdict(self)
 
 
-def _chain_assessment(matches: list["RijalMatch | None"], total: int) -> dict:
+# Unnamed (مبهم) narrators are a real جهالة (a defect in the text itself), not a gap in our
+# database: «عن رجلٍ»، «شيخٍ له»، «عمّن حدّثه»، «بعض أصحابه»، «فلان». An *unnamed Companion*
+# («رجلٌ من أصحاب النبي ﷺ») is excepted — the Companions are عدول even when unnamed.
+_MUBHAM_BARE = {"رجل", "رجلا", "امراه", "امراة", "شيخ", "فلان", "علان"}
+_MUBHAM_PHRASE = re.compile(r"بعض|لم يسم|عمن")
+
+
+def _is_mubham(name: str) -> bool:
+    """Is this an *unnamed* narrator (إبهام) — a genuine جهالة, not merely unknown to us?"""
+    toks = normalize_for_search(name).split()
+    if not toks:
+        return False
+    if any(t in ("النبي", "نبي", "رسول") for t in toks):
+        return False    # «… من أصحاب النبي ﷺ» — an unnamed Companion, acceptable
+    return toks[0] in _MUBHAM_BARE or bool(_MUBHAM_PHRASE.search(" ".join(toks)))
+
+
+def _chain_assessment(matches: list["RijalMatch | None"], total: int, mubham: int = 0) -> dict:
     """Summarise the chain from its narrator gradings — verdict by the weakest link."""
     ranks = [m.entry.rank for m in matches if m and m.entry.rank is not None]
     known = sum(1 for m in matches if m)
@@ -92,7 +109,10 @@ def _chain_assessment(matches: list["RijalMatch | None"], total: int) -> dict:
         verdict = "رجال الإسناد كلّهم ثقات أو أثبات بحسب القاعدة."
     else:
         verdict = f"مَن عُرف منهم ثقات؛ وبقي {unknown} راوٍ لم يُعرفوا في القاعدة."
-    return {"weakest_rank": weakest, "known": known, "unknown": unknown, "verdict": verdict}
+    if mubham:
+        verdict = f"{verdict} وفيه {mubham} راوٍ مبهمٌ لم يُسمَّ (جهالة)."
+    return {"weakest_rank": weakest, "known": known, "unknown": unknown,
+            "mubham": mubham, "verdict": verdict}
 
 
 def analyze_isnad(
@@ -172,14 +192,19 @@ def analyze_isnad(
 
     narrator_dicts: list[dict] = []
     matches: list["RijalMatch | None"] = []
+    mubham_count = 0
     for narrator in narrators:
         record = asdict(narrator)
         prophet = is_prophet(narrator.name)
+        mubham = (not prophet) and _is_mubham(narrator.name)
         record["is_prophet"] = prophet
+        record["mubham"] = mubham
+        if mubham:
+            mubham_count += 1
         if rijal is not None:
-            # the Prophet ﷺ is the source of the report, not a narrator to be graded —
-            # never look him up (he'd otherwise match a Companion and read «صحابي»).
-            if prophet:
+            # the Prophet ﷺ is the source, and a مبهم has no name to look up — neither is
+            # graded (the Prophet would else match a Companion; the مبهم is a جهالة by itself).
+            if prophet or mubham:
                 match = None
             else:
                 # identify the man from the chain's company (the links), then grade HIM
@@ -197,6 +222,8 @@ def analyze_isnad(
         notes.append("فيه تحويل (ح): أكثر من طريق في الإسناد.")
     if has_anana:
         notes.append("في الإسناد عنعنة؛ يُتحقَّق من ثبوت السماع (احتمال التدليس).")
+    if mubham_count:
+        notes.append("في الإسناد راوٍ مبهمٌ لم يُسمَّ (جهالةُ عينٍ) — سببُ ضعفٍ بذاته، لا نقصٌ في القاعدة.")
     if len(narrators) < 3:
         notes.append("السند قصير؛ يُنظر في اتصاله.")
 
@@ -204,8 +231,8 @@ def analyze_isnad(
         assessment = None
         notes.append("تقويم عدالة الرواة وضبطهم يتطلّب قاعدة بيانات الرجال (مرّر RijalIndex لتفعيله).")
     else:
-        # total counts only the gradable narrators (the Prophet is excluded above)
-        assessment = _chain_assessment(matches, len(matches))
+        # total counts only the gradable narrators (the Prophet and المبهمون are excluded above)
+        assessment = _chain_assessment(matches, len(matches), mubham=mubham_count)
         notes.append("هذا حكمٌ على الرجال فقط؛ وصحّة الحديث تقتضي أيضًا اتصال السند وانتفاء العلّة والشذوذ.")
 
     return IsnadAnalysis(
@@ -255,6 +282,7 @@ def overall_ruling(analysis: dict, continuity: dict | None = None) -> dict:
     ra = analysis.get("rijal_assessment") or {}
     weakest = ra.get("weakest_rank")
     unknown = ra.get("unknown") or 0
+    mubham = ra.get("mubham") or 0
     has_anana = bool(analysis.get("has_anana"))
     broken = bool(
         continuity and continuity.get("total")
@@ -284,6 +312,14 @@ def overall_ruling(analysis: dict, continuity: dict | None = None) -> dict:
     if unknown and tone in ("sahih", "hasan"):
         grade, tone = "يُتوقَّف فيه", "other"
         reason = f"{reason}؛ لكن بقي {unknown} راوٍ لم يُعرف في القاعدة فلا يُجزَم"
+
+    # 2.5) an unnamed narrator (مبهم: «عن رجلٍ») is a real جهالة — a defect in the text, not
+    # a gap in our DB. It weakens the chain by itself, whoever the named men are.
+    if mubham:
+        if "جدًا" not in grade:        # keep «ضعيف جدًا» if a متروك already set it
+            grade = "ضعيف"
+        tone = "daif"
+        reason = f"{reason}؛ وفيه راوٍ مبهمٌ لم يُسمَّ (جهالةُ عينٍ، لا نقصٌ في القاعدة)"
 
     # 3) the network-continuity check is a weak structural HINT, not a verdict: our graph is
     # built from the same corpus and keyed by canonical name forms, so a missing link is
