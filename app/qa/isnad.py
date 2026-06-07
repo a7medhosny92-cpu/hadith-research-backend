@@ -18,9 +18,11 @@ from typing import TYPE_CHECKING
 
 from app.parsing.normalize import normalize_for_search, strip_diacritics
 from app.rijal.graph import is_prophet
+from app.rijal.index import _clean_tokens
 
 if TYPE_CHECKING:
     from app.rijal import RijalIndex, RijalMatch
+    from app.rijal.canon import Canonicalizer
 
 # Transmission terms → mode. Keys are in the folded form of normalize_for_search.
 _VIA: dict[str, str] = {
@@ -93,7 +95,9 @@ def _chain_assessment(matches: list["RijalMatch | None"], total: int) -> dict:
     return {"weakest_rank": weakest, "known": known, "unknown": unknown, "verdict": verdict}
 
 
-def analyze_isnad(text: str, rijal: "RijalIndex | None" = None) -> IsnadAnalysis:
+def analyze_isnad(
+    text: str, rijal: "RijalIndex | None" = None, canon: "Canonicalizer | None" = None
+) -> IsnadAnalysis:
     raw = strip_diacritics(text or "")
     narrators: list[Narrator] = []
     via: str | None = None
@@ -159,6 +163,13 @@ def analyze_isnad(text: str, rijal: "RijalIndex | None" = None) -> IsnadAnalysis
     # marfūʿ iff the chain actually ends at the Prophet (not merely mentions him in matn)
     reaches_prophet = bool(narrators) and is_prophet(narrators[-1].name)
 
+    # The chain's «company»: who a narrator sits with identifies WHICH namesake he is
+    # (تمييز المهمل) — «جعفر بن محمد» beside محمد الباقر/جابر is الصادق, not a مجهول homonym.
+    chain_toks: set[str] = set()
+    if canon is not None:
+        for nar in narrators:
+            chain_toks |= _clean_tokens(nar.name)
+
     narrator_dicts: list[dict] = []
     matches: list["RijalMatch | None"] = []
     for narrator in narrators:
@@ -168,8 +179,15 @@ def analyze_isnad(text: str, rijal: "RijalIndex | None" = None) -> IsnadAnalysis
         if rijal is not None:
             # the Prophet ﷺ is the source of the report, not a narrator to be graded —
             # never look him up (he'd otherwise match a Companion and read «صحابي»).
-            match = None if prophet else rijal.lookup(narrator.name)
-            if not prophet:
+            if prophet:
+                match = None
+            else:
+                # identify the man from the chain's company (the links), then grade HIM
+                name = narrator.name
+                if canon is not None:
+                    ctx = frozenset(chain_toks - _clean_tokens(narrator.name))
+                    name = canon.canonical(narrator.name, context=ctx)
+                match = rijal.lookup(name)
                 matches.append(match)
             record["rijal"] = match.to_dict() if match else None
         narrator_dicts.append(record)

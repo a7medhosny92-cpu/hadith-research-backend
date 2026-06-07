@@ -254,3 +254,33 @@ def test_lookup_refuses_bare_kinship_particles():
 def test_canon_keeps_bare_particle_as_surface():
     # the canonicalizer leaves a bare particle untouched (no false identity).
     assert _canon().canonical("أبي") == "أبي"
+
+
+def test_verdict_identifies_a_shared_name_from_the_chain_company():
+    """تمييز المهمل: «جعفر بن محمد» beside محمد الباقر/جابر is الصادق (ثقة), not a مجهول
+    namesake. The verdict must pick the man whose recorded company fits the chain."""
+    from app.qa.isnad import analyze_isnad
+
+    rijal = RijalIndex([
+        {"name": "جعفر بن محمد الصادق", "grade": "ثقة"},
+        {"name": "جعفر بن محمد البلخي", "grade": "مجهول"},
+        {"name": "محمد الباقر", "grade": "ثقة"},
+        {"name": "جابر بن عبد الله", "grade": "صحابي"},
+        {"name": "سفيان الثوري", "grade": "ثقة"},
+    ])
+    chain = "حدثنا سفيان الثوري، عن جعفر بن محمد، عن محمد الباقر، عن جابر بن عبد الله"
+
+    # context-free: the bare «جعفر بن محمد» is a real homonym → flagged, never a confident grade
+    bare = analyze_isnad(chain, rijal=rijal)
+    jb = next(n for n in bare.narrators if n["name"].startswith("جعفر"))
+    assert jb["rijal"]["ambiguous"]
+
+    # with the chain's company as context, it resolves to الصادق and grades HIM (ثقة)
+    assoc = {
+        "جعفر بن محمد الصادق": set(_clean_tokens("محمد الباقر جابر بن عبد الله سفيان الثوري")),
+        "جعفر بن محمد البلخي": set(_clean_tokens("فلان الكوفي علان البصري")),
+    }
+    canon = Canonicalizer(rijal, associations=assoc)
+    res = analyze_isnad(chain, rijal=rijal, canon=canon)
+    jr = next(n for n in res.narrators if n["name"].startswith("جعفر"))
+    assert jr["rijal"]["name"] == "جعفر بن محمد الصادق" and jr["rijal"]["grade"] == "ثقة"
