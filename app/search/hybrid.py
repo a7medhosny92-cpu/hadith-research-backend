@@ -37,6 +37,13 @@ def _passes(hit: SearchHit, collection_id: int | None, grade: str | None) -> boo
     return True
 
 
+def _has_body(hit: SearchHit) -> bool:
+    """Drop body-less rows (chapter/bāb markers with an empty matn). Lexical search can
+    match them through the isnad and semantic search through their embedded chapter
+    heading, but a result with no matn is never what the user wants to see."""
+    return bool(hit.matn and hit.matn.strip())
+
+
 class HybridSearcher:
     """Lexical + semantic retrieval over a shared id space, fused with RRF."""
 
@@ -74,9 +81,12 @@ class HybridSearcher:
         semantic/hybrid modes are inherently top-k, so a missing limit defaults to 50.
         """
         if mode == "lexical" or not self.semantic_ready():
-            return self.lexical.search(
-                query, limit=limit, collection_id=collection_id, grade=grade, field=field
-            )
+            return [
+                h for h in self.lexical.search(
+                    query, limit=limit, collection_id=collection_id, grade=grade, field=field
+                )
+                if _has_body(h)
+            ]
 
         limit = limit or 50
         filtered = collection_id is not None or grade is not None
@@ -96,7 +106,7 @@ class HybridSearcher:
         out: list[SearchHit] = []
         for rid in ordered:
             hit = self.lexical.get(rid)
-            if hit and _passes(hit, collection_id, grade):
+            if hit and _has_body(hit) and _passes(hit, collection_id, grade):
                 out.append(hit)
                 if len(out) >= limit:
                     break

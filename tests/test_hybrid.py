@@ -82,3 +82,35 @@ def test_limit_none_defaults_for_semantic():
     searcher = HybridSearcher(lex, vec, emb)
     # limit=None is fine for lexical (uncapped); semantic/hybrid coerce it to a top-k
     assert searcher.search("الإيمان", limit=None, mode="semantic") is not None
+
+
+# A body-less row (chapter/bāb marker): empty matn, but a chapter heading that gets
+# embedded — so semantic search *could* surface it. It must never appear in results.
+BODYLESS = {"book_id": 1284, "number": 99, "matn": "  ", "isnad": "حدثنا الحميدي",
+            "grade": None, "chapter": "إنما الأعمال بالنيات", "page": 9, "volume": "1"}
+
+
+def _build_with_bodyless():
+    lex = HadithIndex()
+    lex.add([*SAMPLE, BODYLESS])
+    emb = HashingEmbedder(dim=64)
+    vec = VectorIndex(dim=64)
+    ids, texts = zip(*list(lex.iter_for_embedding()))
+    vec.add(list(ids), emb.embed(list(texts)))
+    return lex, vec, emb
+
+
+def test_semantic_skips_bodyless_rows():
+    lex, vec, emb = _build_with_bodyless()
+    searcher = HybridSearcher(lex, vec, emb)
+    # its chapter heading is the query verbatim, so without the guard it would rank top
+    hits = searcher.search("إنما الأعمال بالنيات", limit=10, mode="semantic")
+    assert hits and all(h.matn.strip() for h in hits)
+    assert all(h.number != 99 for h in hits)
+
+
+def test_hybrid_skips_bodyless_rows():
+    lex, vec, emb = _build_with_bodyless()
+    searcher = HybridSearcher(lex, vec, emb)
+    hits = searcher.search("إنما الأعمال بالنيات", limit=10, mode="hybrid")
+    assert all(h.number != 99 for h in hits)
