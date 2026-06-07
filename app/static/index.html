@@ -152,6 +152,8 @@
   .net-node.net-center circle{stroke:var(--accent2);stroke-width:3}
   .net-node.net-unnamed circle{stroke:var(--muted);stroke-dasharray:3 3}  /* unnamed ancestor */
   .net-unnamed .net-lbl{font-style:italic;fill:var(--muted)}
+  .net-node.net-prophet circle{stroke:var(--gold);stroke-width:3}         /* the source ﷺ */
+  .net-prophet .net-lbl{font-weight:700;fill:var(--accent2)}
   .net-lbl{font-family:inherit;font-size:13px;fill:#3a3328}
   .net-node:hover .net-lbl{fill:var(--accent2);font-weight:700}
   .net-center .net-lbl{font-weight:700;fill:#221d16}
@@ -505,7 +507,8 @@ function rawiList(title, arr){
 }
 function renderNarrator(d){
   const v = d.grade && (d.grade.verdict || d.grade.grade);
-  const badge = v ? `<span class="grade ${rijalClass(v)}">${esc(v)}</span>` : "";
+  const badge = isProphet(d.name) ? `<span class="grade g-sahih">مصدر الحديث ﷺ</span>`
+    : v ? `<span class="grade ${rijalClass(v)}">${esc(v)}</span>` : "";
   const save = saveChip({kind:"narrator", title:d.name, body:d.summary || "",
     meta:{grade:d.grade, sources:d.sources}});
   let html = `<div class="card"><div class="rawi-name">${esc(d.name)} ${badge} ${save}</div>`;
@@ -555,16 +558,23 @@ function netColor(grade){
   return "#8a7f6c";                                             // معروفٌ بلا تمييز
 }
 function _netClip(s){ s = s || ""; return s.length > 16 ? s.slice(0, 15) + "…" : s; }
+// The Prophet ﷺ is the *source* of the hadith, not a narrator graded by الجرح والتعديل —
+// the «ﷺ» ligature marks his (only) node, so he's shown as «مصدر الحديث», never «unknown».
+function isProphet(name){ return (name || "").includes("ﷺ"); }
 function _netNode(x, y, p, r, center){
+  const prophet = isProphet(p.name);
   // an «<relation> فلان» node is a real link whose name isn't recorded — shown dashed.
-  const unnamed = /^(والد|والدة|جدّ|جد|جدّة|أخو|أخت|عمّ|خال|نجل|بنت) /.test(p.name || "");
-  const title = p.name + (unnamed ? " — راوٍ غير مُسمّى (معروفٌ بالنسبة)"
+  const unnamed = !prophet && /^(والد|والدة|جدّ|جد|جدّة|أخو|أخت|عمّ|خال|نجل|بنت) /.test(p.name || "");
+  const title = p.name + (prophet ? " — مصدر الحديث ﷺ"
+      : unnamed ? " — راوٍ غير مُسمّى (معروفٌ بالنسبة)"
       : (p.grade ? " — " + p.grade : " — غير معروف في القاعدة"))
     + (p.count ? " — " + p.count + " حديثًا" : "");
-  const cls = "net-node" + (center ? " net-center" : "") + (unnamed ? " net-unnamed" : "");
+  const cls = "net-node" + (center ? " net-center" : "") + (unnamed ? " net-unnamed" : "")
+    + (prophet ? " net-prophet" : "");
+  const fill = prophet ? "#155c3d" : netColor(p.grade);
   return `<g class="${cls}" data-nav="${esc(p.name)}">`
     + `<title>${esc(title)}</title>`
-    + `<circle cx="${x}" cy="${y}" r="${r}" fill="${netColor(p.grade)}"></circle>`
+    + `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}"></circle>`
     + `<text x="${x}" y="${y + r + 16}" text-anchor="middle" class="net-lbl">${esc(_netClip(p.name))}</text>`
     + `</g>`;
 }
@@ -603,7 +613,8 @@ function renderNetwork(d){
     + edges + nodes + `</svg>`;
 
   // info panel for the centred narrator (reuses the راوٍ card pieces)
-  const badge = centerV ? `<span class="grade ${rijalClass(centerV)}">${esc(centerV)}</span>` : "";
+  const badge = isProphet(d.name) ? `<span class="grade g-sahih">مصدر الحديث ﷺ</span>`
+    : centerV ? `<span class="grade ${rijalClass(centerV)}">${esc(centerV)}</span>` : "";
   const save = saveChip({kind:"narrator", title:d.name, body:d.summary || "",
     meta:{grade:d.grade, sources:d.sources}});
   const meta = [];
@@ -625,7 +636,8 @@ function renderNetwork(d){
     + `<span><i style="background:#a87d27"></i>صدوق/حسن</span>`
     + `<span><i style="background:#a5381f"></i>ضعيف فمَن دونه</span>`
     + `<span><i style="background:#8a7f6c"></i>غير ذلك</span>`
-    + `<span><i style="background:#b9ad97"></i>غير معروف في القاعدة</span></div>`;
+    + `<span><i style="background:#b9ad97"></i>غير معروف في القاعدة</span>`
+    + `<span><i style="background:#155c3d;outline:2px solid #a87d27;outline-offset:-1px"></i>النبي ﷺ (المصدر)</span></div>`;
   const hint = `<div class="note">انقر أيَّ راوٍ للانتقال إليه؛ وسُمكُ الخطّ على قدر عدد المرويّات بينهما. `
     + `الشيوخُ أعلى (نحو النبيّ ﷺ) والتلاميذُ أسفل.</div>`;
 
@@ -669,9 +681,11 @@ function renderIsnad(d){
     const ops = rij && rij.opinions;
     const div = ops && new Set(ops.map(o => o.grade)).size > 1
       ? ` <span class="r-diverge" title="${esc(ops.map(o => (SRC_AUTHOR[o.source]||o.source)+": "+o.grade).join(" · "))}">⚠ اختلفوا</span>` : "";
-    const badge = g
-      ? `<span class="grade ${rijalClass(g)}" title="${esc(rij.verdict || '')}">${esc(g)}</span>${amb}${div}`
-      : `<span class="simbadge">غير معروف في القاعدة</span>`;
+    const badge = isProphet(n.name)
+      ? `<span class="grade g-sahih">مصدر الحديث ﷺ</span>`
+      : g
+        ? `<span class="grade ${rijalClass(g)}" title="${esc(rij.verdict || '')}">${esc(g)}</span>${amb}${div}`
+        : `<span class="simbadge">غير معروف في القاعدة</span>`;
     html += `<div class="rawi-item"><span>${i + 1}. ${esc(n.name)} ${isnadVia(n.via)}</span>${badge}</div>`;
   });
   html += `</div>`;
