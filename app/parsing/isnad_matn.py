@@ -26,6 +26,23 @@ _WS = re.compile(r"\s+")
 _INTRO = re.compile(
     r"(?:%s)\s*:" % "|".join(flexible_word(w) for w in ("قال", "قالت", "قالوا", "يقول", "تقول"))
 )
+# Same speech-introducers, but WITHOUT requiring the colon (classical texts often omit it):
+# a last-resort boundary when no quote and no «… :» were found.
+_SAY = re.compile("|".join(flexible_word(w) for w in ("قال", "قالت", "قالوا", "يقول", "تقول")))
+# Transmission markers that prove a *chain* is present (so the text is not matn-only). Kept
+# distinctive on purpose: «نا/أنا» alone are too short (they hide inside ordinary words like
+# «الناس/وأنا»), so we rely on the unambiguous verbs and «عن » between spaces.
+_TRANSMIT = re.compile(
+    "|".join(flexible_word(w) for w in
+             ("حدثنا", "حدثني", "أخبرنا", "أخبرني", "أنبأنا", "أنبأني", "سمعت", "ثنا"))
+    + r"|(?:^|\s)عن\s"
+)
+# Right after a chain «قال», another transmission verb means we're still inside the isnad.
+_CHAIN_AHEAD = re.compile(
+    r"^\W*(?:%s)" % "|".join(flexible_word(w) for w in
+                             ("حدثنا", "حدثني", "أخبرنا", "أخبرني", "أنبأنا", "أنبأني", "ثنا"))
+)
+_MIN_MATN = 10   # a recovered matn must be at least this many chars to be believable
 # A gap between two quoted spans that signals the matn has ended and an editor's note /
 # takhrij begins — so we do NOT merge the next span into the matn.
 _EDITORIAL = re.compile(r"أبو عبد الله|تنبيه|انظر|أخرجه|رواه|أخرجاه|تحفة|الأطراف|قلت|\(\s*\d")
@@ -73,5 +90,17 @@ def split_isnad_matn(text: str) -> tuple[str, str, str]:
     if intros:
         cut = intros[-1].end()
         return text[:cut].strip(_STRIP), text[cut:].strip(_STRIP), "phrase"
+
+    # speech-introducer without the colon: split after the LAST «قال…» whose tail is real
+    # matn (not another chain link). Recovers chains whose matn carried no quote or colon.
+    for m in reversed(list(_SAY.finditer(text))):
+        after = text[m.end():].strip(_STRIP)
+        if len(after) >= _MIN_MATN and not _CHAIN_AHEAD.match(after):
+            return text[:m.start()].strip(_STRIP), after, "phrase"
+
+    # no transmission marker at all → there is no chain here; the whole text is the matn
+    # (e.g. a tied continuation «وكان يأمرني فأتزر…» that shares the previous isnad).
+    if not _TRANSMIT.search(text):
+        return "", text.strip(_STRIP), "matn-only"
 
     return text.strip(_STRIP), "", "none"
