@@ -173,7 +173,7 @@ class Catalog:
         if priority:
             for bid in CORE_COLLECTIONS:
                 add(self.books.get(bid))
-            for bid in (*RIJAL_SOURCES, *RIJAL_PROSE_BOOKS):   # the رجال grading + network sources
+            for bid in RIJAL_SOURCES:   # the رجال grading sources (prose network books fetched on demand)
                 add(self.books.get(bid))
         if cat_ids is not None:
             for book in self.books_in_categories(cat_ids):
