@@ -39,6 +39,18 @@ def test_containment_distinguishes_a_man_from_his_longer_namesake(rijal):
     assert son.entry.name.startswith("عبد الله بن عمر")
 
 
+def test_companion_ancestor_buried_in_a_nasab_is_not_the_narrator():
+    # «إبراهيم بن سعد … بن عبد الرحمن بن عوف» is the great-grandson who actually narrates; the
+    # Companion «عبد الرحمن بن عوف» is only an ancestor in his lineage, not the man citing the
+    # hadith. The contained name must be the LEADING run (the cited man), not buried in the nasab.
+    rij = RijalIndex([
+        {"name": "إبراهيم بن سعد بن إبراهيم بن عبد الرحمن بن عوف الزهري", "grade": "ثقة"},
+        {"name": "عبد الرحمن بن عوف", "grade": "صحابي"},
+    ])
+    m = rij.lookup("إبراهيم بن سعد بن إبراهيم بن عبد الرحمن بن عوف")
+    assert m.entry.name.startswith("إبراهيم بن سعد") and m.entry.category != "صحابي"
+
+
 def test_shared_first_name_is_flagged_ambiguous(rijal):
     match = rijal.lookup("سفيان")  # ابن عيينة vs الثوري
     assert match.ambiguous

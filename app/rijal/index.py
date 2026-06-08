@@ -114,8 +114,10 @@ def _score_entry(
         shared = query & form
         if not shared or not _order_ok(query_seq, seq, shared):
             continue
-        if len(shared) == len(form):               # form ⊆ query → entry's name is in the query
-            specificity = max(specificity, len(form))
+        if len(shared) == len(form):               # form ⊆ query → entry's name is in the query …
+            if query_seq[:len(seq)] == seq:        # … as its LEADING run (the cited man), not an
+                specificity = max(specificity, len(form))   # ancestor buried in the nasab: «محمد
+                # بن … بن أنس بن مالك» is not أنس, «عبد الله بن عمر بن الخطاب» is the son not عمر.
         elif len(shared) == len(query):            # query ⊆ form → cited name is a partial
             offer(seq)
         # else: neither contains the other → coincidental shared token(s), not a match
