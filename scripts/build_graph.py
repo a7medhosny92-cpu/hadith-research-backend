@@ -21,13 +21,19 @@ import json
 import time
 
 from app.config import get_settings
+from app.ingestion.catalog import RIJAL_PROSE_BOOKS
+from app.parsing.jarh_extract import parse_jarh_file
+from app.parsing.tahdhib_extract import parse_tahdhib_file
 from app.qa.isnad import analyze_isnad
 from app.rijal.canon import Canonicalizer
 from app.rijal.graph import NarratorGraph
 from app.rijal.index import RijalIndex, _clean_tokens, load_entries
-from app.rijal.tahdhib import TAHDHIB_BOOK_ID, load_tahdhib_associations
+from app.rijal.tahdhib import tahdhib_associations
 from app.search.index import _read_jsonl  # parsed JSONL reader
 from scripts._atomic import rebuild
+
+# Prose رجال sources with an authoritative شيوخ/تلاميذ network, and their record extractor.
+_NETWORK_SOURCES = {3722: parse_tahdhib_file, 2170: parse_jarh_file}
 
 
 def main() -> None:
@@ -77,14 +83,17 @@ def main() -> None:
     g0.close()
     print(f"Pass 1: {len(profiles)} narrators (confident merges) → context profiles")
 
-    # …reinforced with تهذيب الكمال's authoritative شيوخ/تلاميذ, when the book is on disk: this is
-    # the company al-Mizzī states for each man, the surest signal for disambiguating «مشترك» names.
-    tahdhib_book = settings.raw_dir / "books" / f"{TAHDHIB_BOOK_ID}.json"
-    if tahdhib_book.exists():
-        extra = load_tahdhib_associations(tahdhib_book, rijal)
+    # …reinforced with the authoritative شيوخ/تلاميذ of the prose رجال sources on disk — al-Mizzī's
+    # تهذيب الكمال and Ibn Abī Ḥātim's الجرح والتعديل (early, independent, beyond the Six Books): the
+    # company each critic states per man is the surest signal for disambiguating «مشترك» names.
+    for book_id, parse in _NETWORK_SOURCES.items():
+        path = settings.raw_dir / "books" / f"{book_id}.json"
+        if not path.exists():
+            continue
+        extra = tahdhib_associations(parse(path), rijal)
         for name, toks in extra.items():
             profiles.setdefault(name, set()).update(toks)
-        print(f"Pass 1+: تهذيب الكمال company merged for {len(extra)} narrators")
+        print(f"Pass 1+: {RIJAL_PROSE_BOOKS.get(book_id, book_id)} company merged for {len(extra)} narrators")
 
     # Pass 2 — confident + context disambiguation, into the real DB.
     canon1 = Canonicalizer(rijal, associations=profiles)

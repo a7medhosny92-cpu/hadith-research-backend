@@ -30,6 +30,7 @@ from app.ingestion.catalog import RIJAL_SOURCES, Catalog
 from app.ingestion.downloader import CorpusDownloader
 from app.ingestion.turath_client import TurathClient
 from app.parsing.rijal_extract import parse_rijal_file
+from app.rijal.dedup import CorpusCompany, collapse_duplicates
 from app.rijal.grades import classify
 from app.rijal.index import RijalIndex, _clean_tokens, load_seed
 
@@ -182,6 +183,22 @@ def main() -> None:
         extra = [json.loads(line) for line in args.input.read_text(encoding="utf-8").splitlines() if line.strip()]
         result, added, upgraded = merge_source(result, extra)
         print(f"  merged --input: +{added} new, {upgraded} gaps graded")
+
+    # Collapse same-man duplicates the source-merge couldn't unify (same ism+nasab, shared nisba /
+    # death / kunya) — the bare-name «مشترك» that is really ONE man written two ways. The previous
+    # run's narrator graph (if present) confirms each merge by the company the man keeps and VETOES
+    # the homonyms the name alone would fuse (التنيسي vs التستري…); absent men trust the name.
+    company = None
+    graph_path = settings.narrator_graph_path
+    if graph_path.exists():
+        try:
+            company = CorpusCompany(graph_path)
+        except Exception as exc:                       # a missing/old schema must not break the build
+            print(f"  (narrator graph unreadable for dedup confirmation: {exc})")
+    result, removed = collapse_duplicates(result, company=company)
+    if removed:
+        how = "name + corpus company" if company else "name only — graph not built yet"
+        print(f"  collapsed {removed} same-man duplicates ({how}) — deflating «مشترك»")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as fh:

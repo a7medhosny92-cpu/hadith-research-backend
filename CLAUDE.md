@@ -117,6 +117,35 @@ correct). NB: parse + index are FULL rebuilds, so this propagates on the user's 
 **328** removable same-man duplicates · **1245** confirmed-homonym keys · **350** undecidable for
 want of death-year/kunya (a richer source would settle them).
 
+**Same-man dedup — BUILT (`app/rijal/dedup.py`, on branch, validated on the user's real rijal):**
+Audit diagnosis showed ~half of «مشترك» (A) is the SAME man written two ways across تقريب/الكاشف
+(هشام بن عمار, الليث بن سعد, يزيد بن هارون — high-frequency, so a few dups cause thousands of A flags);
+`merge_source` couldn't unify them (lookup is containment-only; differing tails miss) and kept both.
+`collapse_duplicates` collapses them after the source-merge. **Name rule:** same ism+father, lineage-
+compatible (the nasab chains agree on every shared ancestor — «عبد الله»≠«عبد الواحد», «بن يونس»≠«بن
+محمد»), shared specific nisba (no generation/strong-grade conflict) OR death(±20)/kunya. **+ corpus
+veto (the user's idea):** `CorpusCompany` reads the PREVIOUS run's `narrators.db`; the name *proposes*,
+the chain company *vetoes* a merge it contradicts (disjoint شيوخ/تلاميذ — التنيسي vs التستري), absent
+men trust the name (**mix** policy). Measured on the real rijal: name-only 806 merges (118 are graph-
+contradicted homonyms!), **mix 725** (drops the 118 false, keeps 121 the graph can't see), strict 618.
+Wired into build_rijal (loads the graph if present). NOT on main yet — pending the user's go-ahead +
+the real A re-measure after rebuild.
+
+**More رجال data sources (user: «dobbiamo cercare altri dati»):** to resolve the *remaining* A — genuine
+homonyms (need more network), the 350 «unconfirmable» dedups (need death-years), the 427 «غير معروف»
+(need coverage) — add prose sources. Turath رجال (cat 26) verified: **2170 الجرح والتعديل (ابن أبي حاتم)**
+4229p · **1293 تهذيب التهذيب (ابن حجر)** 2775p · 1692 ميزان الاعتدال · 5816 الثقات (ابن حبان) · 96165 الثقات
+لمن ليس في الكتب الستة · 12397 تاريخ الإسلام (death-years). **BUILT (`app/parsing/jarh_extract.py`, on
+branch): الجرح والتعديل (2170)** — early, independent, multi-critic, **beyond the Six Books** = genuinely
+new signal. Format: numbered head (boundary works), NO rumūz, network **without a colon** «روى عن…روى
+عنه…» split on «و», verdicts in «قال فلان: …»; footnotes cut at «____». Sample coverage شيوخ 84% · تلاميذ
+85% · verdicts 31%. Wired into `build_graph` (`_NETWORK_SOURCES = {3722, 2170}`, both via
+`tahdhib_associations`) and added to `RIJAL_PROSE_BOOKS` + the `--priority` download. **NB تهذيب التهذيب
+(1293) deferred:** it's ابن حجر's abridgment of al-Mizzī → SAME Six-Books men/network → low *new* value
+for A (its worth is ابن حجر's verdicts, a later double-opinion job); and its heads are title-spans (no
+number) → needs a different segmenter. **Next:** download 2170 on the user's machine (update.bat now
+fetches it) → measure the A drop; then death-year/coverage sources for the other two gaps.
+
 **تهذيب الكمال extractor — BUILT (`app/parsing/tahdhib_extract.py`, PR #103 → main):** parses the real
 3722 → **~6,870 tarājim, books 92% · شيوخ 94% · تلاميذ 93% · verdicts 57%**. Key lessons (see
 docs/TAHDHIB.md): the book is heavily vocalised → every marker regex is diacritic-tolerant

@@ -74,6 +74,7 @@ RIJAL_SOURCES: dict[int, str] = {
 # build_rijal's terse extractor would mangle them. A dedicated prose extractor is future work.
 RIJAL_PROSE_BOOKS: dict[int, str] = {
     3722: "تهذيب الكمال",
+    2170: "الجرح والتعديل لابن أبي حاتم",   # early, independent, multi-critic — covers beyond the Six Books
     1278: "تهذيب التهذيب (ط دبي)",
     1293: "تهذيب التهذيب (ط الرسالة)",
 }
@@ -171,6 +172,8 @@ class Catalog:
 
         if priority:
             for bid in CORE_COLLECTIONS:
+                add(self.books.get(bid))
+            for bid in RIJAL_SOURCES:   # the رجال grading sources (prose network books fetched on demand)
                 add(self.books.get(bid))
         if cat_ids is not None:
             for book in self.books_in_categories(cat_ids):
