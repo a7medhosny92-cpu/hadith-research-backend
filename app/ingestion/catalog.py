@@ -68,6 +68,16 @@ RIJAL_SOURCES: dict[int, str] = {
     2171: "الكاشف",
 }
 
+# Verbose (prose) رجال biographies — تهذيب الكمال / تهذيب التهذيب. They are NOT hadith, and their
+# flowing prose does NOT reduce to one terse verdict, so they are *excluded from the hadith parse*
+# (otherwise their pages pollute the hadith index) but are deliberately NOT in RIJAL_SOURCES —
+# build_rijal's terse extractor would mangle them. A dedicated prose extractor is future work.
+RIJAL_PROSE_BOOKS: dict[int, str] = {
+    3722: "تهذيب الكمال",
+    1278: "تهذيب التهذيب (ط دبي)",
+    1293: "تهذيب التهذيب (ط الرسالة)",
+}
+
 
 @dataclass(frozen=True, slots=True)
 class BookRecord:
