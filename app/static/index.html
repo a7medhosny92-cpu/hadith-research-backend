@@ -55,6 +55,7 @@
   .cite{color:var(--muted);margin-top:14px;font-size:.95rem;
     display:flex;gap:12px;flex-wrap:wrap;align-items:center}
   .grade{padding:4px 13px;border-radius:999px;font-size:.85rem;font-weight:700}
+  .r-num{display:inline-block;background:#f0ece0;color:var(--gold2);font-weight:700;font-size:.9rem;border-radius:8px;padding:1px 9px;margin-bottom:8px}
   .g-sahih{background:#dcefe1;color:#15643f}
   .g-hasan{background:#f6eccf;color:#876413}
   .g-daif{background:#f6ddd5;color:#a5381f}
@@ -140,6 +141,9 @@
   .rawi-item{display:flex;justify-content:space-between;gap:10px;align-items:center;
     padding:8px 4px;border-bottom:1px solid var(--line);font-size:1.08rem}
   .rawi-summary{margin-top:10px;color:#3a3328;line-height:2.1;font-size:1.08rem}
+  .var-row{border-bottom:1px solid var(--line)}
+  .var-row .rawi-item{border-bottom:none}
+  .var-matn{margin:0 4px 10px;font-size:1.15rem;line-height:2;color:#2b2620}
   .audit-head{cursor:pointer;transition:background .12s}
   .audit-head:hover{background:#f0f7f3}
   .case-box{display:none;margin:4px 2px 16px;border-inline-start:3px solid var(--gold);
@@ -399,9 +403,10 @@ function _varRow(m){
   const cite = [m.collection, (m.number!=null?"رقم "+m.number:null), (m.page!=null?"ص "+m.page:null)]
     .filter(Boolean).join("  ·  ");
   const g = m.grade ? `<span class="grade ${gradeClass(m.grade)}">${esc(m.grade)}</span>` : "";
-  return `<div class="rawi-item"><span>${esc(cite)}</span>${g}</div>`;
+  const text = m.matn ? `<div class="var-matn">${hlMatn(m.matn)}</div>` : "";
+  return `<div class="var-row"><div class="rawi-item"><span>${esc(cite)}</span>${g}</div>${text}</div>`;
 }
-function hadithCard(h){
+function hadithCard(h, n){
   const cite = [h.collection, (h.number!=null?"رقم "+h.number:null), (h.page!=null?"ص "+h.page:null)]
     .filter(Boolean).join("  ·  ");
   const grade = h.grade ? `<span class="grade ${gradeClass(h.grade)}">${esc(h.grade)}</span>` : "";
@@ -421,7 +426,8 @@ function hadithCard(h){
       + `<div class="variants">${(h.members || []).map(_varRow).join("")}</div>`
     : "";
   const txt = `${h.matn}\n— ${cite}${h.grade ? " · " + h.grade : ""}`;
-  return `<div class="card"><div class="matn">${hlMatn(h.matn)}</div>
+  const num = n ? `<span class="r-num">${n}</span>` : "";
+  return `<div class="card">${num}<div class="matn">${hlMatn(h.matn)}</div>
     <div class="cite">${grade}<span>${esc(cite)}</span>${save}</div>
     <div class="actions">${trace}${shareTools(txt)}</div>${rulingsHtml(h.rulings)}${variants}${isnad}</div>`;
 }
@@ -441,13 +447,24 @@ function renderList(hits, unit, empty){
 function revealMore(){
   const { hits, shown, unit } = listState;
   const next = hits.slice(shown, shown + PAGE);
-  document.getElementById("list").insertAdjacentHTML("beforeend", next.map(hadithCard).join(""));
+  document.getElementById("list").insertAdjacentHTML("beforeend",
+    next.map((h, i) => hadithCard(h, shown + i + 1)).join(""));
   listState.shown += next.length;
   document.getElementById("count").textContent = `${listState.shown} من ${hits.length} ${unit}`;
   const left = hits.length - listState.shown;
   const wrap = document.getElementById("more-wrap");
   wrap.innerHTML = left > 0 ? `<button class="more">تحميل المزيد (${left})</button>` : "";
   if(left > 0) wrap.firstChild.onclick = revealMore;
+}
+
+// Plain text of the whole result set (every hit, numbered) — for the «نسخ الكل» button.
+function searchText(){
+  if(!listState || !(listState.hits || []).length) return "";
+  return listState.hits.map((h, i) => {
+    const cite = [h.collection, (h.number!=null?"رقم "+h.number:null), (h.page!=null?"ص "+h.page:null)]
+      .filter(Boolean).join("  ·  ");
+    return `${i+1}. ${h.matn}\n— ${cite}${h.grade ? " · " + h.grade : ""}`;
+  }).join("\n\n");
 }
 
 // ── Search (بحث): mode/field/group/sort controls, facet filters, report grouping ──
@@ -521,7 +538,7 @@ function renderSearch(d){
   const srcN = ((d.facets || {}).collections || []).length;
   const summary = grouped ? `${d.group_count} حديثًا · ${d.count} رواية` : `${d.count || 0} نتيجة`;
   const head = searchControls()
-    + `<div class="note">${summary} · في ${srcN} مصدرًا${activeFilters()}</div>`
+    + `<div class="note">${summary} · في ${srcN} مصدرًا${activeFilters()} <button class="tool search-copy">⧉ نسخ الكل</button></div>`
     + facetChips(d.facets);
   if(!items.length){ results.innerHTML = head + `<div class="state">لا توجد نتائج</div>`; return; }
   listState = { hits: items, shown: 0, unit: grouped ? "حديثًا" : "نتيجة" };
@@ -1322,6 +1339,22 @@ results.addEventListener("click", async e => {
   const btn = e.target.closest(".audit-copy");
   if(!btn || !auditData) return;
   const text = auditText(auditData);
+  try { await navigator.clipboard.writeText(text); }
+  catch(_){
+    const ta = document.createElement("textarea"); ta.value = text;
+    ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+  }
+  const o = btn.textContent; btn.textContent = "✓ نُسخت"; btn.classList.add("done");
+  setTimeout(() => { btn.textContent = o; btn.classList.remove("done"); }, 1200);
+});
+
+// «نسخ الكل» — copy the whole search result list (all hits, numbered).
+results.addEventListener("click", async e => {
+  const btn = e.target.closest(".search-copy");
+  if(!btn) return;
+  const text = searchText();
+  if(!text) return;
   try { await navigator.clipboard.writeText(text); }
   catch(_){
     const ta = document.createElement("textarea"); ta.value = text;
