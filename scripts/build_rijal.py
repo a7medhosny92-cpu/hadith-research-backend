@@ -30,6 +30,7 @@ from app.ingestion.catalog import RIJAL_SOURCES, Catalog
 from app.ingestion.downloader import CorpusDownloader
 from app.ingestion.turath_client import TurathClient
 from app.parsing.rijal_extract import parse_rijal_file
+from app.rijal.dedup import collapse_duplicates
 from app.rijal.grades import classify
 from app.rijal.index import RijalIndex, _clean_tokens, load_seed
 
@@ -182,6 +183,12 @@ def main() -> None:
         extra = [json.loads(line) for line in args.input.read_text(encoding="utf-8").splitlines() if line.strip()]
         result, added, upgraded = merge_source(result, extra)
         print(f"  merged --input: +{added} new, {upgraded} gaps graded")
+
+    # Collapse same-man duplicates the source-merge couldn't unify (same ism+nasab, shared nisba /
+    # death / kunya) — the bare-name «مشترك» that is really ONE man written two ways.
+    result, removed = collapse_duplicates(result)
+    if removed:
+        print(f"  collapsed {removed} same-man duplicates (deflating «مشترك»)")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as fh:
