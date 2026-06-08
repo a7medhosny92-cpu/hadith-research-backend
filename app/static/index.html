@@ -399,16 +399,21 @@ function shareTools(text){
   return `<button class="tool copy-btn" data-text="${esc(text)}" title="نسخ النصّ">⧉ نسخ</button>`
     + `<button class="tool share-btn" data-text="${esc(text)}" title="مشاركة">↗ مشاركة</button>`;
 }
+// A citation «collection · رقم N · ج V · ص P». The volume matters: many turath books are
+// multi-volume and restart the printed page at 1 each volume, so «ص» alone is ambiguous.
+function citeOf(x){
+  return [x.collection, (x.number!=null?"رقم "+x.number:null),
+          (x.volume!=null&&x.volume!==""?"ج "+x.volume:null),
+          (x.page!=null?"ص "+x.page:null)].filter(Boolean).join("  ·  ");
+}
 function _varRow(m){
-  const cite = [m.collection, (m.number!=null?"رقم "+m.number:null), (m.page!=null?"ص "+m.page:null)]
-    .filter(Boolean).join("  ·  ");
+  const cite = citeOf(m);
   const g = m.grade ? `<span class="grade ${gradeClass(m.grade)}">${esc(m.grade)}</span>` : "";
   const text = m.matn ? `<div class="var-matn">${hlMatn(m.matn)}</div>` : "";
   return `<div class="var-row"><div class="rawi-item"><span>${esc(cite)}</span>${g}</div>${text}</div>`;
 }
 function hadithCard(h, n){
-  const cite = [h.collection, (h.number!=null?"رقم "+h.number:null), (h.page!=null?"ص "+h.page:null)]
-    .filter(Boolean).join("  ·  ");
+  const cite = citeOf(h);
   const grade = h.grade ? `<span class="grade ${gradeClass(h.grade)}">${esc(h.grade)}</span>` : "";
   // the isnad folds open with a chain verdict («الحكم على الإسناد») loaded on demand
   const isnad = h.isnad
@@ -417,7 +422,7 @@ function hadithCard(h, n){
       + `<div class="chain-verdict"></div></div>`
     : "";
   const save = saveChip({kind:"hadith", title:cite, body:h.matn,
-    meta:{collection:h.collection, number:h.number, page:h.page, grade:h.grade,
+    meta:{collection:h.collection, number:h.number, volume:h.volume, page:h.page, grade:h.grade,
           isnad:h.isnad, rulings:h.rulings}});
   const trace = `<span class="go-takhrij" data-q="${esc(h.matn)}">تتبّع تخريجه ⟶</span>`;
   // when this is a grouped report, its other rivayat are foldable underneath
@@ -461,8 +466,7 @@ function revealMore(){
 function searchText(){
   if(!listState || !(listState.hits || []).length) return "";
   return listState.hits.map((h, i) => {
-    const cite = [h.collection, (h.number!=null?"رقم "+h.number:null), (h.page!=null?"ص "+h.page:null)]
-      .filter(Boolean).join("  ·  ");
+    const cite = citeOf(h);
     return `${i+1}. ${h.matn}\n— ${cite}${h.grade ? " · " + h.grade : ""}`;
   }).join("\n\n");
 }
@@ -652,15 +656,14 @@ async function runCompare(query){
 // (صيغ) and labelled by closeness to the source (بلفظه / بنحوه / بمعناه).
 function vlabelClass(l){ return l === "بلفظه" ? "v-lafz" : l === "بنحوه" ? "v-nahw" : "v-maana"; }
 function narrationCard(n){
-  const cite = [n.collection, (n.number!=null?"رقم "+n.number:null), (n.page!=null?"ص "+n.page:null)]
-    .filter(Boolean).join("  ·  ");
+  const cite = citeOf(n);
   const grade = n.grade ? `<span class="grade ${gradeClass(n.grade)}">${esc(n.grade)}</span>` : "";
   const sim = `<span class="simbadge">${Math.round((n.overlap||0)*100)}% تطابق</span>`;
   // The chain is always shown here — «who carried it» is the point of takhrij.
   const chain = n.isnad
     ? `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${esc(n.isnad)}</div>` : "";
   const save = saveChip({kind:"hadith", title:cite, body:n.matn,
-    meta:{collection:n.collection, number:n.number, page:n.page, grade:n.grade,
+    meta:{collection:n.collection, number:n.number, volume:n.volume, page:n.page, grade:n.grade,
           isnad:n.isnad, companion:n.companion, rulings:n.rulings}});
   return `<div class="card"><div class="matn">${esc(n.matn)}</div>
     <div class="cite">${grade}<span>${esc(cite)}</span>${sim}${save}</div>${chain}${rulingsHtml(n.rulings)}</div>`;
@@ -886,8 +889,7 @@ function renderIsnad(d){
   const a = d.analysis || {}, r = d.ruling, cont = d.continuity, s = d.source || {};
   let html = "";
   // 0) the hadith itself — matn, book/citation, and the chain text (freely selectable)
-  const cite0 = [s.collection, (s.number != null ? "رقم " + s.number : null),
-                 (s.page != null ? "ص " + s.page : null)].filter(Boolean).join("  ·  ");
+  const cite0 = citeOf(s);
   if(s.matn || s.isnad || cite0){
     html += `<div class="card">`
       + (s.matn ? `<div class="matn">${esc(s.matn)}</div>` : "")
@@ -979,8 +981,7 @@ function chainVerdictHtml(d){
 // text, then the verdict — everything freely selectable, shown in place (no navigation).
 function caseDetailHtml(d){
   const s = d.source || {};
-  const cite = [s.collection, (s.number != null ? "رقم " + s.number : null),
-                (s.page != null ? "ص " + s.page : null)].filter(Boolean).join("  ·  ");
+  const cite = citeOf(s);
   return (s.matn ? `<div class="matn">${esc(s.matn)}</div>` : "")
     + (cite ? `<div class="cite"><span>${esc(cite)}</span></div>` : "")
     + (s.isnad ? `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${esc(s.isnad)}</div>` : "")

@@ -175,6 +175,7 @@ def _narration(item: dict) -> dict:
         "number": hit.number,
         "grade": hit.grade,
         "chapter": hit.chapter,
+        "volume": hit.volume,
         "page": hit.page,
         "matn": hit.matn,
         "isnad": hit.isnad,
