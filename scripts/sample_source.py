@@ -11,6 +11,7 @@ text instead of guesswork.
     python -m scripts.sample_source 3722 --find "الليث بن سعد"  # the tarjama of a specific narrator
     python -m scripts.sample_source 3722 --pages 40-44          # raw cleaned text of a page range
     python -m scripts.sample_source 3722 --entries 8 --out sample.txt   # write it out to upload
+    python -m scripts.sample_source 3722 --rijal-sample --out tahdhib_20.txt  # 20 key narrators' entries
 
 The book ids: تهذيب الكمال = 3722، تهذيب التهذيب = 1293 (ط الرسالة) / 1278 (ط دبي)،
 تقريب = 8609، الكاشف = 2171.
@@ -29,6 +30,17 @@ from app.ingestion.downloader import CorpusDownloader
 from app.ingestion.turath_client import TurathClient
 from app.parsing.html_clean import clean_block
 from app.parsing.rijal_extract import _BOUNDARY, _first_entry_page
+
+# A curated spread of 20 narrators to sample from a prose رجال book — the audit's problem cases
+# (doppioni, the متروك/كذاب mis-grades, the ancestor-in-nasab, grandfather/grandson homonym) plus
+# major imams and laqab/nisba/مدلّس examples. Forms chosen to match each man's entry HEAD.
+KEY_RIJAL = [
+    "الليث بن سعد", "حماد بن سلمة", "عبد الله بن وهب", "سفيان بن سعيد",
+    "سفيان بن عيينة", "شعبة بن الحجاج", "مالك بن أنس", "سليمان بن مهران",
+    "عثمان بن محمد بن إبراهيم", "إبراهيم بن سعد", "هشام بن عروة", "قتادة بن دعامة",
+    "نصر بن علي", "يونس بن محمد", "سعيد بن أبي سعيد", "أبو بكر بن عياش",
+    "معمر بن راشد", "محمد بن مسلم بن عبيد الله", "عبد الرحمن بن محمد بن زياد", "زائدة بن قدامة",
+]
 
 
 async def _ensure(book_id: int) -> Path:
@@ -67,6 +79,20 @@ def _entries(full: str, limit: int) -> list[str]:
     return out
 
 
+def _entry_for(full: str, bounds: list, name: str, cap: int) -> str:
+    """The tarjama whose HEAD names ``name`` (so we land on his entry, not a passing mention);
+    fall back to a window around the first occurrence. Capped at ``cap`` chars."""
+    for i, m in enumerate(bounds):
+        end = bounds[i + 1].start() if i + 1 < len(bounds) else len(full)
+        if name in full[m.end(): min(end, m.end() + 260)]:  # the name heads THIS entry (no spill)
+            return full[m.start(): min(end, m.start() + cap)].strip()
+    idx = full.find(name)
+    if idx < 0:
+        return ""
+    lo = full.rfind("\n", 0, max(0, idx - 150)) + 1
+    return full[lo: idx + cap].strip()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Print sample tarājim from a رجال source book.")
     ap.add_argument("book_id", type=int)
@@ -75,13 +101,22 @@ def main() -> None:
     ap.add_argument("--pages", type=str, default=None, help="dump cleaned text of a page range A-B")
     ap.add_argument("--window", type=int, default=1600, help="chars around a --find hit")
     ap.add_argument("--out", type=Path, default=None, help="write the dump here (to upload) instead of stdout")
+    ap.add_argument("--rijal-sample", action="store_true",
+                    help="dump the entries of 20 curated key narrators (one file to share)")
+    ap.add_argument("--cap", type=int, default=8000, help="max chars per entry for --rijal-sample")
     args = ap.parse_args()
 
     path = asyncio.run(_ensure(args.book_id))
     data = json.loads(path.read_text(encoding="utf-8"))
     chunks: list[str] = [f"# {data.get('name', args.book_id)}  (id {args.book_id}, {len(data.get('pages', []))} pages)\n"]
 
-    if args.pages:
+    if args.rijal_sample:
+        full = _full_text(data)
+        bounds = [m for m in _BOUNDARY.finditer(full) if m.group(1) is not None]
+        for name in KEY_RIJAL:
+            body = _entry_for(full, bounds, name, args.cap)
+            chunks.append(f"════════ {name} ════════\n{body or '(لم يُعثر على ترجمته)'}")
+    elif args.pages:
         lo, _, hi = args.pages.partition("-")
         lo, hi = int(lo), int(hi or lo)
         for p in sorted(data.get("pages", []), key=lambda p: p.get("pg", 0)):
