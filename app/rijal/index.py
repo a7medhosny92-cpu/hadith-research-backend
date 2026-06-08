@@ -70,8 +70,10 @@ _KUNYA_PARTICLES = {normalize_for_search("أبو"), normalize_for_search("أم")
 
 
 def _is_kunya_form(seq: list[str]) -> bool:
-    """True if ``seq`` is a teknonym (leads with a kunya particle) — matched reverse-only."""
-    return bool(seq) and seq[0] in _KUNYA_PARTICLES
+    """True if ``seq`` is a *bare* teknonym — «أبو/أم + one name», exactly 2 tokens —
+    matched reverse-only. A longer name that merely starts with a kunya is NOT one: it has
+    enough tokens to identify a man on its own («أبو الزناد عبد الله بن ذكوان»)."""
+    return len(seq) == 2 and seq[0] in _KUNYA_PARTICLES
 
 
 def _order_ok(q_seq: list[str], f_seq: list[str], shared: set[str]) -> bool:
@@ -109,13 +111,17 @@ def _score_entry(
             if best is None or cand[0] > best[0] or (cand[0] == best[0] and cand[1] < best[1]):
                 best = cand
         # else: neither contains the other → coincidental shared token(s), not a match
-    for kseq in kunya_seqs:                         # teknonyms: only query ⊆ kunya (reverse)
-        kf = set(kseq)
-        shared = query & kf
-        if shared and len(shared) == len(query) and _order_ok(query_seq, kseq, shared):
-            cand = (len(shared), len(kf))
-            if best is None or cand[0] > best[0] or (cand[0] == best[0] and cand[1] < best[1]):
-                best = cand
+    # teknonyms identify a man only when the chain cites him BY the kunya: the query must
+    # itself be a kunya («أبو …»/«أم …») AND lie within the form. A bare ism «معمر» is NOT the
+    # man whose kunya is «أبو معمر»; «حبيب بن أبي ثابت» is not the kunya «أبو ثابت».
+    if query_seq and query_seq[0] in _KUNYA_PARTICLES:
+        for kseq in kunya_seqs:                      # only query ⊆ kunya (reverse)
+            kf = set(kseq)
+            shared = query & kf
+            if shared and len(shared) == len(query) and _order_ok(query_seq, kseq, shared):
+                cand = (len(shared), len(kf))
+                if best is None or cand[0] > best[0] or (cand[0] == best[0] and cand[1] < best[1]):
+                    best = cand
     return specificity, best
 
 
