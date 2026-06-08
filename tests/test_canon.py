@@ -86,6 +86,22 @@ def test_context_tie_keeps_surface():
     assert _canon(assoc).canonical("سعيد", frozenset({"شعبة"})) == "سعيد"
 
 
+def test_chain_company_overrides_a_confident_namesake():
+    """«La catena prima del nome»: a متروك *bare* namesake would win on the name alone
+    (most specific), but the chain's company — he narrates from محمد بن عمرو up to ابن أبي
+    شيبة — belongs to محمد بن بشر العبدي [ثقة]. The chain must decide, not the bare name."""
+    rij = RijalIndex([
+        {"name": "محمد بن بشر", "grade": "متروك"},              # a bare namesake
+        {"name": "محمد بن بشر العبدي", "grade": "ثقة"},          # the man the chain points to
+    ])
+    company = _clean_tokens("محمد بن عمرو أبو بكر بن أبي شيبة أبو سلمة")
+    canon = Canonicalizer(rij, associations={"محمد بن بشر العبدي": set(company)})
+    # with the chain context, identity is taken from the company → العبدي (ثقة)
+    assert canon.canonical("محمد بن بشر", frozenset(company)) == "محمد بن بشر العبدي"
+    # without the chain, the name alone gives only the most-specific (bare) namesake
+    assert canon.canonical("محمد بن بشر") == "محمد بن بشر"
+
+
 # ── integration with the graph ───────────────────────────────────────────────────
 def test_graph_merges_variants_with_canon():
     g = NarratorGraph()

@@ -49,6 +49,26 @@ def test_unknown_narrator_returns_none(rijal):
     assert rijal.lookup("فلان بن علان المجهول") is None
 
 
+def test_bare_ism_does_not_match_someone_elses_kunya():
+    # «معمر» (an ism) must NOT resolve to a man whose KUNYA is «أبو معمر» — citing the ism
+    # is not citing the teknonym; only «أبو معمر» reaches the kunya-holder.
+    rij = RijalIndex([
+        {"name": "معمر بن راشد", "grade": "ثقة"},
+        {"name": "إسماعيل بن إبراهيم", "kunya": "أبو معمر", "grade": "ثقة"},
+    ])
+    assert rij.lookup("معمر").entry.name == "معمر بن راشد"
+    assert rij.lookup("أبو معمر").entry.name == "إسماعيل بن إبراهيم"
+
+
+def test_kunya_alias_does_not_glue_onto_a_longer_name(rijal):
+    # «أبو بكر بن أبي شيبة» (a 3rd-century حافظ) must NOT collapse into أبو بكر الصدّيق the
+    # Companion just because «أبو بكر» is his kunya/alias — a teknonym matches reverse-only.
+    assert rijal.lookup("أبو بكر بن أبي شيبة") is None
+    # the Companion is still found when actually cited by the kunya — and a bare «أبو بكر»,
+    # shared by several men, is correctly flagged مشترك rather than silently the صدّيق.
+    assert rijal.lookup("أبو بكر").ambiguous
+
+
 # ── chain assessment via analyze_isnad ──────────────────────────────────────
 def test_thiqat_chain_is_graded_sound(rijal):
     a = analyze_isnad("حدثنا مالك، عن نافع، عن عبد الله بن عمر", rijal=rijal)

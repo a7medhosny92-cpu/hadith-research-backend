@@ -77,6 +77,9 @@ _NOISE = re.compile(
 )
 _KUNYA = re.compile(r"(?<!\w)(أبو|أبا|أبي|أم)\s+(\S+)")
 _WS = re.compile(r"\s+")
+# Folded tokens that identify no one on their own — a name made only of these («عبد الله»)
+# is a truncation artifact, not a usable tarjama.
+_GENERIC_NAME = {normalize_for_search(w) for w in ("عبد", "عبيد", "الله")}
 
 # Laqab / shuhra cues: «المعروف بـ…», «يقال له…», «لقبه…» introduce another name the man
 # is known by — captured as an alias so a chain that cites him by it links to one person.
@@ -179,7 +182,8 @@ def _aliases(body: str) -> list[str]:
                 break
         alias = _WS.sub(" ", " ".join(words)).strip(" -،")
         name_like = len(alias.split()) >= 2 or (alias.startswith("ال") and len(alias) >= 4)
-        if name_like and 3 <= len(alias) <= 40 and not any(c.isdigit() for c in alias):
+        generic = {normalize_for_search(t) for t in alias.split()} - {"بن", "ابن", ""} <= _GENERIC_NAME
+        if name_like and not generic and 3 <= len(alias) <= 40 and not any(c.isdigit() for c in alias):
             out.append(alias)
     return list(dict.fromkeys(out))   # de-duplicated, order preserved
 
@@ -229,6 +233,14 @@ def _entry_to_record(number: int | None, body: str, source: str) -> dict | None:
 
     name = _trim_name(before[:name_end])
     if len(name) < 3:
+        return None
+    # Drop malformed extractions: a name truncated at «… بن/ابن» (the nasab was cut off), or
+    # one that reduces to a non-identifying generic («عبد الله»/«عبيد الله»). Either would
+    # coincidentally contain-match every «عبد الله بن فلان» in a chain and mislabel real men.
+    name_toks = name.split()
+    if name_toks[-1] in ("بن", "ابن"):
+        return None
+    if {normalize_for_search(t) for t in name_toks} - {"بن", "ابن", ""} <= _GENERIC_NAME:
         return None
 
     record: dict = {"name": name, "grade": grade or "غير محدد"}
