@@ -218,3 +218,13 @@ def test_merge_source_fills_gaps_and_adds_without_duplicating():
     ajlan = next(r for r in merged if r["name"].startswith("محمد ابن عجلان"))
     assert classify(ajlan["grade"])[0] == "صدوق"                 # gap filled by al-Dhahabi
     assert sum(1 for n in names if "الثوري" in n) == 1          # no duplicate الثوري
+
+
+def test_prose_rijal_books_are_excluded_from_hadith_parse_but_not_terse_sources():
+    # تهذيب الكمال / التهذيب are *prose* رجال books: scripts.parse must skip them (else their pages
+    # pollute the hadith index — observed as «book 3722: 4859 hadith»), yet they must NOT be in
+    # RIJAL_SOURCES, since build_rijal's terse extractor would mangle their flowing prose.
+    from app.ingestion.catalog import RIJAL_PROSE_BOOKS, RIJAL_SOURCES
+    assert 3722 in RIJAL_PROSE_BOOKS                       # تهذيب الكمال
+    assert 3722 not in RIJAL_SOURCES                       # never fed to the terse extractor
+    assert set(RIJAL_PROSE_BOOKS).isdisjoint(RIJAL_SOURCES)
