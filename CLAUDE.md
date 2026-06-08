@@ -103,5 +103,29 @@ tarājim with `sample_source 3722` and sends them; then design the prose extract
 Prudent same-man merge rule: confirm by death-year ±~20 OR identical kunya; nisba/generation conflict
 blocks the merge.
 
-**Waiting on the user:** `update.bat` (applies #89 at step 8) → `audit_isnad` → send new W/S/A; and
-`sample_source 3722` samples of تهذيب الكمال.
+**Waiting on the user:** run `update.bat` **to completion** (it rebuilds rijal AND regenerates the
+audit — the last run stalled mid-flight, leaving stale numbers) → send the new W/S/A from the
+«التدقيق» tab; and `sample_source 3722` samples of تهذيب الكمال.
+
+## App cleanup / UX — TODO (user asked to remember, 2026-06-08)
+The user runs **update.bat-only** and is overwhelmed by the pile of single-step launchers («perdo il
+filo»). Each old launcher is just ONE step that `update.bat` already chains:
+- `audit.bat` (tracked) → the audit step · `update-semantic.bat` (tracked) → `update --semantic`
+- `AGGIORNA_GRAFO` (local) → build_graph · `RICALCOLA_SEMANTICA` (local) → embed
+- `AVVIA_APP` / `AVVIA_FINESTRA` (local) → **launch the app** (`app.desktop` window / browser). NOT
+  redundant — update.bat does not launch the app, so keep one of these.
+
+**Semantic search is ACTIVE** on the user's machine (`data/vectors.db` ≈ 346 MB), so `update.bat`
+already re-embeds every run (the «+ semantic» step fires because `vector_index_path.exists()`).
+
+**Cleanup to do next:** consolidate to one update tool. If we retire the redundant standalone
+launchers (`audit.bat`, `update-semantic.bat`), we MUST also fix the docs that reference them:
+`README.md:144` («double-click update-semantic.bat …») and `app/static/index.html:1277` (the
+audit-not-built fallback says «double-click audit.bat» → should point to `update.bat`, which now
+builds the audit). Consider an in-app «update» button and/or a Windows scheduled task (the user
+asked for hands-off updating).
+
+**Gotcha (seen 2026-06-08):** the user's `update.bat` had stalled mid-flight at build_graph (~15:30):
+index/sharh rebuilt (15:2x) but narrators/rijal/vectors/audit still 12:xx, with `_chains.tmp.jsonl`
+left over. So «التدقيق» looked stale even though update.bat *does* run the audit — it just hadn't
+reached that step. Fix = let `update.bat` finish (or re-run; it resumes).
