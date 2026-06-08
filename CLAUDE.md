@@ -78,8 +78,12 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
 ## Current work — KEEP UPDATED
 **Focus:** cut wrong isnad verdicts in «التدقيق» by identifying the narrator from the chain.
 
-**Latest audit (user's, 2026-06-08 11:04 — STALE, pre the latest fixes):** ~84.9k chains ·
-~10,463 rijal · **W 1724 / S 7689 / A 35237**. Re-run after rebuild for true numbers.
+**Latest audit (user's, post matn-fix + تهذيب-graph, 89,520 chains · 10,519 rijal):**
+**W 833 / S 5783 / A 39,312**. vs the prior run (W 838 / S 5641 / A 40,281): **A −969** (تهذيب company
++ cleaner isnads from the matn fix resolved ~969 «مشترك» to a specific man), W flat, S +142. Real but
+modest — تهذيب enriched only **1860** narrators (the conservative "unambiguous رجال match only" rule
+skips many). Earlier baselines: stale W 1724 / S 7689 / A 35237 → W 838 / S 5641 / A 40,281 (A *rose*
+as confidently-wrong cases became honest «held مشترك»).
 
 **Merged to main recently:** chain-first id; teknonym reverse-only; prefix preference; grade-agreement;
 «عبد الله بن» drop (earlier PRs) · ancestor-in-nasab (#87) · `measure_dedup.py` (#87) ·
