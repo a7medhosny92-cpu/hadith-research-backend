@@ -213,7 +213,10 @@ def analyze_isnad(
                     ctx = frozenset(chain_toks - _clean_tokens(narrator.name))
                     name = canon.canonical(narrator.name, context=ctx)
                 match = rijal.lookup(name)
-                matches.append(match)
+                # An ambiguous match (مشترك) is NOT a confident identification — we don't know
+                # WHICH namesake he is, so his best-guess grade must not drive the verdict; he
+                # counts as undetermined (يُتوقَّف), while the card still shows the candidates.
+                matches.append(None if (match and match.ambiguous) else match)
             record["rijal"] = match.to_dict() if match else None
         narrator_dicts.append(record)
 

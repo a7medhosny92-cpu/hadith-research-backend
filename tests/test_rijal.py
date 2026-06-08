@@ -60,6 +60,25 @@ def test_bare_ism_does_not_match_someone_elses_kunya():
     assert rij.lookup("أبو معمر").entry.name == "إسماعيل بن إبراهيم"
 
 
+def test_ambiguous_match_is_held_not_graded_weak():
+    # «زيد بن علي» beside a متروك namesake AND a ثقة one is مشترك: we don't know which, so the
+    # uncertain متروك must NOT make the chain «ضعيف جدًا» — it's held (يُتوقَّف) — nor be audit-W-ed.
+    from app.qa.isnad import analyze_isnad, overall_ruling
+    from scripts.audit_isnad import _flag_chain
+    rij = RijalIndex([
+        {"name": "مالك بن أنس الأصبحي", "grade": "ثقة"},
+        {"name": "أنس بن مالك", "grade": "صحابي"},
+        {"name": "زيد بن علي الكوفي", "grade": "متروك"},
+        {"name": "زيد بن علي البصري", "grade": "ثقة"},
+    ])
+    a = analyze_isnad("حدثنا مالك بن أنس، عن زيد بن علي، عن أنس بن مالك", rijal=rij)
+    zayd = next(n for n in a.narrators if n["name"].startswith("زيد"))
+    assert zayd["rijal"]["ambiguous"]                      # still shown as مشترك on the card
+    assert overall_ruling(a.to_dict())["tone"] != "daif"   # uncertain متروك doesn't grade the chain
+    codes = [c for c, _ in _flag_chain(a.narrators)]
+    assert "A" in codes and "W" not in codes               # belongs to «مشترك», not «متروك»
+
+
 def test_kunya_alias_does_not_glue_onto_a_longer_name(rijal):
     # «أبو بكر بن أبي شيبة» (a 3rd-century حافظ) must NOT collapse into أبو بكر الصدّيق the
     # Companion just because «أبو بكر» is his kunya/alias — a teknonym matches reverse-only.

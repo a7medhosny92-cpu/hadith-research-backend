@@ -78,7 +78,7 @@ def _flag_chain(narrators: list[dict]) -> list[tuple[str, str]]:
         verdict = rij.get("verdict") or ""
         if grade == "صحابي" and i < n - _TWO_LAST:
             out.append(("S", f"«{name}» (الحلقة {i+1}/{n}) حُكم له «صحابي» وموضعه ليس آخر السند"))
-        if any(w in verdict for w in _WEAK) and len(name.split()) >= 3:
+        if any(w in verdict for w in _WEAK) and len(name.split()) >= 3 and not rij.get("ambiguous"):
             out.append(("W", f"«{name}» (اسمٌ كامل) حُكم له «{verdict}» — يُحتمل خلطٌ باسمٍ مشابه"))
         if rij.get("ambiguous"):
             alts = "، ".join(rij.get("alternatives") or [])
