@@ -213,10 +213,13 @@ def analyze_isnad(
                     ctx = frozenset(chain_toks - _clean_tokens(narrator.name))
                     name = canon.canonical(narrator.name, context=ctx)
                 match = rijal.lookup(name)
-                # An ambiguous match (مشترك) is NOT a confident identification — we don't know
-                # WHICH namesake he is, so his best-guess grade must not drive the verdict; he
-                # counts as undetermined (يُتوقَّف), while the card still shows the candidates.
-                matches.append(None if (match and match.ambiguous) else match)
+                # An ambiguous match whose candidates DISAGREE on the grade (عثمان بن أبي شيبة:
+                # ثقة vs a متروك namesake) is no confident identification — count him as
+                # undetermined (يُتوقَّف), while the card still shows the candidates. But when the
+                # tied candidates AGREE (عدي بن حاتم → both صحابي; الليث → both ثقة), the grade is
+                # usable, so we keep it.
+                usable = match and (not match.ambiguous or match.grade_agreed)
+                matches.append(match if usable else None)
             record["rijal"] = match.to_dict() if match else None
         narrator_dicts.append(record)
 

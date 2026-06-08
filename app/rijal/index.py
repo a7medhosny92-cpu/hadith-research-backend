@@ -148,6 +148,7 @@ class RijalMatch:
     score: float
     ambiguous: bool
     alternatives: list[str]
+    grade_agreed: bool = True   # do all the tied candidates share one grade? (then it's usable)
 
     def to_dict(self) -> dict:
         return {
@@ -160,6 +161,7 @@ class RijalMatch:
             "source": self.entry.source,
             "match_score": self.score,
             "ambiguous": self.ambiguous,
+            "grade_agreed": self.grade_agreed,
             "alternatives": self.alternatives,
             "opinions": self.entry.opinions,
         }
@@ -250,23 +252,26 @@ class RijalIndex:
         if contained:
             contained.sort(key=lambda pair: -pair[0])
             top = contained[0][0]
-            best_e = contained[0][1]
-            alternatives = [e.name for s, e in contained if s == top and e.name != best_e.name]
-            return RijalMatch(best_e, 1.0, bool(alternatives), alternatives[:3])
+            group = [e for s, e in contained if s == top]
+            best_e = group[0]
+            alternatives = [e.name for e in group if e.name != best_e.name]
+            agreed = all(e.category == best_e.category for e in group)
+            return RijalMatch(best_e, 1.0, bool(alternatives), alternatives[:3], grade_agreed=agreed)
 
         if partial:
             # cover the query most; then prefer a *prefix* form (the cited ism+nasab) over one
             # where the shared tokens only coincide deeper in the name; then the shortest.
             partial.sort(key=lambda t: (-t[0], not t[1], t[2]))
-            top_cov, top_pref, _, best_e = partial[0]
+            top_cov, top_pref = partial[0][0], partial[0][1]
             # ambiguous only among equally-good readings (same cover AND prefix-ness): «عدي بن
             # حاتم» → عدي بن حاتم الطائي (the only prefix) is decisive, while «سعيد» → المسيب/جبير
-            # (both prefixes) stays مشترك for the chain/reader to resolve.
-            alternatives = [
-                e.name for cov, pref, ln, e in partial
-                if cov == top_cov and pref == top_pref and e.name != best_e.name
-            ]
-            return RijalMatch(best_e, 1.0, bool(alternatives), alternatives[:3])
+            # (both prefixes) stays مشترك. When the tied readings AGREE on the grade (الليث بن سعد
+            # of الكاشف vs تقريب — same man, both ثقة), that grade is still usable.
+            group = [e for cov, pref, ln, e in partial if cov == top_cov and pref == top_pref]
+            best_e = group[0]
+            alternatives = [e.name for e in group if e.name != best_e.name]
+            agreed = all(e.category == best_e.category for e in group)
+            return RijalMatch(best_e, 1.0, bool(alternatives), alternatives[:3], grade_agreed=agreed)
 
         return None
 

@@ -79,6 +79,22 @@ def test_ambiguous_match_is_held_not_graded_weak():
     assert "A" in codes and "W" not in codes               # belongs to «مشترك», not «متروك»
 
 
+def test_ambiguous_candidates_that_agree_keep_their_grade():
+    # «الليث بن سعد» appears twice (الكاشف + تقريب spellings of the same man), both ثقة. It's
+    # مشترك for display, but the agreed grade is usable — the chain must NOT be held «يُتوقَّف».
+    from app.qa.isnad import analyze_isnad, overall_ruling
+    rij = RijalIndex([
+        {"name": "الليث بن سعد المصري", "grade": "ثقة"},
+        {"name": "الليث بن سعد الفهمي", "grade": "ثقة"},
+        {"name": "نافع مولى ابن عمر", "grade": "ثقة"},
+        {"name": "عبد الله بن عمر بن الخطاب", "grade": "صحابي"},
+    ])
+    a = analyze_isnad("حدثنا الليث بن سعد، عن نافع، عن عبد الله بن عمر", rijal=rij)
+    layth = next(n for n in a.narrators if n["name"].startswith("الليث"))
+    assert layth["rijal"]["ambiguous"] and layth["rijal"]["grade_agreed"]
+    assert overall_ruling(a.to_dict())["tone"] in ("sahih", "hasan")   # agreed ثقة used, not held
+
+
 def test_kunya_alias_does_not_glue_onto_a_longer_name(rijal):
     # «أبو بكر بن أبي شيبة» (a 3rd-century حافظ) must NOT collapse into أبو بكر الصدّيق the
     # Companion just because «أبو بكر» is his kunya/alias — a teknonym matches reverse-only.

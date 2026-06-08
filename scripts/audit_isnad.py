@@ -76,9 +76,13 @@ def _flag_chain(narrators: list[dict]) -> list[tuple[str, str]]:
             continue
         grade = rij.get("grade") or ""
         verdict = rij.get("verdict") or ""
-        if grade == "صحابي" and i < n - _TWO_LAST:
+        # A confident grade = either a single match, or tied candidates that agree. An ambiguous
+        # match with disagreeing candidates (أبو إسحاق ↦ سعد الصحابي vs السبيعي الثقة; عثمان بن
+        # أبي شيبة ↦ ثقة vs متروك) is undecided — it belongs in «مشترك», not a «صحابي»/«متروك» flag.
+        certain = (not rij.get("ambiguous")) or rij.get("grade_agreed")
+        if grade == "صحابي" and i < n - _TWO_LAST and certain:
             out.append(("S", f"«{name}» (الحلقة {i+1}/{n}) حُكم له «صحابي» وموضعه ليس آخر السند"))
-        if any(w in verdict for w in _WEAK) and len(name.split()) >= 3 and not rij.get("ambiguous"):
+        if any(w in verdict for w in _WEAK) and len(name.split()) >= 3 and certain:
             out.append(("W", f"«{name}» (اسمٌ كامل) حُكم له «{verdict}» — يُحتمل خلطٌ باسمٍ مشابه"))
         if rij.get("ambiguous"):
             alts = "، ".join(rij.get("alternatives") or [])
