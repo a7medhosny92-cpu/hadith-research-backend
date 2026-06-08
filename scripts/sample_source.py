@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import re
 from pathlib import Path
 
 from app.config import get_settings
@@ -79,18 +80,31 @@ def _entries(full: str, limit: int) -> list[str]:
     return out
 
 
+# Diacritics/tatweel the prose source sprinkles between letters («سُفْيَان بْن سَعِيد»).
+_DIAC = "[\u0617-\u061A\u064B-\u0652\u0670\u0640]*"
+
+
+def _name_re(name: str):
+    """A regex matching ``name`` tolerant of the diacritics/tatweel the source carries."""
+    return re.compile("".join(r"\s+" if ch == " " else re.escape(ch) + _DIAC for ch in name))
+
+
 def _entry_for(full: str, bounds: list, name: str, cap: int) -> str:
-    """The tarjama whose HEAD names ``name`` (so we land on his entry, not a passing mention);
-    fall back to a window around the first occurrence. Capped at ``cap`` chars."""
+    """The tarjama whose OWN name is ``name`` — the name right after the «رموز:» of an entry head,
+    NOT a passing mention as a شيخ/تلميذ later. Diacritic-tolerant; window fallback."""
+    rx = _name_re(name)
     for i, m in enumerate(bounds):
         end = bounds[i + 1].start() if i + 1 < len(bounds) else len(full)
-        if name in full[m.end(): min(end, m.end() + 260)]:  # the name heads THIS entry (no spill)
+        head = full[m.end(): min(end, m.end() + 120)]
+        c = head.find(":")                                  # «NNNN - رموز: NAME» → skip the rumūz
+        rest = head[c + 1:] if 0 <= c <= 40 else head
+        if rx.match(rest.lstrip(" ،")):
             return full[m.start(): min(end, m.start() + cap)].strip()
-    idx = full.find(name)
-    if idx < 0:
+    mo = rx.search(full)                                     # fallback: any occurrence (a window)
+    if not mo:
         return ""
-    lo = full.rfind("\n", 0, max(0, idx - 150)) + 1
-    return full[lo: idx + cap].strip()
+    lo = full.rfind("\n", 0, max(0, mo.start() - 150)) + 1
+    return full[lo: mo.start() + cap].strip()
 
 
 def main() -> None:
