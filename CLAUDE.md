@@ -19,7 +19,7 @@ Depth docs (NOT auto-loaded — open when relevant):
 ## How it runs (operational — I got this wrong once; get it right from the file)
 - **`update.bat`** (double-click) → `python -m scripts.update`: an **8-step pipeline, not just git
   pull** — checkout main → `git pull --ff-only` → deps → **download books** → parse → index → build
-  narrator graph → **build_rijal**.
+  narrator graph → **build_rijal** → **audit** (regenerates `data/audit.json`, the «التدقيق» tab).
   - Downloads are **incremental & resumable** (`data/raw/turath/manifest.json`; already-complete
     books are skipped). It does **not** re-download what's cached.
   - Parse / index / build_rijal **re-run every time** (idempotent) on the cached books — so a code
@@ -30,7 +30,7 @@ Depth docs (NOT auto-loaded — open when relevant):
   تقريب(8609)+الكاشف(2171). `--no-download` re-parses cached books only (fast — applies an
   extraction fix in seconds without the full update).
 - **`python -m scripts.audit_isnad`** → rescans all chains → `data/audit.json` (the «التدقيق» tab).
-  **Not run by update.bat** — run manually to get fresh W/S/A numbers.
+  **Run by update.bat as its final step** (so a plain update refreshes W/S/A); also runnable standalone.
 - **`python -m scripts.measure_dedup [--input f.jsonl]`** → read-only: how much of «مشترك» is the
   same man twice vs genuine homonymy.
 - **`python -m scripts.sample_source <id> [--entries N|--find "name"|--pages A-B] --out f.txt`** →
@@ -39,7 +39,7 @@ Depth docs (NOT auto-loaded — open when relevant):
 - The user runs everything on their PC with `.venv\Scripts\python.exe`.
 
 ## Environment & data
-- Ephemeral cloud container: resets to an older commit and **wipes gitignored `data/`**. This
+- Ephemeral cloud container: resets to an **older commit** and **wipes gitignored `data/`**. **GUARD: after a reset, `git fetch origin <branch> && git reset --hard origin/<branch>` and verify HEAD BEFORE reasoning about code — a stale checkout made me misstate update.bat more than once (e.g. "it doesn't run the audit", when it does).** This
   container usually has only a tiny sample rijal; the **user uploads** real files (e.g. the full
   `data/rijal.jsonl`) when a measurement needs them.
 - turath.io is often **unreachable from here** → can't rebuild the corpus in the container; the user
