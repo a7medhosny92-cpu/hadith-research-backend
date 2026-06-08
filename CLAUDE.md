@@ -49,7 +49,11 @@ Depth docs (NOT auto-loaded — open when relevant):
 - **Reply to the user in ITALIAN** (domain terms stay Arabic).
 - **Develop on the feature branch, then MERGE TO MAIN via PR.** `update.bat` pulls `main`, so a fix
   stranded on the branch never reaches the user (this caused real "why is the audit identical?"
-  confusion). The user has approved this merge-to-main workflow.
+  confusion). The user has approved this merge-to-main workflow. We **squash-merge**.
+- **After every squash-merge, REALIGN the branch** — squash rewrites history, so branch and main
+  diverge and the *next* PR hits merge conflicts on re-edited files (CLAUDE.md/docs). Immediately run
+  `git fetch origin main && git reset --hard origin/main && git push --force-with-lease origin <branch>`
+  so work stays linear (cost me a real conflict-resolution once before I learned this).
 - Branch: `claude/intelligent-bardeen-HAsrg`. Repo (MCP scope): `a7medhosny92-cpu/review-backend`.
 - Tests: `PYTHONPATH=. python3 -m pytest -q`. CI also runs `node --check` on the `<script>` extracted
   from `index.html` — keep it valid JS. Update the in-app «المنهجية»/«البنية» pages when behaviour changes.
