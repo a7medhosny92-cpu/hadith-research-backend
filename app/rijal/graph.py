@@ -285,8 +285,14 @@ class NarratorGraph:
                 resolved[i] = named if name_tokens(cand) == name_tokens(anchor) else cand
 
         ids = [self._node_id(x) if x else None for x in resolved]
-        for student, teacher in zip(ids, ids[1:]):
+        for i in range(len(ids) - 1):
+            student, teacher = ids[i], ids[i + 1]
             if not student or not teacher or student == teacher:
+                continue
+            # the Prophet ﷺ narrates from no one — he is only ever a شيخ (terminal). A pair with
+            # him as the التلميذ means a parse error left «النبي» mid-chain; drop the bogus edge so
+            # it can't become spurious company (and make him a «student» in the network).
+            if resolved[i] == PROPHET_NODE:
                 continue
             self._con.execute(
                 "INSERT INTO link (teacher, student, weight) VALUES (?, ?, 1) "

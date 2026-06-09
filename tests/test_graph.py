@@ -25,6 +25,18 @@ def test_prophet_variants_collapse_to_one_node():
     assert teachers[0]["count"] == 3
 
 
+def test_prophet_is_never_a_student_even_if_mid_chain():
+    """The Prophet ﷺ narrates from no one — he is only ever a شيخ. If a parse error leaves
+    «النبي» mid-chain, the bogus «Prophet narrates from X» edge is dropped, while the real
+    «X narrates from the Prophet» edge is kept (so he never becomes a student in the network)."""
+    g = NarratorGraph(":memory:")
+    g.add_chain(["مالك", "عمر بن الخطاب", "النبي صلى الله عليه وسلم", "أبو هريرة"])
+    g.commit()
+    assert g.teachers("النبي") == []                                        # he is no one's student
+    assert {t["name"] for t in g.teachers("عمر بن الخطاب")} == {"النبي ﷺ"}   # but he IS عمر's شيخ
+    assert "عمر بن الخطاب" in {s["name"] for s in g.students("النبي")}
+
+
 def test_kinship_resolves_to_real_ancestors_not_a_hub():
     g = NarratorGraph(":memory:")
     g.add_chain(["عمرو بن شعيب", "أبيه", "جده", "النبي"])
