@@ -104,11 +104,24 @@ _NAME_CUT = re.compile(
     r"تزوجت|تزوجها|ولي|وليت|بايع|أدرك|صحب|صحبت|ذكره|ذكرها|والد|والدة|مولى|ولأبيه|خليفة)\s"
 )
 # ضبط fragments (orthography notes) stripped from the name.
-_NOISE = re.compile(
-    r"(?<!\w)(?:بفتح|بضم|بكسر|بسكون|بالفتح|بالضم|بالكسر|بالتشديد|بالتخفيف|مصغر|مكبر|"
-    r"المهملة|المعجمة|الموحدة|المثناة|المثلثة|التحتانية|الفوقانية|الساكنة|"
-    r"وسكون|وفتح|وكسر|وضم|وتشديد|وتخفيف|ثقيلة|خفيفة)(?!\w)"
-)
+# ضبط fragments (orthography notes) interleaved INSIDE the name and stripped from it — تقريب
+# writes «… البابلتي بموحدتين ولام مضمومة ومثناة ثقيلة أبو سعيد الحراني …», where the run between
+# «البابلتي» and «أبو سعيد» is pure ضبط. Three classes, all whole-word: vowel/weight markers (with
+# their بـ/و/ال forms), letter-class names (موحّدة/مثنّاة …), and letter NAMES — but the bare letter
+# names (نون/لام/كاف …) double as nothing here yet ARE risky, so they are stripped ONLY when prefixed
+# بـ/و/ال («ولام»، «بكاف»), which is unambiguously ضبط and never a real name token.
+_DABT_FIXED = ("بفتح بضم بكسر بسكون بالفتح بالضم بالكسر بالتشديد بالتخفيف وفتح وضم وكسر وسكون "
+               "وتشديد وتخفيف مصغر مكبر مصغرا مكبرا بعدها بعده أوله اوله آخره اخره").split()
+_DABT_ADJ = ("مفتوحة مضمومة مكسورة ساكنة مشددة مخففة ثقيلة خفيفة مهملة معجمة موحدة موحّدة "
+             "موحدتين مثناة مثلثة تحتانية فوقانية").split()
+_DABT_LETTERS = ("ألف الف باء تاء ثاء جيم حاء خاء دال ذال راء زاي سين شين صاد ضاد طاء ظاء عين "
+                 "غين فاء قاف كاف لام ميم نون هاء همزة").split()
+_DABT = set(_DABT_FIXED)
+for _w in _DABT_ADJ:
+    _DABT |= {_w, "و" + _w, "ب" + _w, "ال" + _w}
+for _l in _DABT_LETTERS:
+    _DABT |= {"و" + _l, "ب" + _l, "ال" + _l, "وال" + _l, "بال" + _l}   # prefixed letter names only
+_NOISE = re.compile(r"(?<!\w)(?:" + "|".join(sorted(_DABT, key=len, reverse=True)) + r")(?!\w)")
 _KUNYA = re.compile(r"(?<!\w)(أبو|أبا|أبي|أم)\s+(\S+)")
 # Words that, right before «أبو/أبي/أم …», make it a RELATIVE's kunya, not the subject's:
 # a father in the nasab («محمد بن أبي بكر») or a kin reference («… ابن خالة أبي ذر»).

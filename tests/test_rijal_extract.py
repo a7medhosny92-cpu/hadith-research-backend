@@ -114,6 +114,18 @@ def test_death_year_century_recovered_from_tabaqa():
     assert dy("محمد بن إسماعيل البخاري إمام من الحادية عشرة مات سنة ست وخمسين ومائتين") == 256
 
 
+def test_dabt_orthography_notes_stripped_from_name():
+    """تقريب interleaves ضبط (orthography) notes INSIDE the name; they are stripped while the kunya
+    and nisba that follow them survive («… البابلتي بموحدتين ولام مضمومة ومثناة ثقيلة أبو سعيد الحراني»)."""
+    from app.parsing.rijal_extract import _entry_to_record
+    r = _entry_to_record(1, "يحيى بن عبد الله بن الضحاك البابلتي بموحدتين ولام مضمومة ومثناة ثقيلة "
+                            "أبو سعيد الحراني ضعيف من التاسعة مات سنة ثماني عشرة", "تقريب التهذيب")
+    assert r is not None
+    for junk in ("بموحدتين", "ولام", "مضمومة", "ومثناة", "ثقيلة"):
+        assert junk not in r["name"]
+    assert "البابلتي" in r["name"] and "الحراني" in r["name"]   # the real name parts survive
+
+
 def test_lookup_resolves_isnad_names():
     idx = RijalIndex(_records())
     assert idx.lookup("جابر بن يزيد الجعفي").entry.category == "ضعيف"
