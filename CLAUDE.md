@@ -40,8 +40,10 @@ Depth docs (NOT auto-loaded — open when relevant):
   `--mode chains` → `data/chains_llm.jsonl` (re-segment isnād/matn only for chains the regex flags
   suspicious). The LLM only **transcribes/segments verbatim**; every record is **validated against
   the source and rejected** (→ regex fallback) otherwise. Cache by hash; `--dry-run`/`--sample` to
-  preview. **Auto-used by the pipeline when the files exist** (GATED → absent = pure regex pipeline):
-  `build_rijal` merges the rijal, `build_graph` adds the network to `canon._pick`'s company,
+  preview. **`update.bat` runs it automatically when an LLM engine is configured** (`llm_default_engine
+  != off`, mirroring auto-semantic — `--llm`/`--no-llm` force it; the step is **non-fatal** so a missing
+  engine/book never breaks the update), then **auto-folds the output in** (GATED → absent = pure regex
+  pipeline): `build_rijal` merges the rijal, `build_graph` adds the network to `canon._pick`'s company,
   `parse` overrides the flagged chains. See `app/rijal/llm_source.py`.
 - **`python -m scripts.audit_isnad`** → rescans all chains → `data/audit.json` (the «التدقيق» tab).
   **Run by update.bat as its final step** (so a plain update refreshes W/S/A); also runnable standalone.

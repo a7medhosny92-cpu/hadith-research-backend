@@ -28,9 +28,14 @@ ROOT = Path(__file__).resolve().parent.parent
 PY = sys.executable
 
 
-def step(title: str, cmd: list[str]) -> None:
+def step(title: str, cmd: list[str], *, fatal: bool = True) -> None:
     print(f"\n=== {title} ===\n$ {' '.join(cmd)}")
     if subprocess.run(cmd, cwd=ROOT).returncode != 0:
+        if not fatal:
+            # an optional step (e.g. the LLM pass with no engine / books not yet downloaded) must not
+            # break the update — the pipeline falls back to the regex path (the LLM fold-in is gated).
+            print(f"\n[~] Optional step skipped: {title} — continuing without it.")
+            return
         print(f"\n[!] Step failed: {title}\n    Fix the issue above, then run the update again.")
         sys.exit(1)
 
@@ -44,12 +49,22 @@ def main() -> None:
     ap.add_argument("--semantic", action="store_true",
                     help="also (re)build the semantic vector index for «smart» search "
                          "(installs the 'embeddings' extra; the first run downloads a model)")
+    ap.add_argument("--llm", action="store_true",
+                    help="run the LLM extraction (rijal network + chain segmentation) before parsing")
+    ap.add_argument("--no-llm", action="store_true",
+                    help="skip the LLM extraction even if an engine is configured")
     args = ap.parse_args()
 
+    settings = get_settings()
     # Keep the semantic index aligned automatically: once it's been built, a re-index
     # reassigns row ids, so every update must re-embed (incrementally — fast). --semantic
     # forces it on (and installs the embeddings extra) for the first-time setup.
-    semantic = args.semantic or get_settings().vector_index_path.exists()
+    semantic = args.semantic or settings.vector_index_path.exists()
+    # The LLM extraction (scripts.build_rijal_llm) is folded in like auto-semantic: it runs whenever
+    # an LLM engine is configured (`llm_default_engine != off`) — so «we use LLM» simply happens —
+    # producing the rijal+network and clean-chain files the (gated) pipeline then consumes. Faithful,
+    # cached and resumable, so re-runs are cheap; --llm / --no-llm force it on / off.
+    run_llm = (args.llm or settings.llm_default_engine != "off") and not args.no_llm
 
     # Always update from main, even if a previous session left the checkout on another
     # branch — otherwise `git pull` would fast-forward the wrong branch and silently miss
@@ -70,6 +85,16 @@ def main() -> None:
     ingest += (["--categories", "6", "7", "8", "9", "10", "26"] if args.full
                else ["--priority", "--with-commentaries"])
     step("4/8  Download new/updated books (resumable — may take a while)", ingest)
+    # LLM extraction BEFORE parse, so parse/build_rijal/build_graph all see the data. The FIRST run
+    # is heavy (one call per tarjama / per suspicious chain) but cached & resumable — re-runs are
+    # cheap, and every record is faithfulness-validated (an unfaithful answer falls back to the regex).
+    if run_llm:
+        llm = [PY, "-X", "utf8", "-m", "scripts.build_rijal_llm"]
+        eng = ["--engine", "remote"] if settings.llm_default_engine == "off" else []
+        step("+ LLM رجال  (شيوخ/تلاميذ network + grades — faithful, cached)",
+             llm + ["--mode", "rijal"] + eng, fatal=False)
+        step("+ LLM إسناد  (re-segment only the chains the regex mis-split — faithful, cached)",
+             llm + ["--mode", "chains"] + eng, fatal=False)
     step("5/8  Parse raw pages into structured JSONL", [PY, "-X", "utf8", "-m", "scripts.parse"])
     step("6/8  Rebuild the search indexes", [PY, "-X", "utf8", "-m", "scripts.index"])
     step("7/8  Build the narrator network", [PY, "-X", "utf8", "-m", "scripts.build_graph"])
@@ -84,7 +109,8 @@ def main() -> None:
     # Refresh the isnad-audit report (the «التدقيق» review tab) so it reflects the new data.
     step("+ تدقيق  Build the isnad audit report (review tab)",
          [PY, "-X", "utf8", "-m", "scripts.audit_isnad"])
-    print("\nDone — code, corpus and indexes are all up to date.")
+    print(f"\nDone — code, corpus and indexes are all up to date"
+          f"{' (incl. the LLM rijal + chains)' if run_llm else ''}.")
 
 
 if __name__ == "__main__":
