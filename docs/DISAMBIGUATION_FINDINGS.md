@@ -181,14 +181,15 @@ student, generation. The three signals = that triangle.
   (`ambiguous=True`) instead of confidently يونس بن عبيد.
 - **«ultimo anello = صحابي»** (`isnad.py`, تمييز بالطبقة) — a name at the terminal (Companion) position
   matching a صحابي is graded صحابي. Result: «… عن أبي ذر» → **جندب بن جنادة الغفاري · صحابي** (was ثقة).
-- 279 tests green, + 3 new regression tests.
+- **`graph.resolve()` fallback is now order-aware** — it prefers the query as a **leading run** of the
+  node's ordered key, falling back to a token-subset only for nisba-only queries. `resolve('أنس')` →
+  **أنس بن مالك** (the Companion), not مالك بن أنس; «الزهري» → «محمد بن مسلم الزهري» still resolves.
+- **«نسبه»/«رماه» no longer force كذاب** (`rijal_extract.py` `_FALLBACK`) — the bare verbs are benign
+  («نسبه إلى تلقين», «رماه بالقدر»); only the accusation («إلى الكذب/بالوضع») grades كذاب. «الحسن بن
+  مدرك … لا بأس به» now **صدوق**, while «… نسبه إلى الكذب» stays **كذاب**.
+- 279 tests green, + regression tests.
 
 ## Open bugs (found by a bug-hunt pass — to fix next)
-- **[CRITICAL] `graph.resolve()` fallback is still order-insensitive** (`graph.py` ~311-315): the
-  containment fallback `q <= node.tokens` (set subset) + highest-`freq` makes `resolve('أنس بن مالك')` →
-  «مالك بن أنس». The `node_key` fix covers the *exact* match; the fallback must also require a **leading run**.
-- **[CRITICAL] «نسبه» → كذاب** (`rijal_extract.py` `_FALLBACK`): «الحسن بن مدرك … لا بأس به ونسبه أبو داود
-  إلى تلقين المشايخ» → graded **كذاب** (should be صدوق). Require «نسبه/رماه … إلى الكذب/بالكذب», not the bare verb.
 - **[HIGH] Bare theophoric ism mis-identified** (`rijal_extract.py`, `index.py`): «عبد الرحمن»/«عبد العزيز»
   fold to 2 tokens → escape the generic-name/single-token drops → `lookup('عبد الرحمن')` resolves
   **confidently** to a مجهول/ثقة. Treat «عبد/عبيد + الله/الرحمن/العزيز/الملك/…» as non-identifying when it
