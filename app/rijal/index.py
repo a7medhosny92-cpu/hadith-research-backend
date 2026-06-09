@@ -38,9 +38,12 @@ _STOP = {normalize_for_search(w) for w in (
     "قال قالت يقول سمع سمعت يحدث أنه حدثنا حدثني أخبرنا أخبرني عن نا ثنا يعني المنبر بن ابن"
 ).split()}
 # A query that, cleaned, is *only* one of these identifies no one — a bare kunya particle
-# (أبو/أبي/أبا), «أم», or «عبد». We refuse to match rather than guess: «أبي» would otherwise
-# hit «عائشة بنت أبي بكر» through «بنت أبي بكر», and «عبد» any «عبد الله».
-_NON_IDENTIFYING = {normalize_for_search(w) for w in "أبو أبي أبا أم عبد".split()}
+# (أبو/أبي/أبا), «أم», «عبد», or a 3rd-person KINSHIP possessive (أبيه/جده/أمه…). We refuse to
+# match rather than guess: «أبي» would else hit «عائشة بنت أبي بكر» through «بنت أبي بكر», «عبد»
+# any «عبد الله», and «أبيه» any entry that mentions «… واسم أبيه فلان».
+_NON_IDENTIFYING = {normalize_for_search(w) for w in (
+    "أبو أبي أبا أم عبد أبيه أمه جده جدته أخيه أخته عمه عمته خاله خالته ابنه بنته"
+).split()}
 
 
 def _clean_seq(name: str) -> list[str]:

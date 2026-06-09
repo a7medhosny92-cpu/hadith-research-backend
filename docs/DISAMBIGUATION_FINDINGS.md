@@ -187,7 +187,23 @@ student, generation. The three signals = that triangle.
 - **«نسبه»/«رماه» no longer force كذاب** (`rijal_extract.py` `_FALLBACK`) — the bare verbs are benign
   («نسبه إلى تلقين», «رماه بالقدر»); only the accusation («إلى الكذب/بالوضع») grades كذاب. «الحسن بن
   مدرك … لا بأس به» now **صدوق**, while «… نسبه إلى الكذب» stays **كذاب**.
+- **Deep Companion audit** (تمييز الصحابة) — across 13,538 chains, **8110** terminal Companions
+  recognised, **0** mis-identified. It surfaced three more fixes:
+  - **«صحابي» mid-chain → prefer the non-صحابي** (`isnad.py`, symmetric to the terminal rule): «جرير»
+    mid-chain → جرير بن عبد الحميد · ثقة (not جرير البجلي · صحابي); same for ابن وهب, ثابت, أبي إسحاق.
+  - **Accusative tanwin alif** (`normalize.py`): «جابرًا»/«مجاهدًا» now normalise to «جابر»/«مجاهد» and
+    resolve (were `None`) — the alif is dropped before the harakāt are stripped.
+  - **Kinship particles refused** (`index.py` `_NON_IDENTIFYING`): «أبيه»/«جده»/«أمه» no longer match an
+    entry that merely mentions them («جعفر بن أبي ثور واسم أبيه عكرمة»).
 - 279 tests green, + regression tests.
+
+### Open (from the Companion audit)
+- **[MED] Female / kunya Companions missing** — «أم عطية» (الأنصارية, صحابية) → `None`; the كنى/النساء
+  section escapes extraction.
+- **[MED] «بهذا الإسناد» back-references and «و» co-narrators** not parsed («الأعمش بهذا الإسناد»,
+  «محمد بن المثنى وابن بشار»; «و» itself taken as a narrator).
+- **[LOW] «أبيه»/«جده» not yet *resolved*** to the real ancestor at verdict time (currently only refused;
+  the graph's kinship anchoring runs at build time only).
 
 ## Open bugs (found by a bug-hunt pass — to fix next)
 - **[HIGH] Bare theophoric ism mis-identified** (`rijal_extract.py`, `index.py`): «عبد الرحمن»/«عبد العزيز»

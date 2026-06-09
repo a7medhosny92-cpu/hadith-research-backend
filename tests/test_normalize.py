@@ -24,3 +24,12 @@ def test_ta_marbuta_and_alef_maqsura_folded():
 
 def test_tatweel_removed():
     assert normalize_for_search("الحـــمد") == "الحمد"
+
+
+def test_accusative_tanwin_alif_dropped():
+    """A name in the accusative («جابرًا», «رأيت مجاهدًا») normalises to its base — the tanwin alif
+    is dropped before the harakāt are stripped, so it matches «جابر»/«مجاهد»."""
+    from app.parsing.normalize import strip_diacritics, normalize_for_search
+    assert strip_diacritics("جابرًا") == "جابر"
+    assert strip_diacritics("مجاهداً") == "مجاهد"
+    assert normalize_for_search("مجاهدًا") == normalize_for_search("مجاهد")
