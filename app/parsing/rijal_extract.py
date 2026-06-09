@@ -75,10 +75,22 @@ _PRIMARY = re.compile(
     r"(?<!\w)(?:ال)?(كذاب|وضاع|متهم|متروك|ساقط|هالك|ضعيف|واهٍ|واه|منكر|مجهول|مستور|لين|"
     r"مقبول|صدوق|ثقة|ثبت|حافظ|حجة|إمام|متقن|عدل|صحابي)(?!\w)"
 )
-# Companions: often no طبقة and sometimes no one-word رتبة.
+# Companions: often no طبقة and sometimes no one-word رتبة. تقريب grades the famous ones by
+# DESCRIPTION, not the word «صحابي» — ابن عباس is «ابن عم رسول الله ﷺ ولد قبل الهجرة …» with no
+# «صحابي» and no طبقة, so without these triggers a major Companion is mis-graded «غير معروف» (→ a
+# chain through him reads «راوٍ مجهول»). All phrases below entail صحبة; none fits a later تابعي
+# (who always carries a طبقة anyway, so this check is only reached for the un-graded, no-طبقة men).
 _COMPANION = re.compile(
-    r"(?<!\w)(صحابي|صحابية|له صحبة|شهد بدرًا|شهد بدرا|بدري|من السابقين|"
-    r"بايع تحت الشجرة|من أهل بدر|من المهاجرين الأولين)(?!\w)"
+    r"(?<!\w)(?:صحابي|صحابية|صحابيٌّ|صحبة|له رؤية|رأى النبي|رأى رسول الله|"
+    r"بدري|شهد بدرًا|شهد بدرا|شهد أحدًا|شهد أحدا|شهد الخندق|شهد الحديبية|شهد المشاهد|"
+    r"شهد بيعة الرضوان|بايع تحت الشجرة|شهد فتح مكة|شهد فتح|"
+    r"من السابقين|من المهاجرين|من الأنصار|من أهل بدر|"
+    r"وفد على النبي|وفد على رسول الله|له وفادة|"
+    r"ابن عم رسول الله|ابن عم النبي|ابن عمة رسول الله|"
+    r"صحب النبي|صحب رسول الله|صحبه النبي|"
+    r"خادم رسول الله|خادم النبي|خدم النبي|خدم رسول الله|"
+    r"ولد قبل الهجرة|ولد على عهد النبي|ولد على عهد رسول الله|"
+    r"من الصحابة|من أصحاب النبي|من أصحاب رسول الله|أحد الصحابة)(?!\w)"
 )
 # Narrative verdicts that replace a one-word رتبة. Includes al-Dhahabi's terse forms
 # in الكاشف («وثق», «ضعف», «لا بأس», «صويلح»). Checked in order; first hit wins.
@@ -293,7 +305,9 @@ def _extract_grade(body: str, before: str, has_tabaqa: bool) -> tuple[str, int]:
         ms = list(_PRIMARY.finditer(before, window_start)) or list(_PRIMARY.finditer(before))
         if ms:
             return " ".join(before[ms[-1].start():].split()[:5]), ms[-1].start()
-    if _COMPANION.search(body):
+    # a Companion has NO طبقة — so the (broad) Companion signal is trusted only when none is present,
+    # which keeps «شهد بدرًا»/«صحبة» in a later man's tarjama from mis-grading him صحابي.
+    if not has_tabaqa and _COMPANION.search(body):
         return "صحابي", len(before)
     ms = list(_PRIMARY.finditer(body))
     if ms:

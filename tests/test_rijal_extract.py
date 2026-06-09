@@ -54,6 +54,24 @@ def test_companion_not_misread_as_layyin():
     assert classify(bilal["grade"])[0] == "صحابي"
 
 
+def test_companion_graded_by_description_not_only_the_word():
+    """تقريب grades famous Companions by DESCRIPTION («ابن عم رسول الله»، «له ولأبيه صحبة»، «خادم
+    رسول الله»), not the word «صحابي» — without this, ابن عباس / أنس / أبو سعيد الخدري were mis-graded
+    «غير معروف» (a chain through them reading «راوٍ مجهول»). The signal is trusted ONLY when there is
+    no طبقة, so a later man whose tarjama merely mentions صحبة/بدر is never promoted to صحابي."""
+    from app.parsing.rijal_extract import _entry_to_record
+
+    def cat(body):
+        r = _entry_to_record(1, body, "تقريب التهذيب")
+        return classify(r["grade"])[0] if r else None
+
+    assert cat("عبد الله بن عباس بن عبد المطلب ابن عم رسول الله ولد قبل الهجرة بثلاث") == "صحابي"
+    assert cat("سعد بن مالك بن سنان الأنصاري أبو سعيد الخدري له ولأبيه صحبة واستصغر بأحد") == "صحابي"
+    assert cat("أنس بن مالك بن النضر الأنصاري خادم رسول الله خدمه عشر سنين") == "صحابي"
+    # GATE: a later man (carrying a طبقة) whose tarjama mentions a battle is NOT promoted to صحابي
+    assert cat("محمد بن فلان الكوفي كان أبوه ممن شهد بدرا ثقة من السابعة مات سنة ثمانين ومائة") == "ثقة"
+
+
 def test_name_does_not_swallow_the_biography():
     # تقريب Companion entries put the biography (death/events/titles) right after the name;
     # the name must stop at the first biographical cue, not absorb the whole tarjama. These
