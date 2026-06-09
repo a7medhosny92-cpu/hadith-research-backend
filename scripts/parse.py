@@ -55,6 +55,15 @@ def main() -> None:
         print("No downloaded books found. Run `python -m scripts.ingest` first.")
         return
 
+    # optional: a faithful LLM re-segmentation for the chains the regex mis-split (matn leaked into
+    # the terminal narrator). Gated — without scripts.build_rijal_llm the parse is unchanged.
+    llm_chains = None
+    llm_chains_path = settings.data_dir / "chains_llm.jsonl"
+    if llm_chains_path.exists():
+        from app.rijal.llm_source import load_llm_chains
+        llm_chains = load_llm_chains(llm_chains_path)
+        print(f"LLM chains: {len(llm_chains)} faithful re-segmentations will override the regex split")
+
     for book_id in book_ids:
         path = books_dir / f"{book_id}.json"
         if not path.exists():
@@ -76,7 +85,8 @@ def main() -> None:
             linked = sum(1 for p in passages if p.hadith_number is not None)
             print(f"sharh {book_id}: {len(passages)} passages ({linked} hadith-linked) → sharh/")
         else:
-            hadiths = parse_book_file(path, default_grade=SAHIH_BY_DEFAULT.get(book_id))
+            hadiths = parse_book_file(path, default_grade=SAHIH_BY_DEFAULT.get(book_id),
+                                      llm_chains=llm_chains)
             _dump(hadiths, out_dir / f"{book_id}.jsonl")
             with_matn = sum(1 for h in hadiths if h.matn)
             print(f"book {book_id}: {len(hadiths)} hadith ({with_matn} with matn)")

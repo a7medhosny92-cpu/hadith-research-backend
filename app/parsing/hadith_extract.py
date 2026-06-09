@@ -194,8 +194,13 @@ def _inherit_rimandi(hadiths: list[ParsedHadith]) -> None:
             h.matn_confidence = "ref"
 
 
-def parse_book_file(path: str | Path, *, default_grade: str | None = None) -> list[ParsedHadith]:
-    """Parse a downloaded ``{raw_dir}/books/{id}.json`` file into hadith records."""
+def parse_book_file(path: str | Path, *, default_grade: str | None = None,
+                    llm_chains: dict | None = None) -> list[ParsedHadith]:
+    """Parse a downloaded ``{raw_dir}/books/{id}.json`` file into hadith records.
+
+    ``llm_chains`` (optional, from :func:`app.rijal.llm_source.load_llm_chains`) replaces the regex
+    isnād/matn split with a faithful LLM re-segmentation for the chains the regex got wrong — gated,
+    so without it the result is exactly the regex parse."""
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     hadiths = list(
         iter_hadith(
@@ -206,4 +211,12 @@ def parse_book_file(path: str | Path, *, default_grade: str | None = None) -> li
         )
     )
     _inherit_rimandi(hadiths)   # reference entries inherit the matn they point back to
+    if llm_chains:
+        import dataclasses
+        from app.rijal.llm_source import text_key
+        hadiths = [
+            dataclasses.replace(h, isnad=seg["isnad"], matn=seg["matn"], matn_confidence="llm")
+            if (seg := llm_chains.get(text_key(h.text))) else h
+            for h in hadiths
+        ]
     return hadiths
