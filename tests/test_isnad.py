@@ -177,3 +177,18 @@ def test_midchain_sahabi_prefers_non_sahabi():
     a = analyze_isnad("حدثنا قتيبة عن جرير عن منصور عن إبراهيم", rijal=rijal)
     jarir = next(n for n in a.narrators if n["name"] == "جرير")
     assert jarir["rijal"]["grade"] == "ثقة"
+
+
+def test_penultimate_companion_from_companion_kept():
+    """صحابي عن صحابي: a younger Companion narrating from an older one (penultimate position) stays
+    صحابي — the mid-chain «prefer non-صحابي» rule applies only DEEPER (≤ terminal−2). «أنس عن أبي
+    بكر» keeps أنس بن مالك, not the tabi'i homonym أنس بن سيرين."""
+    from app.rijal.index import RijalIndex
+    rijal = RijalIndex([
+        {"name": "أنس بن مالك", "grade": "صحابي"},
+        {"name": "أنس بن سيرين", "grade": "ثقة"},
+        {"name": "أبو بكر الصديق", "kunya": "أبو بكر", "grade": "صحابي"},
+    ])
+    anas = next(n for n in analyze_isnad("حدثنا قتيبة عن أنس عن أبي بكر", rijal=rijal).narrators
+                if n["name"] == "أنس")
+    assert anas["rijal"]["grade"] == "صحابي"

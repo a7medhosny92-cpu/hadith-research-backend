@@ -190,7 +190,9 @@ student, generation. The three signals = that triangle.
 - **Deep Companion audit** (تمييز الصحابة) — across 13,538 chains, **8110** terminal Companions
   recognised, **0** mis-identified. It surfaced three more fixes:
   - **«صحابي» mid-chain → prefer the non-صحابي** (`isnad.py`, symmetric to the terminal rule): «جرير»
-    mid-chain → جرير بن عبد الحميد · ثقة (not جرير البجلي · صحابي); same for ابن وهب, ثابت, أبي إسحاق.
+    deep → جرير بن عبد الحميد · ثقة (not جرير البجلي · صحابي); same for ابن وهب, ثابت, أبي إسحاق. Applied
+    only **deep (≤ terminal−2)** so the **penultimate** link keeps **صحابي عن صحابي** (a younger Companion
+    narrating from an older one: «أنس عن أبي بكر», «ابن عباس عن عمر» — else أنس wrongly became أنس بن سيرين).
   - **Accusative tanwin alif** (`normalize.py`): «جابرًا»/«مجاهدًا» now normalise to «جابر»/«مجاهد» and
     resolve (were `None`) — the alif is dropped before the harakāt are stripped.
   - **Kinship particles refused** (`index.py` `_NON_IDENTIFYING`): «أبيه»/«جده»/«أمه» no longer match an

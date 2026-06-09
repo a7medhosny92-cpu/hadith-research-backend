@@ -236,10 +236,12 @@ def analyze_isnad(
                         from app.rijal.index import RijalMatch
                         match = RijalMatch(entry=sah[0], score=1.0, ambiguous=len(sah) > 1,
                                            alternatives=[c.name for c in sah[1:]], grade_agreed=(len(sah) == 1))
-                elif match is not None and i != terminal_idx and match.entry.category == "صحابي":
-                    # symmetric: a صحابي at a NON-terminal position is suspect — a Companion narrates
-                    # FROM the Prophet ﷺ, he does not sit mid-chain. Prefer a non-صحابي homonym
-                    # («جرير» → ابن عبد الحميد الثقة, not جرير بن عبد الله البجلي الصحابي).
+                elif match is not None and i < terminal_idx - 1 and match.entry.category == "صحابي":
+                    # symmetric, but only DEEP in the chain (≤ terminal−2): a صحابي narrating from a
+                    # later narrator is an anachronism → prefer a non-صحابي homonym («جرير» deep →
+                    # ابن عبد الحميد الثقة, not البجلي الصحابي). The penultimate link is left alone —
+                    # there a younger Companion legitimately narrates from an older one (صحابي عن
+                    # صحابي: «ابن عباس عن عمر», «أنس عن عبادة»).
                     other = [c for c in rijal.candidates(narrator.name) if c.category != "صحابي"]
                     if other:
                         from app.rijal.index import RijalMatch
