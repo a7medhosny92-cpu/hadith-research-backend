@@ -164,3 +164,16 @@ def test_terminal_link_prefers_sahabi_over_later_homonym():
     last = analyze_isnad("حدثنا فلان عن الأعمش عن أبي ذر", rijal=rijal).narrators[-1]["rijal"]
     assert last["name"] == "جندب بن جنادة الغفاري"
     assert last["grade"] == "صحابي"
+
+
+def test_midchain_sahabi_prefers_non_sahabi():
+    """Symmetric to the terminal rule: a صحابي match at a NON-terminal position is suspect — prefer
+    a non-صحابي homonym («جرير» mid-chain → ابن عبد الحميد الثقة, not جرير البجلي الصحابي)."""
+    from app.rijal.index import RijalIndex
+    rijal = RijalIndex([
+        {"name": "جرير بن عبد الله البجلي", "grade": "صحابي"},
+        {"name": "جرير بن عبد الحميد الضبي", "grade": "ثقة"},
+    ])
+    a = analyze_isnad("حدثنا قتيبة عن جرير عن منصور عن إبراهيم", rijal=rijal)
+    jarir = next(n for n in a.narrators if n["name"] == "جرير")
+    assert jarir["rijal"]["grade"] == "ثقة"

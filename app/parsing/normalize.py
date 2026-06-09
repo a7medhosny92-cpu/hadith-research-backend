@@ -21,6 +21,10 @@ _DIACRITICS = re.compile(r"[ؐ-ًؚ-ٰٟۖ-ۜ۟-۪ۨ-ۭ]")
 _TATWEEL = re.compile(r"ـ")            # ـ kashida
 _NON_ARABIC_WS = re.compile(r"[^ء-ي٠-٩\s]")
 _WS = re.compile(r"\s+")
+# Accusative tanwin ending («جابرًا» / «جابراً») — drop the alif so a name cited in the accusative
+# («سمعت جابرًا», «رأيت مجاهدًا») matches its base form «جابر»/«مجاهد». Tanwin is always word-final,
+# so this never touches a mid-word alif.
+_ACCUSATIVE = re.compile("ًا|اً")
 
 # Letter-folding applied only for search normalisation.
 _FOLD = str.maketrans(
@@ -43,6 +47,7 @@ _FOLD = str.maketrans(
 def strip_diacritics(text: str) -> str:
     """Remove tashkeel and tatweel but keep letters as written."""
     text = unicodedata.normalize("NFC", text)
+    text = _ACCUSATIVE.sub("", text)
     text = _DIACRITICS.sub("", text)
     text = _TATWEEL.sub("", text)
     return _WS.sub(" ", text).strip()

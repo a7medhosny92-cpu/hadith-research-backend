@@ -177,3 +177,12 @@ def test_api_verify_isnad_includes_gradings():
     assert analysis["rijal_assessment"]["known"] == 3
     assert analysis["narrators"][0]["rijal"]["grade"] == "ثقة"
     assert analysis["narrators"][0]["rijal"]["source"]  # attributed
+
+
+def test_kinship_particle_refused():
+    """A bare kinship possessive («أبيه»/«جده») identifies no one and must NOT match an entry that
+    merely mentions it («جعفر بن أبي ثور واسم أبيه عكرمة»)."""
+    from app.rijal.index import RijalIndex
+    r = RijalIndex([{"name": "جعفر بن أبي ثور واسم أبيه عكرمة", "grade": "مقبول"}])
+    assert r.lookup("أبيه") is None
+    assert r.lookup("جده") is None

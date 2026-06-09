@@ -236,6 +236,16 @@ def analyze_isnad(
                         from app.rijal.index import RijalMatch
                         match = RijalMatch(entry=sah[0], score=1.0, ambiguous=len(sah) > 1,
                                            alternatives=[c.name for c in sah[1:]], grade_agreed=(len(sah) == 1))
+                elif match is not None and i != terminal_idx and match.entry.category == "صحابي":
+                    # symmetric: a صحابي at a NON-terminal position is suspect — a Companion narrates
+                    # FROM the Prophet ﷺ, he does not sit mid-chain. Prefer a non-صحابي homonym
+                    # («جرير» → ابن عبد الحميد الثقة, not جرير بن عبد الله البجلي الصحابي).
+                    other = [c for c in rijal.candidates(narrator.name) if c.category != "صحابي"]
+                    if other:
+                        from app.rijal.index import RijalMatch
+                        cats = {c.category for c in other}
+                        match = RijalMatch(entry=other[0], score=1.0, ambiguous=len(other) > 1,
+                                           alternatives=[c.name for c in other[1:]], grade_agreed=(len(cats) == 1))
                 # An ambiguous match whose candidates DISAGREE on the grade (عثمان بن أبي شيبة:
                 # ثقة vs a متروك namesake) is no confident identification — count him as
                 # undetermined (يُتوقَّف), while the card still shows the candidates. But when the
