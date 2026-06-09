@@ -193,6 +193,7 @@ class _Node:
     name: str
     tokens: frozenset[str]
     freq: int
+    seq: tuple[str, ...] = ()   # ORDERED key tokens — «أنس بن مالك» ≠ «مالك بن أنس»
 
 
 class NarratorGraph:
@@ -301,7 +302,7 @@ class NarratorGraph:
     def _nodes(self) -> list[_Node]:
         if self._nodes_cache is None:
             self._nodes_cache = [
-                _Node(id=r[0], name=r[2], tokens=frozenset(r[1].split()), freq=r[3])
+                _Node(id=r[0], name=r[2], tokens=frozenset(r[1].split()), freq=r[3], seq=tuple(r[1].split()))
                 for r in self._con.execute("SELECT id, norm, name, freq FROM narrator")
             ]
         return self._nodes_cache
@@ -317,12 +318,22 @@ class NarratorGraph:
             (node_key(name),),
         ).fetchone()
         if exact:
-            return _Node(id=exact[0], name=exact[2], tokens=frozenset(exact[1].split()), freq=exact[3])
-        best: _Node | None = None
+            return _Node(id=exact[0], name=exact[2], tokens=frozenset(exact[1].split()),
+                         freq=exact[3], seq=tuple(exact[1].split()))
+        # Prefer a node where the query is the LEADING RUN of the ordered key (the natural
+        # identity) — «أبو هريرة» → «أبو هريرة الدوسي», but «أنس بن مالك» / bare «أنس» must NOT
+        # land on «مالك بن أنس» (anagram). Fall back to a plain token-subset (nisba-only queries
+        # like «الزهري» → «محمد بن مسلم الزهري») only when no leading-run node exists.
+        qseq = tuple(node_key(name).split())
+        lead = sub = None
         for node in self._nodes():
-            if q <= node.tokens and (best is None or node.freq > best.freq):
-                best = node
-        return best
+            if node.seq[: len(qseq)] == qseq:
+                if lead is None or node.freq > lead.freq:
+                    lead = node
+            elif q <= node.tokens:
+                if sub is None or node.freq > sub.freq:
+                    sub = node
+        return lead or sub
 
     def _neighbours(self, node_id: int, *, as_teacher: bool, limit: int | None) -> list[dict]:
         col, other = ("teacher", "student") if as_teacher else ("student", "teacher")
