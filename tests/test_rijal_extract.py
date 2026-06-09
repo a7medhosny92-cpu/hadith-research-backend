@@ -159,6 +159,16 @@ def test_dabt_orthography_notes_stripped_from_name():
     assert "البابلتي" in r["name"] and "الحراني" in r["name"]   # the real name parts survive
 
 
+def test_hamza_inconsistent_imam_grade_recovered():
+    """al-Dhahabī grades his top men «الإمام», but al-Kashif's source is hamza-inconsistent and writes
+    «الامام» (bare alef); a hamza-exact «إمام» missed مالك/الشافعي/أحمد → «غير معروف». Hamza-tolerant
+    matching recovers the grade."""
+    from app.parsing.rijal_extract import _entry_to_record
+    r = _entry_to_record(1, "مالك بن أنس الأصبحي أبو عبد الله الامام عن نافع والزهري "
+                            "وعنه ابن مهدي توفي سنة تسع وسبعين ومائة", "الكاشف")
+    assert classify(r["grade"])[0] == "ثقة"
+
+
 def test_lookup_resolves_isnad_names():
     idx = RijalIndex(_records())
     assert idx.lookup("جابر بن يزيد الجعفي").entry.category == "ضعيف"

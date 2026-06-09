@@ -71,9 +71,12 @@ def _century_from_tabaqa(year: int, tabaqa: int | None) -> int:
 
 # The leading operative term of a verdict (مراتب الجرح والتعديل), as whole words.
 # An optional «ال» lets al-Dhahabī's «الحافظ»/«الإمام»/«الثقة» count as the verdict.
+# «[إا]مام» / «[أا]علام»: al-Dhahabī grades his top men «الإمام» / «أحد الأعلام», but the al-Kashif
+# source is hamza-inconsistent (writes «الامام» bare), so a hamza-exact «إمام» missed مالك/الأعمش →
+# «غير معروف». Hamza-tolerant alternatives recover them (the index matcher already folds hamza).
 _PRIMARY = re.compile(
     r"(?<!\w)(?:ال)?(كذاب|وضاع|متهم|متروك|ساقط|هالك|ضعيف|واهٍ|واه|منكر|مجهول|مستور|لين|"
-    r"مقبول|صدوق|ثقة|ثبت|حافظ|حجة|إمام|متقن|عدل|صحابي)(?!\w)"
+    r"مقبول|صدوق|ثقة|ثبت|حافظ|حجة|[إا]مام|[أا]علام|متقن|عدل|صحابي)(?!\w)"
 )
 # Companions: often no طبقة and sometimes no one-word رتبة. تقريب grades the famous ones by
 # DESCRIPTION, not the word «صحابي» — ابن عباس is «ابن عم رسول الله ﷺ ولد قبل الهجرة …» with no
