@@ -163,27 +163,42 @@ def _death_year(body: str) -> int | None:
     m = re.search(r"(?<!\w)(?:مات|توفي|توفى|توفّي)\b", body)
     if not m:
         return None
-    seg = body[m.start(): m.start() + 45]
-    # الكاشف writes the year in digits («توفي ١٧١»); take the first 2–3 digit run.
-    digits = re.search(r"[\d٠-٩۰-۹]{2,3}", seg)
-    if digits:
-        year = arabic_digits_to_int(digits.group(0))
+    seg = body[m.start(): m.start() + 50]
+    # The death YEAR follows «سنة» («مات سنة ٢٥٠» / «سنة سبع عشرة»); an AGE precedes it («مات وله
+    # ٨٧ سنة», «ابن نيف وسبعين سنة») — never read the age as a year. So anchor on a «سنة» that is
+    # FOLLOWED by a number (digit or spelled year-word), skipping an age «سنة» (preceded by one).
+    for sm in re.finditer(r"\bسنة\b", seg):
+        rest = seg[sm.end():].lstrip()
+        digits = re.match(r"([\d٠-٩۰-۹]{2,3})\b", rest)
+        if digits:                                   # «مات سنة ٢٥٠» (al-Kashif digit year)
+            year = arabic_digits_to_int(digits.group(0))
+            if year and 10 <= year <= 400:
+                return year
+        take: list[str] = []                          # «مات سنة سبع عشرة ومائة» (Taqrib spelled year)
+        for tok in rest.split():
+            t = tok.lstrip("و")
+            if t in _UNITS or t in _TENS or t in _HUND or any(h in t for h in ("مائت", "مئت", "مائة", "مئة")):
+                take.append(tok)
+            elif take:
+                break
+            elif t in ("بضع", "نيف", "نحو"):
+                continue                              # «سنة بضع وأربعين» — a lead-in, keep scanning
+            else:
+                break                                 # not a year-word after «سنة» → an age clause; try next «سنة»
+        year = _parse_year(take)
+        if year:
+            return year
+    # No «سنة» (al-Kashif's bare «توفي ١٧١», or «مات في رمضان ١٧١»): the first 2–3 digit run that
+    # is NOT an age — reject a run right after an age word («مات وهو ابن ٨٧ سنة»).
+    for dm in re.finditer(r"[\d٠-٩۰-۹]{2,3}", body[m.end():]):
+        prev = body[m.end(): m.end() + dm.start()].split()
+        if prev and prev[-1].lstrip("و") in ("ابن", "له", "عن", "بلغ", "عاش", "نحو", "نيف", "بضع"):
+            continue
+        year = arabic_digits_to_int(dm.group(0))
         if year and 10 <= year <= 400:
             return year
-    # تقريب spells it out («مات سنة سبع عشرة»).
-    spelled = re.search(r"سنة\s+(.+)", seg)
-    if not spelled:
-        return None
-    take: list[str] = []
-    for tok in spelled.group(1).split():
-        t = tok.lstrip("و")
-        if t in _UNITS or t in _TENS or t in _HUND or any(h in t for h in ("مائت", "مئت", "مائة", "مئة")):
-            take.append(tok)
-        elif take:
-            break
-        elif tok not in ("بضع", "نيف", "نحو"):
-            break
-    return _parse_year(take)
+        break
+    return None
 
 
 def _aliases(body: str) -> list[str]:
