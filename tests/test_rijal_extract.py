@@ -87,6 +87,17 @@ def test_death_year_parsed():
     assert bukhari["death_year"] == 256
 
 
+def test_death_year_not_confused_with_age():
+    """The death YEAR follows «سنة» («مات سنة ٢٥٠»); an AGE precedes it («مات وله ٨٧ سنة»,
+    «ابن نيف وسبعين سنة») and must never be read as a year — a wrong year corrupts the
+    same-man dedup (death ±20)."""
+    from app.parsing.rijal_extract import _death_year
+    assert _death_year("ثقة مات سنة ٢٥٠ وله ٨٧ سنة") == 250                  # the year, not age 87
+    assert _death_year("ثقة مات وهو ابن ٨٧ سنة") is None                     # only an age → no year
+    assert _death_year("ثقة مات ابن نيف وسبعين سنة سنة خمسين ومائة") == 150  # age then the real year
+    assert _death_year("ثقة مات في رمضان ١٧١") == 171                        # bare digit, no «سنة»
+
+
 def test_lookup_resolves_isnad_names():
     idx = RijalIndex(_records())
     assert idx.lookup("جابر بن يزيد الجعفي").entry.category == "ضعيف"
