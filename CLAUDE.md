@@ -34,6 +34,15 @@ Depth docs (NOT auto-loaded — open when relevant):
 - **`python -m scripts.build_rijal [--no-download]`** → rebuilds `data/rijal.jsonl` from
   تقريب(8609)+الكاشف(2171). `--no-download` re-parses cached books only (fast — applies an
   extraction fix in seconds without the full update).
+- **`python -m scripts.build_rijal_llm --mode rijal|chains [--engine local|remote] [--sample N] [--dry-run]`**
+  → **LLM-assisted, FAITHFUL** build-time extraction (the regex's long-tail cure). `--mode rijal` →
+  `data/rijal_llm.jsonl` (grade + **شيوخ/تلاميذ network** + death/kunya the terse regex drops);
+  `--mode chains` → `data/chains_llm.jsonl` (re-segment isnād/matn only for chains the regex flags
+  suspicious). The LLM only **transcribes/segments verbatim**; every record is **validated against
+  the source and rejected** (→ regex fallback) otherwise. Cache by hash; `--dry-run`/`--sample` to
+  preview. **Auto-used by the pipeline when the files exist** (GATED → absent = pure regex pipeline):
+  `build_rijal` merges the rijal, `build_graph` adds the network to `canon._pick`'s company,
+  `parse` overrides the flagged chains. See `app/rijal/llm_source.py`.
 - **`python -m scripts.audit_isnad`** → rescans all chains → `data/audit.json` (the «التدقيق» tab).
   **Run by update.bat as its final step** (so a plain update refreshes W/S/A); also runnable standalone.
 - **`python -m scripts.measure_dedup [--input f.jsonl]`** → read-only: how much of «مشترك» is the
@@ -86,6 +95,34 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
 
 ## Current work — KEEP UPDATED
 **Focus:** cut wrong isnad verdicts in «التدقيق» by identifying the narrator from the chain.
+
+**★ LATEST (2026-06-09, large session → #129).** Two arcs on main; user to run `update.bat` (and,
+optionally, `build_rijal_llm`) then send the new W/S/A.
+- **(A) Real-data fixes #117–#126** (each verified against the *source books*, not the tiny sample):
+  isnād boundaries + terminal-صحابي gated on `reaches_prophet` + ح-seam (#117) · death-year≠age (#118)
+  · Prophet-never-a-student graph guard (#119) · **century-from-طبقة (#122)** — ~74 % of تقريب death-years
+  were a century off («من العاشرة مات سنة ست وثلاثين» = 236, not 36), recovered from the طبقة (suspect
+  1663→110), which **unblocks the same-man dedup** · **راوٍ disambiguation (#123)** — «عمر»/«عبد الله» had
+  shown ONE conflated man with a generation-mixed network (عمر الصحابي with a شيخ who died 180y later); now
+  shows ALL candidates, and fixed the `candidates()` **>40 cap** that returned `[]` for exactly the commonest
+  names (added `max_results`; canon keeps the 40 default) · per-narration chains in search + ضبط-in-names
+  strip (#124) · **Companions graded by DESCRIPTION (#125)** — ابن عباس «ابن عم رسول الله», أبو سعيد «له
+  ولأبيه صحبة», أنس «خادم رسول الله» were «غير معروف» → صحابي (+79; gated on *no* طبقة) · **enmity ≠ كذاب
+  (#125)** — المهلب «من ثقات الأمراء … أعداؤه يرمونه بالكذب» → ثقة (a critic's own «رماه ابن معين بالكذب»
+  still stands) · **hamza-tolerant grades (#126)** — مالك/الشافعي/أحمد «الامام» in al-Kashif (source drops
+  the hamza) → ثقة.
+- **(B) The LLM strategy #127–#129 — root-cause cure for regex's long tail.** `scripts.build_rijal_llm` does
+  **FAITHFUL** extraction (transcribe/segment verbatim, every record validated against the source or
+  rejected→regex, cached): `--mode rijal` → grades + the **شيوخ/تلاميذ network** the terse books drop;
+  `--mode chains` → clean isnād/matn for the chains the regex leaks matn into. **Wired GATED into the
+  pipeline** (`app/rijal/llm_source.py`): build_rijal merges it, **build_graph adds the network to
+  `canon._pick`'s company** (the lever for the ~1,144 genuine homonyms), parse overrides the flagged chains.
+  No files present → byte-for-byte the regex pipeline. *Discovered the regex is a long-tail bug factory:
+  مالك بن أنس in al-Kashif came out of the regex with a truncated kunya, the network in the grade field, and
+  no death year — the LLM gets it right + the network.* **The known-but-unfixed matn-leaks** («عائشة جاءت
+  امرأة…», «في قوله تعالى ﴿…﴾», «قال فلان:»-start → 0 narrators) are the `--mode chains` target.
+
+**Below = the earlier (pre-#117) state, kept for history.**
 
 **Latest audit (user's, post matn-fix + تهذيب-graph, 89,520 chains · 10,519 rijal):**
 **W 833 / S 5783 / A 39,312**. vs the prior run (W 838 / S 5641 / A 40,281): **A −969** (تهذيب company
@@ -200,12 +237,13 @@ copy-all, takhrij narrations, isnad source, audit case detail; `volume` saved in
 added to the takhrij narration dict (`app/qa/takhrij.py`). Number-only audit citations left as-is
 (رقم is unambiguous). **Keep this rule for any NEW citation surface.**
 
-**Waiting on the user:** run `update.bat` **to completion** (step 2 pulls main → applies #102/#103
-**and this session's #117/#118/#119**; then parse+index rebuild, so the isnad-boundary fixes, the
-death-year fix and the cleaner graph land everywhere; it also rebuilds rijal and regenerates the
-audit) → then send the new **W/S/A** from the «التدقيق» tab for the true post-fix numbers. Those
-numbers gate the next move (`canon._pick` threshold tuning). (تهذيب samples no longer needed — the
-extractor is built; `sample_source 3722` stays only as a study tool.)
+**Waiting on the user:** run `update.bat` **to completion** (step 2 pulls main → applies **#117–#129**;
+then parse+index+rijal+graph+audit rebuild, so all the source-verified fixes — death-year century,
+Companions-by-description, hamza-imam, disambiguation, etc. — land everywhere and the dedup unblocks)
+→ send the new **W/S/A** from «التدقيق» for the true post-fix numbers. **Optionally first** run
+`scripts.build_rijal_llm --mode rijal|chains` (with a configured engine) to produce the LLM rijal+network
+and clean chains, which `update.bat` then auto-folds in (gated) — compare W/S/A regex-vs-LLM. Those
+numbers gate the next move (`canon._pick` threshold tuning; wiring the LLM network display into `/narrator`).
 
 ## App cleanup / UX — TODO (user asked to remember, 2026-06-08)
 The user runs **update.bat-only** and is overwhelmed by the pile of single-step launchers («perdo il

@@ -203,6 +203,12 @@ namesakes — a correctness concern, not just noise):
 1. truncated «… بن» (nasab cut off); 2. generic «عبد الله»/«عبيد الله»; 3. **single identifying
 token** («خالد»); 4. **bare ism+father with the gravest verdict** (كذاب/وضاع) lacking
 nisba/kunya/death-year. Output: `{name, grade, source:"… (رقم N)", kunya?, aliases?, death_year?}`.
+Grade robustness (verified on the real تقريب/الكاشف): **Companions are graded by DESCRIPTION** — `_COMPANION`
+catches «ابن عم رسول الله»/«صحبة»/«خادم رسول الله»/«شهد بدرًا»… (gated on *no* طبقة), so ابن عباس/أبو سعيد
+aren't «غير معروف»; a **كذب-accusation made out of enmity** («أعداؤه يرمونه بالكذب») is dropped, a critic's
+own «رماه فلان بالكذب» kept; **`[إا]مام`** is hamza-tolerant for al-Kashif's «الامام» (مالك/الشافعي → ثقة);
+and a <100 **death year is century-completed from the طبقة** («من العاشرة … ست وثلاثين» = 236). The
+remaining long tail is the job of `build_rijal_llm` (see §5).
 
 **`jarh_extract`** (الجرح والتعديل 2170) and **`tahdhib_extract`** (تهذيب الكمال 3722) extract a
 who-from-whom **network** + multi-critic verdicts for the graph:
@@ -317,6 +323,24 @@ canonical name → tokens of his شيوخ+تلاميذ) **only when the man reso
 `build_graph` merges these (and jarh's, via `_NETWORK_SOURCES = {3722, 2170}`) into the pass-1
 profiles, so `canon._pick` weighs al-Mizzī's / Ibn Abī Ḥātim's company to resolve «مشترك». Gated:
 absent book ⇒ byte-identical behaviour, no extra pipeline step.
+
+### `llm_source.py` — optional LLM-extracted رجال & chains *(the long-tail cure)*
+Regex over terse Arabic prose is a long-tail bug factory (a single session needed ~9 hand-coded
+fixes, and مالك بن أنس still came out of al-Kashif with a truncated kunya, the network in the grade
+field, and no death year). The cure is **`scripts/build_rijal_llm.py`** — a build-time, cached pass
+that uses the project's LLM (`config.py` engine) to **transcribe/segment, never author**:
+- `--mode rijal` → `data/rijal_llm.jsonl`: `{name, kunya, grade_word, category, death_year, tabaqa,
+  شيوخ[], تلاميذ[]}` — crucially the **network** the terse books drop.
+- `--mode chains` → `data/chains_llm.jsonl`: a clean isnād/matn/narrators segmentation, **only** for
+  chains the regex flags suspicious (`chain_is_suspicious`: 0 narrators, a verse ﴿…﴾ or matn word
+  leaked into the terminal node) — the clean majority stays on the fast regex path.
+
+**Faithfulness is enforced, not trusted** (it is نصّ الحديث + authoritative الجرح والتعديل): a grade
+word absent from the tarjama, or an isnād+matn that doesn't reconstruct the source token-for-token,
+is **rejected** (→ keep the regex). `app/rijal/llm_source.py` folds the output in, **all gated** —
+no files ⇒ pure regex pipeline: `build_rijal` merges `rijal_llm.jsonl`; `build_graph` adds
+`llm_associations` (network → `canon._pick` company, unambiguous men only); `parse_book_file(...,
+llm_chains=)` overrides the flagged chains by a tashkeel-stable `text_key`.
 
 ---
 
