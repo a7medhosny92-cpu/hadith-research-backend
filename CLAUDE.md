@@ -59,11 +59,15 @@ Depth docs (NOT auto-loaded — open when relevant):
   diverge and the *next* PR hits merge conflicts on re-edited files (CLAUDE.md/docs). Immediately run
   `git fetch origin main && git reset --hard origin/main && git push --force-with-lease origin <branch>`
   so work stays linear (cost me a real conflict-resolution once before I learned this).
-- Branch: `claude/intelligent-bardeen-HAsrg`. Repo (MCP scope): `a7medhosny92-cpu/review-backend`.
+- Branch: `claude/intelligent-bardeen-HAsrg` — **we stay on this ONE branch** (the user deleted all
+  others on 2026-06-09; do not create new feature branches). Repo (MCP scope): `a7medhosny92-cpu/hadith-research-backend`.
+  NB: this container can push but **cannot delete remote branches** (the git proxy hangs up on `--delete`);
+  the user prunes from the GitHub UI.
 - Tests: `PYTHONPATH=. python3 -m pytest -q`. CI also runs `node --check` on the `<script>` extracted
   from `index.html` — keep it valid JS. Update the in-app «المنهجية»/«البنية» pages when behaviour changes.
 - **No model id / assistant identity** in commits, PRs, code, or any pushed artifact.
-- Commit/PR trailer: `https://claude.ai/code/session_01VLkYQkpBnrRwA5Wgu3UBB8`.
+- Commit/PR trailer: use the CURRENT session's trailer (the harness supplies it); latest was
+  `https://claude.ai/code/session_01Q4Em93bJfdgE2TVT3yeeXr`.
 - Don't open PRs unless asked — except the approved merge-to-main of our own fixes.
 
 ## The rijal matching model (so I don't re-derive it)
@@ -95,6 +99,26 @@ as confidently-wrong cases became honest «held مشترك»).
 `sample_source.py` (#88) · single-token + bare-grave junk drops (#89: kills خالد=صحابي,
 يونس بن محمد=كذاب, عبد الرحمن بن محمد=كذاب) · **matn-completeness fix (#102)** · **تهذيب network
 extractor + volume-in-citations (#103)**. (User must `update.bat` — which pulls main — to apply them.)
+
+**This session (2026-06-09) — landed on main, all with synthetic regression tests, suite green:**
+- **#117 isnad structural fixes:** (1) the terminal-صحابي promotion is now gated on `reaches_prophet`
+  — on a موقوف/مقطوع chain the last link need not be a Companion, so الأسود النخعي (تابعي ثقة) is no
+  longer force-promoted to الأسود بن سريع الصحابي; أبو ذر still resolves صحابي via natural lookup
+  (verified). (2) back-reference «بهذا الإسناد/بإسناده», hadith-number markers «م - ٢٣٤٥» and lone
+  ramz letters no longer become narrator nodes. (3) action verbs (يخطب/يحدّث/يذكر…) are a soft matn
+  boundary (stop unless a transmission verb follows). (4) a تحويل (ح) is a **route seam**: the man
+  before and after it are no longer read as a link (`continuity`) nor used as each other's
+  disambiguation company (`canon`/`muhmal`).
+- **#118 رجال death-year vs AGE:** `_death_year` anchored on the «سنة» *followed* by a number, so
+  «مات وهو ابن ٨٧ سنة» (aged 87) is no longer read as death-year 87 (which corrupted same-man dedup).
+- **#119 graph anachronism guard:** the Prophet ﷺ is never a *student* — a mid-chain-parse «Prophet
+  narrates from X» edge is dropped (cleans the company data `canon._pick` reads).
+
+**Deferred — needs the user's real-data A measurement first:** `canon._pick` over-confidence (a unique
+winner on a *thin, single-token* overlap, esp. a generic nisba) is the next target, but tuning it
+blindly risks the resolution rate; decide the threshold AFTER the post-#117/#118/#119 `update.bat` A.
+The container has only a tiny sample rijal + full scans hit exit 144, so this MUST be measured on the
+user's machine.
 
 **Matn extraction fix (2026-06-08, PR #102 → main):** user saw «detti non completi» — e.g. al-Mustadrak
 ط الرسالة (book **1424**) #7514 «ادع تلك الشجرة» showed matn=«ادع تلك الشجرة» (17 chars) with the whole
@@ -176,11 +200,12 @@ copy-all, takhrij narrations, isnad source, audit case detail; `volume` saved in
 added to the takhrij narration dict (`app/qa/takhrij.py`). Number-only audit citations left as-is
 (رقم is unambiguous). **Keep this rule for any NEW citation surface.**
 
-**Waiting on the user:** run `update.bat` **to completion** (step 2 pulls main → applies #102/#103;
-then parse+index rebuild, so the matn fix and new citations land everywhere; it also rebuilds rijal
-and regenerates the audit) → then send the new W/S/A from the «التدقيق» tab for the true post-fix
-numbers. (تهذيب samples no longer needed — the extractor is built; `sample_source 3722` stays only as
-a study tool.)
+**Waiting on the user:** run `update.bat` **to completion** (step 2 pulls main → applies #102/#103
+**and this session's #117/#118/#119**; then parse+index rebuild, so the isnad-boundary fixes, the
+death-year fix and the cleaner graph land everywhere; it also rebuilds rijal and regenerates the
+audit) → then send the new **W/S/A** from the «التدقيق» tab for the true post-fix numbers. Those
+numbers gate the next move (`canon._pick` threshold tuning). (تهذيب samples no longer needed — the
+extractor is built; `sample_source 3722` stays only as a study tool.)
 
 ## App cleanup / UX — TODO (user asked to remember, 2026-06-08)
 The user runs **update.bat-only** and is overwhelmed by the pile of single-step launchers («perdo il
