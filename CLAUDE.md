@@ -12,6 +12,11 @@ single user. Stack: FastAPI + SQLite + sentence-transformers; desktop app via py
 vanilla-JS/SVG UI at `app/static/index.html`.
 
 Depth docs (NOT auto-loaded — open when relevant):
+- `docs/ARCHITECTURE.md` — **start here**: consolidated, code-accurate map of the whole system
+  (pipeline, parsing, رجال core, QA, search, API/UI, audit) + the identity-resolution strategy.
+- `docs/DISAMBIGUATION_FINDINGS.md` — remote Ṣaḥīḥayn-subset measurement session: the certainty
+  analysis + **the `canon._pick` silent-mis-identification bug** (يونس عن الزهري → wrongly يونس بن عبيد)
+  and the neighbour-roster fix. **Read before touching narrator disambiguation.**
 - `docs/ROADMAP.md` — forward plan. **Item 8 = rich rijal from تهذيب الكمال; item 2 = double-opinion.**
 - `docs/AUDIT.md` — the big code audit (findings GRD-/ISN-/RIJ-…, mostly since fixed).
 - `README.md` — overview & how to run.

@@ -50,6 +50,16 @@ def name_tokens(text: str) -> frozenset[str]:
     return frozenset(fold_kunya(normalize_for_search(text or "").split()))
 
 
+@lru_cache(maxsize=1 << 17)
+def node_key(text: str) -> str:
+    """The graph node's identity key: folded tokens in their ORIGINAL order. Order is
+    load-bearing — «أنس بن مالك» (a Companion, a *teacher* of al-Zuhrī) and «مالك بن أنس»
+    (the Imam, his *student*) share the same token set but are different men, so the key
+    must keep the sequence; a sorted key collapses them into one node. (The rijal index
+    is order-sensitive for the same reason — «يزيد بن جابر» ≠ «جابر بن يزيد».)"""
+    return " ".join(fold_kunya(normalize_for_search(text or "").split()))
+
+
 # Kinship words that are real in the text but not graph-able narrators: third-person
 # possessives (عن أبيه عن جده) AND first-person (حدثني أبي عن أمي), plus a bare kunya
 # particle (أبو/أبي/أبا on its own). Without the first-person forms, every «أبي» («my
@@ -202,7 +212,7 @@ class NarratorGraph:
 
     # ── building ──────────────────────────────────────────────────────────────
     def _node_id(self, name: str) -> int | None:
-        norm = " ".join(sorted(name_tokens(name)))
+        norm = node_key(name)
         if not norm:
             return None
         row = self._con.execute("SELECT id FROM narrator WHERE norm = ?", (norm,)).fetchone()
@@ -304,7 +314,7 @@ class NarratorGraph:
             return None     # empty, or a bare kinship particle (أبي/أبيه/جده) — no node
         exact = self._con.execute(
             "SELECT id, norm, name, freq FROM narrator WHERE norm = ?",
-            (" ".join(sorted(q)),),
+            (node_key(name),),
         ).fetchone()
         if exact:
             return _Node(id=exact[0], name=exact[2], tokens=frozenset(exact[1].split()), freq=exact[3])
