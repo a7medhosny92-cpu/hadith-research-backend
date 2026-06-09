@@ -412,7 +412,13 @@ function _varRow(m){
   const cite = citeOf(m);
   const g = m.grade ? `<span class="grade ${gradeClass(m.grade)}">${esc(m.grade)}</span>` : "";
   const text = m.matn ? `<div class="var-matn">${hlMatn(m.matn)}</div>` : "";
-  return `<div class="var-row"><div class="rawi-item"><span>${esc(cite)}</span>${g}</div>${text}</div>`;
+  // each narration shows its OWN chain (الإسناد), with its حكم loaded on demand — every طريق visible.
+  const chain = m.isnad
+    ? `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${esc(m.isnad)}</div>`
+      + `<div class="toggle" data-id="${m.id != null ? m.id : ""}" data-closed="عرض الحكم على الإسناد ▾" data-open="إخفاء الحكم ▴">عرض الحكم على الإسناد ▾</div>`
+      + `<div class="isnad"><div class="chain-verdict"></div></div>`
+    : "";
+  return `<div class="var-row"><div class="rawi-item"><span>${esc(cite)}</span>${g}</div>${text}${chain}</div>`;
 }
 function hadithCard(h, n){
   const cite = citeOf(h);
@@ -1391,7 +1397,8 @@ results.addEventListener("click", async e => {
   if(!e.target.classList.contains("toggle")) return;
   const t = e.target, box = t.nextElementSibling;
   const open = box.classList.toggle("show");
-  t.textContent = open ? "إخفاء الإسناد والحكم ▴" : "عرض الإسناد والحكم عليه ▾";
+  t.textContent = open ? (t.dataset.open || "إخفاء الإسناد والحكم ▴")
+                       : (t.dataset.closed || "عرض الإسناد والحكم عليه ▾");
   if(!open) return;
   const vbox = box.querySelector(".chain-verdict"), id = t.dataset.id;
   if(vbox && id && !vbox.dataset.loaded){
