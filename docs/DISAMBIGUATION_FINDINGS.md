@@ -171,7 +171,35 @@ student, generation. The three signals = that triangle.
   order; verified the two resolve to distinct nodes and land in the correct شيوخ/تلاميذ lists. This
   also de-noises the company signal that `canon._pick` consumes.
 
-## Fixed in this session
+## Fixed — 2026-06-09 session (#117 / #118 / #119)
+All landed on `main` with synthetic regression tests (291 green); the A-impact is to be **measured on
+the user's machine after `update.bat`** — the container has only a sample rijal and full scans hit exit 144.
+
+- **Terminal-صحابي promotion gated on `reaches_prophet`** (`isnad.py`, **#117**) — refines the earlier
+  «ultimo anello = صحابي» rule, which over-fired on **موقوف/مقطوع** chains: a تابعي giving his own مقطوع
+  (الأسود النخعي · ثقة) was force-promoted to the homonym الأسود بن سريع · صحابي — a *confident wrong*
+  identification, the very class we fight. Now the promotion fires **only when the chain actually ends
+  at the Prophet ﷺ**; a genuine Companion at a non-مرفوع terminal (أبو ذر) is still kept by his natural
+  lookup (`lookup("أبي ذر") → جندب الغفاري · صحابي`, verified), so nothing is lost. الأسود in his own
+  مقطوع is now honestly **held** (ambiguous), never a confident صحابي.
+- **Chain/matn boundaries tightened** (`isnad.py`, **#117**): (a) a back-reference «بهذا الإسناد /
+  بإسناده / بسنده» ends the chain (was: «الإسناد» became a bogus narrator node); (b) a hadith-number
+  cross-reference «م - ٢٣٤٥» and a lone ramz letter (خ م د ت س ق …) are dropped; (c) action verbs that
+  open a narrated scene (يخطب/يصلّي/يحدّث/يذكر…) are a **soft** matn boundary — they end the chain
+  *unless* a transmission verb follows, so «سمعته يحدّث عن أبيه» keeps the link while «كان يخطب الناس» stops.
+- **تحويل (ح) is a route seam** (`isnad.py`, **#117**) — the narrator before a ح and the one after it
+  are on different routes, so they are no longer read as a تلميذ→شيخ link (`continuity`) nor used as
+  each other's disambiguation company (`canon`/`muhmal`). The seam was a silent false link.
+- **Death-year ≠ age** (`rijal_extract.py::_death_year`, **#118**) — the parser took the first digit run
+  after مات/توفي anywhere, so «مات وهو ابن ٨٧ سنة» (died **aged** 87) became death-year 87, and a leading
+  age «سنة» («… سنة سنة خمسين ومائة») hid the real year 150. Now the year is anchored on the «سنة»
+  *followed* by a number, skipping an age «سنة»; the no-«سنة» al-Kashif form falls back to the first
+  non-age digit run. A wrong death year had been causing **false `dedup.same_man` merges** (death ±20).
+- **Prophet ﷺ is never a *student*** (`graph.py::add_chain`, **#119**) — a mid-chain-parse «Prophet
+  narrates from X» edge is dropped, keeping the real «X → Prophet» edge. Removes impossible edges that
+  polluted the company data `canon._pick` consumes.
+
+## Fixed — earlier arc (#111–#114, Companion audit)
 - **Graph node-key order** (`graph.py::node_key`) — «أنس بن مالك» ≠ «مالك بن أنس». *(merged #111)*
 - **Kunya from a relative** (`rijal_extract.py::_own_kunya`) — «خالد بن وهبان ابن خالة أبي ذر», «… أخو أبي بكر»,
   «… ختن أبي توبة», «محمد بن أبي بكر» no longer take a relative's / the father's kunya.
@@ -202,8 +230,9 @@ student, generation. The three signals = that triangle.
 ### Open (from the Companion audit)
 - **[MED] Female / kunya Companions missing** — «أم عطية» (الأنصارية, صحابية) → `None`; the كنى/النساء
   section escapes extraction.
-- **[MED] «بهذا الإسناد» back-references and «و» co-narrators** not parsed («الأعمش بهذا الإسناد»,
-  «محمد بن المثنى وابن بشار»; «و» itself taken as a narrator).
+- **[MED] «و» co-narrators** not parsed («محمد بن المثنى وابن بشار»; «و» itself taken as a narrator) —
+  still open (a co-narrator split turns the chain into a small DAG; deferred deliberately).
+  *(The «بهذا الإسناد» back-reference half is FIXED in #117 — it now ends the chain.)*
 - **[LOW] «أبيه»/«جده» not yet *resolved*** to the real ancestor at verdict time (currently only refused;
   the graph's kinship anchoring runs at build time only).
 
@@ -212,16 +241,23 @@ student, generation. The three signals = that triangle.
   fold to 2 tokens → escape the generic-name/single-token drops → `lookup('عبد الرحمن')` resolves
   **confidently** to a مجهول/ثقة. Treat «عبد/عبيد + الله/الرحمن/العزيز/الملك/…» as non-identifying when it
   is the whole name.
-- **[MEDIUM] Death-year drops the hundreds** (`rijal_extract.py` `_parse_year`): «ست وثلاثين» (eliding
-  «ومائتين») → 36 not 236 → **false `dedup.same_man` merges** (men of deaths 250 & 155 both → ~50). Infer
-  the century from طبقة, or don't use a no-hundreds year as positive evidence.
+- **[MOSTLY FIXED #118] Death-year vs age / hundreds** (`rijal_extract.py` `_death_year`): the age
+  «مات وهو ابن ٨٧ سنة» was read as year 87, and a leading age «سنة» hid the real year. Now anchored on
+  «سنة»+number (spelled hundreds parse correctly: «ست وثلاثين ومائتين» → 236). *Residual:* a source that
+  genuinely **omits** the century yields no year (safe) rather than a wrong one — inferring the century
+  from طبقة is still a possible future refinement.
 - **[MEDIUM] body-fallback grade takes the LAST verdict** (`rijal_extract.py` `_extract_grade`): «… صدوق …
   وابنه ضعيف» → grade ضعيف (the son's). Prefer the first verdict / stop at «وابنه/وأخوه/وعنه».
 - **[LATENT] `graph.disambiguate` sorted keys** (`graph.py` ~170) — same anagram family, safe only while
   `_AMBIGUOUS` keys stay single-token.
 
 ## Next steps
-1. **Rewrite `canon._pick`** to neighbour-specific hard evidence + hold-by-default; re-measure the
-   silent-mis-identification rate and the held resolution (precision-first).
-2. Re-run on the **full corpus** on the user's machine; report the true W/S/A.
-3. Acquire **al-Ghassānī** as the precision gold; complete تهذيب/طبقة extraction.
+1. **Measure first.** The user runs `update.bat` (applies #117/#118/#119, rebuilds rijal + graph,
+   regenerates the audit) and reports the new **W/S/A** from «التدقيق». This both shows the impact of
+   this session's fixes AND is the prerequisite for step 2 — `canon._pick` cannot be tuned in the
+   container (sample rijal only; full scans exit 144).
+2. **Then tune `canon._pick`** (precision-first): a unique winner on a *thin, single-token* overlap —
+   especially a generic nisba («الكوفي», «البصري») — should HOLD, not pick. Decide the threshold (e.g.
+   require ≥2 distinctive shared tokens, or exclude generic nisbas) from the measured A, not blindly:
+   too aggressive tanks the resolution rate. The #119 graph guard already de-noises the input company.
+3. Acquire **al-Ghassānī** as the precision gold; complete تهذيب/طبقة extraction; co-narrator «و» split.
