@@ -107,6 +107,16 @@ def main() -> None:
             profiles.setdefault(name, set()).update(toks)
         print(f"Pass 1+: {RIJAL_PROSE_BOOKS.get(book_id, book_id)} company merged for {len(extra)} narrators")
 
+    # …and the LLM-extracted شيوخ/تلاميذ (scripts.build_rijal_llm), if present — the network the
+    # terse books don't carry. Gated, same mechanism, so absent → unchanged.
+    llm_rijal = settings.data_dir / "rijal_llm.jsonl"
+    if llm_rijal.exists():
+        from app.rijal.llm_source import llm_associations
+        extra = llm_associations(llm_rijal, rijal)
+        for name, toks in extra.items():
+            profiles.setdefault(name, set()).update(toks)
+        print(f"Pass 1+: LLM company merged for {len(extra)} narrators")
+
     # Pass 2 — confident + context disambiguation, into the real DB.
     canon1 = Canonicalizer(rijal, associations=profiles)
 

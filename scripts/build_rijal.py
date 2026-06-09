@@ -179,6 +179,14 @@ def main() -> None:
         result, added, upgraded = merge_source(result, records)
         print(f"  merged a secondary source: +{added} new narrators, {upgraded} gaps graded")
 
+    # optional: fold in the LLM-extracted رجال (scripts.build_rijal_llm) — better grades and the
+    # death/kunya the terse regex drops. Gated on the file, so the pipeline is unchanged without it.
+    llm_rijal = settings.data_dir / "rijal_llm.jsonl"
+    if llm_rijal.exists():
+        from app.rijal.llm_source import load_llm_rijal
+        result, added, upgraded = merge_source(result, load_llm_rijal(llm_rijal))
+        print(f"  merged LLM rijal: +{added} new narrators, {upgraded} gaps graded")
+
     if args.input and args.input.exists():
         extra = [json.loads(line) for line in args.input.read_text(encoding="utf-8").splitlines() if line.strip()]
         result, added, upgraded = merge_source(result, extra)
