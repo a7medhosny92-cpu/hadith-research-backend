@@ -45,7 +45,7 @@ from typing import Callable, Iterable, Iterator
 from app.config import Settings
 from app.parsing.html_clean import clean_block
 from app.parsing.normalize import normalize_for_search
-from app.parsing.rijal_extract import _BOUNDARY, arabic_digits_to_int
+from app.parsing.rijal_extract import _BOUNDARY, _first_entry_page, arabic_digits_to_int
 from app.rijal.grades import classify
 
 # Where the books and the cache live.
@@ -234,8 +234,10 @@ def iter_tarjamas(book_id: int) -> Iterator[tuple[int | None, str]]:
     """(number, body) for each numbered tarjama in a رجال book — the same segmentation the regex
     extractor uses, so the LLM and the regex see exactly the same unit."""
     data = json.loads((BOOKS / f"{book_id}.json").read_text(encoding="utf-8"))
+    start = _first_entry_page(data)          # skip the editor's muqaddima (same as the regex extractor)
+    pages = [p for p in data.get("pages", []) if start is None or p.get("pg", 0) >= start]
     full = "\n".join(clean_block(p.get("text") or "")
-                     for p in sorted(data.get("pages", []), key=lambda p: p.get("pg", 0)))
+                     for p in sorted(pages, key=lambda p: p.get("pg", 0)))
     bounds = list(_BOUNDARY.finditer(full))
     for i, m in enumerate(bounds):
         if m.group(1) is None:
