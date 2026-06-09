@@ -171,6 +171,36 @@ student, generation. The three signals = that triangle.
   order; verified the two resolve to distinct nodes and land in the correct شيوخ/تلاميذ lists. This
   also de-noises the company signal that `canon._pick` consumes.
 
+## Fixed in this session
+- **Graph node-key order** (`graph.py::node_key`) — «أنس بن مالك» ≠ «مالك بن أنس». *(merged #111)*
+- **Kunya from a relative** (`rijal_extract.py::_own_kunya`) — «خالد بن وهبان ابن خالة أبي ذر», «… أخو أبي بكر»,
+  «… ختن أبي توبة», «محمد بن أبي بكر» no longer take a relative's / the father's kunya.
+- **`canon._pick` silent mis-identification** — two parts: (1) `isnad.py` disambiguates by the
+  **immediate neighbours** (the specific شيخ/تلميذ), not the whole chain; (2) `canon.py` no longer lets a
+  narrow lookup group override a **held** full-set decision. Result: «يونس عن الزهري» now **holds**
+  (`ambiguous=True`) instead of confidently يونس بن عبيد.
+- **«ultimo anello = صحابي»** (`isnad.py`, تمييز بالطبقة) — a name at the terminal (Companion) position
+  matching a صحابي is graded صحابي. Result: «… عن أبي ذر» → **جندب بن جنادة الغفاري · صحابي** (was ثقة).
+- 279 tests green, + 3 new regression tests.
+
+## Open bugs (found by a bug-hunt pass — to fix next)
+- **[CRITICAL] `graph.resolve()` fallback is still order-insensitive** (`graph.py` ~311-315): the
+  containment fallback `q <= node.tokens` (set subset) + highest-`freq` makes `resolve('أنس بن مالك')` →
+  «مالك بن أنس». The `node_key` fix covers the *exact* match; the fallback must also require a **leading run**.
+- **[CRITICAL] «نسبه» → كذاب** (`rijal_extract.py` `_FALLBACK`): «الحسن بن مدرك … لا بأس به ونسبه أبو داود
+  إلى تلقين المشايخ» → graded **كذاب** (should be صدوق). Require «نسبه/رماه … إلى الكذب/بالكذب», not the bare verb.
+- **[HIGH] Bare theophoric ism mis-identified** (`rijal_extract.py`, `index.py`): «عبد الرحمن»/«عبد العزيز»
+  fold to 2 tokens → escape the generic-name/single-token drops → `lookup('عبد الرحمن')` resolves
+  **confidently** to a مجهول/ثقة. Treat «عبد/عبيد + الله/الرحمن/العزيز/الملك/…» as non-identifying when it
+  is the whole name.
+- **[MEDIUM] Death-year drops the hundreds** (`rijal_extract.py` `_parse_year`): «ست وثلاثين» (eliding
+  «ومائتين») → 36 not 236 → **false `dedup.same_man` merges** (men of deaths 250 & 155 both → ~50). Infer
+  the century from طبقة, or don't use a no-hundreds year as positive evidence.
+- **[MEDIUM] body-fallback grade takes the LAST verdict** (`rijal_extract.py` `_extract_grade`): «… صدوق …
+  وابنه ضعيف» → grade ضعيف (the son's). Prefer the first verdict / stop at «وابنه/وأخوه/وعنه».
+- **[LATENT] `graph.disambiguate` sorted keys** (`graph.py` ~170) — same anagram family, safe only while
+  `_AMBIGUOUS` keys stay single-token.
+
 ## Next steps
 1. **Rewrite `canon._pick`** to neighbour-specific hard evidence + hold-by-default; re-measure the
    silent-mis-identification rate and the held resolution (precision-first).

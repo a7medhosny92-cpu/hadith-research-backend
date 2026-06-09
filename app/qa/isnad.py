@@ -184,12 +184,9 @@ def analyze_isnad(
     # marfūʿ iff the chain actually ends at the Prophet (not merely mentions him in matn)
     reaches_prophet = bool(narrators) and is_prophet(narrators[-1].name)
 
-    # The chain's «company»: who a narrator sits with identifies WHICH namesake he is
-    # (تمييز المهمل) — «جعفر بن محمد» beside محمد الباقر/جابر is الصادق, not a مجهول homonym.
-    chain_toks: set[str] = set()
-    if canon is not None:
-        for nar in narrators:
-            chain_toks |= _clean_tokens(nar.name)
+    # The Companion sits at the END of the chain (he narrates from the Prophet ﷺ); the terminal
+    # index is the last non-Prophet narrator — used to prefer a صحابي reading there (تمييز بالطبقة).
+    terminal_idx = len(narrators) - 2 if (narrators and is_prophet(narrators[-1].name)) else len(narrators) - 1
 
     narrator_dicts: list[dict] = []
     matches: list["RijalMatch | None"] = []
@@ -218,15 +215,34 @@ def analyze_isnad(
                     if name != narrator.name:
                         record["resolved"] = name        # show what the bare name was identified as
                 if canon is not None and name == narrator.name:   # still مهمل → company disambiguation
-                    ctx = frozenset(chain_toks - _clean_tokens(narrator.name))
+                    # disambiguate by the IMMEDIATE neighbours (the specific شيخ/تلميذ), not the whole
+                    # chain: diffuse token-overlap lets a wrong namesake win by coincidence («يونس عن
+                    # الزهري» → wrongly يونس بن عبيد). With the immediate company he is resolved or
+                    # honestly held — never confidently mis-identified.
+                    nb: set[str] = set()
+                    if i > 0:
+                        nb |= _clean_tokens(narrators[i - 1].name)
+                    if i < len(narrators) - 1:
+                        nb |= _clean_tokens(narrators[i + 1].name)
+                    ctx = frozenset(nb - _clean_tokens(narrator.name))
                     name = canon.canonical(narrator.name, context=ctx)
                 match = rijal.lookup(name)
+                # تمييز بالطبقة (by position): the LAST link narrates from the Prophet ﷺ, so he is a
+                # Companion; if it matches a صحابي, prefer that Companion over a same-name homonym of
+                # a later طبقة («أبي ذر» → جندب الغفاري الصحابي, not عمر بن ذر الكوفي الثقة).
+                if match is not None and i == terminal_idx and match.entry.category != "صحابي":
+                    sah = [c for c in rijal.candidates(narrator.name) if c.category == "صحابي"]
+                    if sah:
+                        from app.rijal.index import RijalMatch
+                        match = RijalMatch(entry=sah[0], score=1.0, ambiguous=len(sah) > 1,
+                                           alternatives=[c.name for c in sah[1:]], grade_agreed=(len(sah) == 1))
                 # An ambiguous match whose candidates DISAGREE on the grade (عثمان بن أبي شيبة:
                 # ثقة vs a متروك namesake) is no confident identification — count him as
                 # undetermined (يُتوقَّف), while the card still shows the candidates. But when the
                 # tied candidates AGREE (عدي بن حاتم → both صحابي; الليث → both ثقة), the grade is
                 # usable, so we keep it.
-                usable = match and (not match.ambiguous or match.grade_agreed)
+                usable = match and (not match.ambiguous or match.grade_agreed
+                                    or (i == terminal_idx and match.entry.category == "صحابي"))
                 matches.append(match if usable else None)
             record["rijal"] = match.to_dict() if match else None
         narrator_dicts.append(record)

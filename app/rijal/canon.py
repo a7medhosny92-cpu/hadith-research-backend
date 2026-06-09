@@ -78,12 +78,18 @@ class Canonicalizer:
         # surface, let the chain's company decide who it is BEFORE trusting the bare name.
         # This stops a Companion's kunya, or a متروك namesake, from winning on the name alone
         # when the company the link actually keeps fits a different, known narrator.
+        held_ambiguous = False
         if context:
             cands = self._candidates(surface)
             if len(cands) > 1:
                 picked = self._pick(cands, context)
                 if picked:
                     return picked
+                # The FULL homonym set is undecided in this context → HOLD. A narrower lookup
+                # group below must NOT override this: it can exclude the true man and then pick a
+                # spurious winner («يونس عن الزهري» → يونس بن عبيد, because الأيلي isn't in the
+                # lookup group). Hold beats a confident mis-identification.
+                held_ambiguous = True
         key = " ".join(seq)            # order-preserving (يزيد بن جابر ≠ جابر بن يزيد)
         res = self._resolve_cache.get(key)
         if res is None:
@@ -91,7 +97,7 @@ class Canonicalizer:
         canon, candidates = res
         if canon:
             return canon
-        if candidates:
+        if candidates and not held_ambiguous:
             picked = self._pick(candidates, context)
             if picked:
                 return picked

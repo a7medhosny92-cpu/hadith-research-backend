@@ -76,6 +76,23 @@ _NOISE = re.compile(
     r"وسكون|وفتح|وكسر|وضم|وتشديد|وتخفيف|ثقيلة|خفيفة)(?!\w)"
 )
 _KUNYA = re.compile(r"(?<!\w)(أبو|أبا|أبي|أم)\s+(\S+)")
+# Words that, right before «أبو/أبي/أم …», make it a RELATIVE's kunya, not the subject's:
+# a father in the nasab («محمد بن أبي بكر») or a kin reference («… ابن خالة أبي ذر»).
+_KUNYA_NOT_SUBJECT = {normalize_for_search(w) for w in (
+    "بن", "ابن", "خالة", "خال", "عمة", "عم", "جدة", "جد", "بنت", "ابنة", "أخت", "أخو", "أخي",
+    "زوجة", "زوج", "مولى", "مولاة", "حليف", "امرأة", "صاحب", "ختن", "صهر", "نسيب", "والد", "والدة",
+)}
+
+
+def _own_kunya(name: str) -> "re.Match | None":
+    """The subject's *own* kunya — skip an «أبو/أبي/أم X» that belongs to a relative: a father
+    in the nasab («محمد بن أبي بكر») or a kin reference («خالد بن وهبان ابن خالة أبي ذر»)."""
+    for m in _KUNYA.finditer(name):
+        before = normalize_for_search(name[: m.start()]).split()
+        if before and before[-1] in _KUNYA_NOT_SUBJECT:
+            continue
+        return m
+    return None
 _WS = re.compile(r"\s+")
 # Folded tokens that identify no one on their own — a name made only of these («عبد الله»)
 # is a truncation artifact, not a usable tarjama.
@@ -262,7 +279,7 @@ def _entry_to_record(number: int | None, body: str, source: str) -> dict | None:
 
     record: dict = {"name": name, "grade": grade or "غير محدد"}
     record["source"] = f"{source} (رقم {number})" if number is not None else source
-    kunya = _KUNYA.search(name)   # the narrator's own kunya, not a student's
+    kunya = _own_kunya(name)   # the narrator's own kunya, not a relative's
     if kunya:
         record["kunya"] = f"{kunya.group(1)} {kunya.group(2)}"
     aliases = _aliases(body)      # laqab/shuhra the man is also known by

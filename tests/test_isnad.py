@@ -151,3 +151,16 @@ def test_api_verify_by_hadith_id(client):
 def test_api_verify_requires_input(client):
     assert client.get("/verify-isnad").status_code == 422
     assert client.get("/verify-isnad", params={"hadith_id": 999999}).status_code == 404
+
+
+def test_terminal_link_prefers_sahabi_over_later_homonym():
+    """تمييز بالطبقة: a name at the Companion position (last link) that matches a صحابي IS that
+    Companion — not a same-kunya homonym of a later طبقة (أبو ذر الغفاري, not the ثقة الكوفي)."""
+    from app.rijal.index import RijalIndex
+    rijal = RijalIndex([
+        {"name": "جندب بن جنادة الغفاري", "kunya": "أبو ذر", "grade": "صحابي"},
+        {"name": "عمر بن ذر الهمداني الكوفي", "kunya": "أبو ذر", "grade": "ثقة"},
+    ])
+    last = analyze_isnad("حدثنا فلان عن الأعمش عن أبي ذر", rijal=rijal).narrators[-1]["rijal"]
+    assert last["name"] == "جندب بن جنادة الغفاري"
+    assert last["grade"] == "صحابي"

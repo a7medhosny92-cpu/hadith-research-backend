@@ -228,3 +228,13 @@ def test_prose_rijal_books_are_excluded_from_hadith_parse_but_not_terse_sources(
     assert 3722 in RIJAL_PROSE_BOOKS                       # تهذيب الكمال
     assert 3722 not in RIJAL_SOURCES                       # never fed to the terse extractor
     assert set(RIJAL_PROSE_BOOKS).isdisjoint(RIJAL_SOURCES)
+
+
+def test_kunya_not_taken_from_a_relative():
+    """Subject's own kunya only — «أبو/أبي/أم X» belonging to a relative (a father in the nasab,
+    or «… خالة أبي ذر») must not be taken as the subject's kunya."""
+    from app.parsing.rijal_extract import _own_kunya
+    assert _own_kunya("خالد بن وهبان ابن خالة أبي ذر") is None
+    assert _own_kunya("محمد بن أبي بكر الصديق التيمي") is None
+    m = _own_kunya("محمد بن مسلم الزهري أبو بكر")
+    assert m is not None and m.group(0) == "أبو بكر"

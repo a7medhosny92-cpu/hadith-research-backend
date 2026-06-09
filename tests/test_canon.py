@@ -300,3 +300,20 @@ def test_verdict_identifies_a_shared_name_from_the_chain_company():
     res = analyze_isnad(chain, rijal=rijal, canon=canon)
     jr = next(n for n in res.narrators if n["name"].startswith("جعفر"))
     assert jr["rijal"]["name"] == "جعفر بن محمد الصادق" and jr["rijal"]["grade"] == "ثقة"
+
+
+def test_held_in_context_not_overridden_by_narrow_lookup_group():
+    """The «يونس عن الزهري» bug: when the FULL homonym set ties in context (no confident pick), a
+    narrower lookup group must not override the hold and pick a spurious winner (يونس بن عبيد)."""
+    rij = RijalIndex([
+        {"name": "يونس بن يزيد الأيلي", "grade": "ثقة"},
+        {"name": "يونس بن عبيد البصري", "grade": "ثقة"},
+        {"name": "يونس بن أبي إسحاق السبيعي", "grade": "صدوق"},
+    ])
+    assoc = {
+        "يونس بن يزيد الأيلي": set(_clean_tokens("الزهري ابن وهب")),
+        "يونس بن عبيد البصري": set(_clean_tokens("الزهري الحسن")),
+    }
+    c = Canonicalizer(rij, associations=assoc)
+    # both keep company with الزهري → tie → HOLD the surface, never a confident عبيد
+    assert c.canonical("يونس", frozenset(_clean_tokens("الزهري"))) == "يونس"
