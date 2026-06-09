@@ -116,7 +116,8 @@ def _chain_assessment(matches: list["RijalMatch | None"], total: int, mubham: in
 
 
 def analyze_isnad(
-    text: str, rijal: "RijalIndex | None" = None, canon: "Canonicalizer | None" = None
+    text: str, rijal: "RijalIndex | None" = None, canon: "Canonicalizer | None" = None,
+    muhmal: "dict[str, str] | None" = None,
 ) -> IsnadAnalysis:
     raw = strip_diacritics(text or "")
     narrators: list[Narrator] = []
@@ -193,7 +194,7 @@ def analyze_isnad(
     narrator_dicts: list[dict] = []
     matches: list["RijalMatch | None"] = []
     mubham_count = 0
-    for narrator in narrators:
+    for i, narrator in enumerate(narrators):
         record = asdict(narrator)
         prophet = is_prophet(narrator.name)
         mubham = (not prophet) and _is_mubham(narrator.name)
@@ -207,9 +208,16 @@ def analyze_isnad(
             if prophet or mubham:
                 match = None
             else:
-                # identify the man from the chain's company (the links), then grade HIM
+                # identify the man from the chain's company (the links), then grade HIM. First try
+                # تمييز المهمل: a bare name whose (تلميذ, شيخ) sandwich the corpus names in full
+                # elsewhere is resolved deterministically — «عبد الرحمن» between بشار وسفيان = ابن مهدي.
                 name = narrator.name
-                if canon is not None:
+                if muhmal and 0 < i < len(narrators) - 1:
+                    from app.rijal.muhmal import resolve as _resolve_muhmal
+                    name = _resolve_muhmal(name, narrators[i - 1].name, narrators[i + 1].name, muhmal)
+                    if name != narrator.name:
+                        record["resolved"] = name        # show what the bare name was identified as
+                if canon is not None and name == narrator.name:   # still مهمل → company disambiguation
                     ctx = frozenset(chain_toks - _clean_tokens(narrator.name))
                     name = canon.canonical(narrator.name, context=ctx)
                 match = rijal.lookup(name)

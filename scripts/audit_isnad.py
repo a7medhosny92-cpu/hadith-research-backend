@@ -32,6 +32,7 @@ from collections import Counter
 
 from app.config import get_settings
 from app.qa.isnad import analyze_isnad
+from app.rijal.muhmal import load_map as load_muhmal_map
 from app.rijal import RijalIndex, load_entries
 from app.rijal.canon import Canonicalizer
 from app.rijal.graph import NarratorGraph
@@ -99,7 +100,8 @@ def main() -> None:
     settings = get_settings()
     rijal = RijalIndex(load_entries(settings.rijal_file))
     canon = _build_canon(settings, rijal)
-    print(f"rijal entries: {rijal.count()}   index: {settings.index_path}")
+    muhmal = load_muhmal_map(settings.data_dir / "muhmal.json")   # تمييز المهمل (from build_graph)
+    print(f"rijal entries: {rijal.count()}   index: {settings.index_path}   مهمل: {len(muhmal)}")
     con = sqlite3.connect(str(settings.index_path))
     sql = "SELECT rowid, collection, number, isnad FROM hadith WHERE trim(isnad) <> ''"
     if args.limit:
@@ -116,7 +118,7 @@ def main() -> None:
         scanned += 1
         if scanned % 500 == 0:
             print(f"  … {scanned}/{total}", end="\r", flush=True)
-        a = analyze_isnad(isnad, rijal=rijal, canon=canon)
+        a = analyze_isnad(isnad, rijal=rijal, canon=canon, muhmal=muhmal)
         for code, detail in _flag_chain(a.narrators):
             counts[code] += 1
             if len(cases[code]) < args.cap:

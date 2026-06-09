@@ -28,6 +28,7 @@ from app.qa.isnad import analyze_isnad
 from app.rijal.canon import Canonicalizer
 from app.rijal.graph import NarratorGraph
 from app.rijal.index import RijalIndex, _clean_tokens, load_entries
+from app.rijal.muhmal import build_map as build_muhmal_map, resolve_chain, save_map as save_muhmal_map
 from app.rijal.tahdhib import tahdhib_associations
 from app.search.index import _read_jsonl  # parsed JSONL reader
 from scripts._atomic import rebuild
@@ -70,10 +71,21 @@ def main() -> None:
             for line in fh:
                 yield json.loads(line)
 
+    # تمييز المهمل: from the chains' own redundancy, map each (تلميذ, شيخ) context to the narrator's
+    # full form, persist it for verdict time (the audit/verify load data/muhmal.json), and resolve
+    # every chain's bare narrators BEFORE the graph and the profiles use them.
+    muhmal = build_muhmal_map(read_chains())
+    save_muhmal_map(muhmal, settings.data_dir / "muhmal.json")
+    print(f"تمييز المهمل: {len(muhmal)} (تلميذ,شيخ) contexts name a bare narrator in full")
+
+    def read_resolved():
+        for ch in read_chains():
+            yield resolve_chain(ch, muhmal)
+
     # Pass 1 — confident merges only; learn each narrator's recorded company.
     canon0 = Canonicalizer(rijal)
     g0 = NarratorGraph(":memory:")
-    for ch in read_chains():
+    for ch in read_resolved():
         g0.add_chain(ch, canon=canon0)
     g0.commit()
     profiles = {
@@ -100,7 +112,7 @@ def main() -> None:
 
     def build(tmp):
         graph = NarratorGraph(tmp)
-        for i, ch in enumerate(read_chains(), 1):
+        for i, ch in enumerate(read_resolved(), 1):
             graph.add_chain(ch, canon=canon1)
             if i % 5000 == 0:
                 graph.commit()
