@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 
 from app.parsing.html_clean import flexible_word
+from app.parsing.normalize import strip_diacritics
 
 # Opening quote → its matching closer (a symmetric " pairs with the next ").
 _CLOSE_FOR = {'"': '"', "«": "»", "“": "”"}
@@ -50,11 +51,15 @@ _ANNA = re.compile(
         "|".join(flexible_word(w) for w in ("النبي", "النبى", "نبي", "رسول")),
     )
 )
-# A gap between two quoted spans that signals the matn has ended and an editor's note /
-# takhrij / grade begins — so we do NOT merge the next span into the matn.
+# A gap between two quoted spans that signals the matn has ended and an editor's note / takhrij /
+# grade begins — so we do NOT merge the next span into the matn. Matched on diacritic-STRIPPED text
+# (al-Mustadrak is heavily vocalised, so vocalised «هذا حَدِيث» / «احتَجَّ» must still match).
 _EDITORIAL = re.compile(
-    r"أبو عبد الله|تنبيه|انظر|أخرجه|رواه|أخرجاه|تحفة|الأطراف|قلت|على شرط|هذا حديث|هذا إسناد|\(\s*\d"
+    r"أبو عبد الله|تنبيه|انظر|أخرجه|رواه|أخرجاه|احتج|اتفاق|تحفة|الأطراف|قلت|على شرط|هذا حديث|هذا إسناد|\(\s*\d"
 )
+# A quoted span introduced by a reference preposition («… في "المسند الصحيح"», «كتابه "…"») is a
+# title/citation in the commentary, not the matn — stops the dialogue-extension at al-Ḥākim's note.
+_REF_PREP = re.compile(r"(?:في|من|عن|الى|على|عند|كتاب\w*)\s*$")
 # Crossing the *narration* between two spoken spans of one matn («…» فدعا بها فجاءت «…»): we
 # step over it unless it is an editorial/takhrij marker or an implausibly long gap.
 _MAX_NARRATION_GAP = 220
@@ -84,6 +89,13 @@ def _story_start(lead: str) -> int | None:
                 and len(_SPEECH.findall(tail)) >= 2):  # …with ≥2 spoken turns — a real story
             return m.start()
     return None
+
+
+def _speech_before(text: str, i: int, window: int = 40) -> bool:
+    """True if a speech introducer (قال/فقال/يقول…) sits just before index ``i`` — so the quote at
+    ``i`` is REPORTED speech (the matn), not a bare title/reference quoted in al-Ḥākim's commentary
+    («… قد احتج مسلم في "المسند الصحيح"»). Diacritic-tolerant via _SAY (flexible_word)."""
+    return bool(_SAY.search(text[max(0, i - window):i]))
 
 
 # A grade / takhrīj tail the source prints AFTER the matn — al-Ḥākim's «هذا حديث صحيح
@@ -138,13 +150,19 @@ def _split_isnad_matn(text: str) -> tuple[str, str, str]:
     text = text.strip()
 
     spans = _quoted_spans(text)
-    if spans:
-        # the matn is the first quoted span, extended over the *dialogue / narration* of one
-        # story («…» فدعا بها فجاءت «…»), but stopping at an editorial/takhrij tail.
-        start, end = spans[0]
-        for open_i, close_i in spans[1:]:
+    # The matn quote must be SPEECH-INTRODUCED («… قال/فقال: "…"»). A bare quoted title / reference in
+    # al-Ḥākim's commentary («قد احتج مسلم في "المسند الصحيح"») is NOT the matn — starting blindly at
+    # the first quote either took it whole (losing the real unquoted matn) or merged it on. So begin
+    # at the first SPEECH-introduced quote.
+    first = next((k for k, (a, _b) in enumerate(spans) if _speech_before(text, a)), None)
+    if first is not None:
+        # that quoted span, extended over the *dialogue / narration* of one story («…» فدعا بها
+        # فجاءت «…»), but stopping at an editorial/takhrij tail or a title/citation in commentary.
+        start, end = spans[first]
+        for open_i, close_i in spans[first + 1:]:
             gap = text[end + 1:open_i].strip()
-            if _EDITORIAL.search(gap) or len(gap) > _MAX_NARRATION_GAP:
+            bare = strip_diacritics(gap)
+            if _EDITORIAL.search(bare) or _REF_PREP.search(bare) or len(gap) > _MAX_NARRATION_GAP:
                 break
             end = close_i
         # …and if that first quote sits INSIDE a story (a post-chain «أنّ …» with ≥2 spoken
