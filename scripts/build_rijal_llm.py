@@ -117,14 +117,16 @@ def _parse_json(raw: str) -> dict | None:
 
 # ── hash cache (idempotent, resumable; one LLM call per unique source) ─────────────────────────
 class Cache:
-    def __init__(self, path: Path = CACHE_DB) -> None:
+    def __init__(self, path: Path = CACHE_DB, model: str = "") -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         self._con = sqlite3.connect(str(path))
         self._con.execute("CREATE TABLE IF NOT EXISTS llm(k TEXT PRIMARY KEY, v TEXT)")
+        self.model = model                               # part of the key — a cached value IS this
+                                                         # model's output, so switching models re-extracts
+                                                         # (and an A/B compare reads the right answers)
 
-    @staticmethod
-    def key(mode: str, source: str) -> str:
-        return hashlib.sha256(f"{mode}|{PROMPT_VERSION}|{source}".encode()).hexdigest()
+    def key(self, mode: str, source: str) -> str:
+        return hashlib.sha256(f"{mode}|{PROMPT_VERSION}|{self.model}|{source}".encode()).hexdigest()
 
     def get(self, k: str) -> dict | None:
         row = self._con.execute("SELECT v FROM llm WHERE k=?", (k,)).fetchone()
@@ -391,7 +393,7 @@ def main() -> None:
         sys.exit(f"missing book(s) {missing} under {BOOKS} — run update.bat to download them first")
 
     llm = None if args.dry_run else _make_llm(settings, model_name, api_base)
-    cache = Cache()
+    cache = Cache(model=model_name)                       # keyed by model → switching models re-extracts
     out_path = args.out or Path(f"data/{args.mode}_llm.jsonl")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     if not args.dry_run:

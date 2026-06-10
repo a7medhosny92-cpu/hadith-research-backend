@@ -80,9 +80,12 @@ def test_chain_suspicion_targets_only_the_broken_ones():
 
 
 def test_cache_roundtrip_and_deterministic_key(tmp_path):
-    c = Cache(tmp_path / "c.db")
-    k1 = Cache.key("rijal", "نص")
-    assert k1 == Cache.key("rijal", "نص") and k1 != Cache.key("chains", "نص")
+    c = Cache(tmp_path / "c.db", model="gemma")
+    k1 = c.key("rijal", "نص")
+    assert k1 == c.key("rijal", "نص") and k1 != c.key("chains", "نص")
+    # the model is part of the key: another model misses (so an A/B compare calls each model,
+    # instead of silently reading the first model's cached answer)
+    assert c.key("rijal", "نص") != Cache(tmp_path / "c2.db", model="qwen").key("rijal", "نص")
     assert c.get(k1) is None
     c.put(k1, {"a": 1})
     assert c.get(k1) == {"a": 1}
