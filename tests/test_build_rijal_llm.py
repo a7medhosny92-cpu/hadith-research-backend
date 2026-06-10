@@ -23,6 +23,19 @@ def test_validate_rijal_keeps_faithful_record_with_network():
     assert rec["shuyukh"] == ["نافع", "الزهري"]           # «الزهري» kept despite source «والزهري»
     assert rec["talamidh"] == ["ابن مهدي", "ابن القاسم"]
     assert rec["source_text"] == _RIJAL_SRC               # the proof is kept alongside
+    assert rec["death_year"] == 179                       # «تسع وسبعين ومائة» = 179 (full year, unchanged)
+
+
+def test_validate_rijal_recovers_dropped_century_from_tabaqa():
+    # Taqrib drops the hundreds; gemma4 transcribes the literal «ست وثلاثين» = 36, but طبقة 10 means
+    # he died 236. validate_rijal overrides the LLM's century-naive year with the trusted regex (#122),
+    # else the same-man dedup (death ±20) is corrupted. (A real record from the user's gemma4 run.)
+    src = "أحمد ابن إبراهيم ابن خالد الموصلي أبو علي نزيل بغداد صدوق من العاشرة مات سنة ست وثلاثين د فق"
+    rec = validate_rijal(
+        {"name": "أحمد ابن إبراهيم الموصلي", "grade_word": "صدوق", "death_year": 36, "tabaqa": 10}, src)
+    assert rec is not None
+    assert rec["death_year"] == 236                       # 36 → 236 via طبقة 10, not the literal 36
+    assert rec["tabaqa"] == 10
 
 
 def test_validate_rijal_rejects_invented_grade():

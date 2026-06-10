@@ -45,7 +45,10 @@ from typing import Callable, Iterable, Iterator
 from app.config import Settings
 from app.parsing.html_clean import clean_block
 from app.parsing.normalize import normalize_for_search
-from app.parsing.rijal_extract import _BOUNDARY, _first_entry_page, arabic_digits_to_int
+from app.parsing.rijal_extract import (
+    _BOUNDARY, _century_from_tabaqa, _death_year, _first_entry_page, _tabaqa_number,
+    arabic_digits_to_int,
+)
 from app.rijal.grades import classify
 
 # Where the books and the cache live.
@@ -137,6 +140,17 @@ def _folded_tokens(text: str) -> list[str]:
     return normalize_for_search(text or "").split()
 
 
+def _regex_death_year(source: str) -> int | None:
+    """The death year the TRUSTED regex computes (#122): the spelled/digit year, with the dropped
+    hundreds recovered from the طبقة. The LLM transcribes the literal year («من العاشرة … مات سنة
+    ست وثلاثين» → 36) but skips the century rule, so we override its death_year with this — a
+    century-naive year (off by ~200) would corrupt the same-man dedup, which keys on death ±20."""
+    year = _death_year(source)
+    if year is not None and year < 100:
+        year = _century_from_tabaqa(year, _tabaqa_number(source))
+    return year
+
+
 def validate_rijal(rec: dict, source: str) -> dict | None:
     """Trust an LLM rijal record only if it is faithful to the tarjama: a stated grade word must
     occur in the source and map to a known category; otherwise return None (→ keep the regex)."""
@@ -165,6 +179,10 @@ def validate_rijal(rec: dict, source: str) -> dict | None:
     rec = dict(rec)
     rec["category"] = category
     rec["shuyukh"], rec["talamidh"] = _kept(rec.get("shuyukh")), _kept(rec.get("talamidh"))
+    rec["death_year"] = _regex_death_year(source)        # override the LLM's century-naive year (#122)
+    tn = _tabaqa_number(source)
+    if tn is not None:
+        rec["tabaqa"] = tn                               # deterministic طبقة (the LLM sometimes drops it)
     rec["source_text"] = source                          # keep the proof alongside the record
     return rec
 
