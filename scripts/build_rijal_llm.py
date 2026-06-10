@@ -235,19 +235,34 @@ def validate_chain(seg: dict, text: str) -> dict | None:
 # decide, the regex output is the fallback either way.
 _MATN_HINT = re.compile(r"الاعمال|الجنه|النار|الصلاه|رمضان|قوله|تعالي|جات|جاءت|انما|كان رسول|"
                         r"دخل|خرج|سال|اتي|نزلت|فقال|يجاور")
+# A genuinely matn-less entry: an abbreviated back-reference («… نحوه / بمثله / فذكره / بهذا الإسناد»)
+# legitimately carries no report, so an empty matn there is NOT a bug — don't flag it.
+_BACKREF = re.compile(r"نحوه|بنحوه|مثله|بمثله|فذكره|نحو ذلك|باسناده|بهذا الاسناد|بهذا الإسناد")
 
 
 def chain_is_suspicious(text: str) -> bool:
     """A regex-parse worth a second look: no narrators, a verse ﴿…﴾ or a matn word leaked into a
-    node, or an over-long terminal node (the matn glued onto the last man)."""
+    node, an over-long terminal node (the matn glued onto the last man), or a botched MATN — the
+    splitter dropped the report («عن نافع: أنّ ابن عمر كان…» → empty) or kept only a fragment / a
+    quoted title, while real hadith body sits unused (measured on real al-Mustadrak)."""
     from app.qa.isnad import analyze_isnad
+    from app.parsing.isnad_matn import split_isnad_matn
     names = [n["name"] for n in analyze_isnad(text).narrators]
     if not names:
         return True
     last = names[-1]
     if "﴿" in last or "﴾" in last or len(last.split()) >= 8:
         return True
-    return bool(_MATN_HINT.search(normalize_for_search(last)))
+    if _MATN_HINT.search(normalize_for_search(last)):
+        return True
+    isnad, matn, _conf = split_isnad_matn(text)
+    mw = len(normalize_for_search(matn).split())
+    lost = len(normalize_for_search(text).split()) - len(normalize_for_search(isnad).split()) - mw
+    # a ≤3-word matn while ≥8 words of real body were dropped → the report was lost or a title taken
+    # (back-references excepted: they truly have no matn). The LLM re-segments; validation guards it.
+    if mw <= 3 and lost >= 8 and not _BACKREF.search(normalize_for_search(text)):
+        return True
+    return False
 
 
 # ── prompts (strict: transcribe/segment, never author) ────────────────────────────────────────
