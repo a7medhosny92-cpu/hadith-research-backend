@@ -37,11 +37,14 @@ _SKIP = {"قال", "قالا", "قالوا", "يعني", "قالت", "ح", "به
 # Matn-start markers: once the isnad reaches one of these (after a narrator) the matn
 # has begun and the chain ends. «قال/قالت» are *soft* — a boundary only when NOT followed
 # by a transmission verb (… قال حدثنا … keeps going); the rest always begin the matn.
-_MATN_HARD = {"يقول", "تقول", "مرفوعا", "رفعه", "يرفعه", "نحوه", "مثله", "بنحوه", "بمثله", "فقال",
+_MATN_HARD = {"مرفوعا", "رفعه", "يرفعه", "نحوه", "مثله", "بنحوه", "بمثله",
               # back-reference to a previously-given chain («… بهذا الإسناد / بإسناده / بسنده»):
               # the isnad is abbreviated here, so the report (matn) follows — stop the chain.
               "الاسناد", "اسناده", "باسناده", "بسنده", "باسناد"}
-_MATN_SOFT = {"قال", "قالت"}
+# «قال/يقول/فقال…» are *soft*: a boundary only when NOT followed by a transmission verb. «X يقول:
+# سمعت Y», «سألت X فقال: حدثني Y» CONTINUE the chain (X reports hearing the next narrator) — making
+# يقول/فقال hard truncated «علقمة … يقول: سمعت عمر» and «… فقال: حدثني عبد الله», dropping the صحابي.
+_MATN_SOFT = {"قال", "قالت", "يقول", "تقول", "فقال"}
 # Action verbs that open a narrated scene («كان رسول الله ﷺ يخطب / يصلّي / يدعو …», «سمعته
 # يحدّث …»): treated like a soft boundary — the matn begins UNLESS a transmission verb
 # follows (… يحدّث عن أبيه … keeps the chain), so a real «سمعته يحدّث عن فلان» is never truncated.
