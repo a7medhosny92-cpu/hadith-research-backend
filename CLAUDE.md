@@ -102,7 +102,56 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
 ## Current work — KEEP UPDATED
 **Focus:** cut wrong isnad verdicts in «التدقيق» by identifying the narrator from the chain.
 
-**★ LATEST (2026-06-09, large session → #129).** Two arcs on main; user to run `update.bat` (and,
+**★ LATEST (2026-06-10, large session → #145). THE MATN-EXTRACTION ARC + the regex-vs-LLM split, decided
+with a SAMPLE-DRIVEN method** (user extracts N real hadiths/book via `parse_book_file` → I run
+`split_isnad_matn` vs the real text, categorise the cuts, fix the clean ones / flag the hard ones → main).
+**Economics (measured on the samples): the regex does ~85-90% of matn and ~75% of narrators FREE &
+deterministic on every update; the LLM repairs the hard ~10% — turning "LLM on all ~89k chains" into
+"regex almost all + LLM only where it must" (~7-9× less LLM work). The 4 fixes below are the clean regex
+wins; the rest is genuinely LLM territory.**
+- **#142 narrators:** «يقول/تقول/فقال» → SOFT matn markers (were HARD → truncated the صحابي at «X يقول:
+  سمعت Y» / «سألت X فقال: حدثني Y»). Found via **`--mode chains-diff` (#140)** — a diagnostic that runs the
+  LLM on NON-suspicious chains and reports % narrator-alignment vs the regex. On 383 real chains: 70→71%,
+  and the raw «49%» was mostly the **harmless Prophet-terminal CONVENTION** (regex keeps «النبي» as a node;
+  the LLM stops at the صحابي). **So the regex base is SOUND — do NOT replace it with an LLM base** (~89k
+  calls; corpus redundancy + identity-≠-boundary). The hard narrator truncations («عن X أنّ [صحابي] story»,
+  «قُرِئ على», ح parallel routes) over-run into the matn if fixed naively → left to the LLM.
+- **#143/#145 matn `split_isnad_matn` (clean regex, verified on real al-Mustadrak/أبو داود/الترمذي):**
+  #143 — a quoted TITLE/reference in the commentary («… في "المسند الصحيح"», «في "مسند أنس"») was taken as
+  the matn (losing the real unquoted one) or merged on → now the matn quote must be **SPEECH-introduced**
+  («… قال/فقال: "…"»), and the extension stops at an editorial cue OR a **reference preposition** («في "…"»),
+  all on diacritic-stripped text. #145 — the collection AUTHOR's note («قال أبو داود» in his Sunan, «قال
+  أبو عيسى» in Tirmidhī) leaked into the matn (43/600 in أبو داود) → trimmed. **Tirmidhī's BARE verdict
+  «حديث فلان حديث حسن صحيح» was attempted but REVERTED** (the regex over-trimmed real «حديث قصة»/«حديث
+  منكر»); the **all-12-books pass** proved the remaining author-notes «قال مالك/أبو بكر/عبد الله/أبو عبد
+  الرحمن» are **AMBIGUOUS** (also صحابة/narrators speaking IN the matn — «قال أبو بكر: ما كان لابن أبي
+  قحافة…» is the Companion) → NOT regex-safe → LLM (it reads the context).
+- **#144 matn detection:** `chain_is_suspicious` now also flags a botched matn (≤3 words while ≥8 words of
+  body were dropped; back-references «نحوه/بمثله/فذكره» excepted) → the faithful LLM `--mode chains`
+  re-segments it. ~10-14% of chains flagged on the samples — the LLM is pointed at exactly the hard tail.
+- **build_rijal_llm hardening:** death-year override (**#135** — the LLM transcribes the literal Taqrib year;
+  the regex's #122 century-from-طبقة is authoritative); per-book `--sample` (**#136** — it never left تقريب
+  before); model-keyed cache (**#136** — enables A/B compare; switching models re-extracts); **dropped تهذيب
+  الكمال from LLM rijal (#137)** — `iter_tarjamas` mis-segments its non-numbered dictionary → muqaddima
+  garbage (al-Mizzī-as-narrator with ابن تيمية/الذهبي as students!); the regex `tahdhib_extract` already owns
+  its network; chains scan ALL core collections (**#138**); **chains-only update by default, رجال opt-in
+  `--llm-rijal` (#139)**; progress ticks + 180s timeout (**#141** — gemma4 cloud hit the 60s default on long
+  chains). **Verdict (settled): LLM-rijal is MARGINAL** — تقريب/الكاشف carry no شيوخ/تلاميذ network (the LLM
+  can't extract what isn't there) and where the network IS (تهذيب 3722, الجرح 2170) the regex extractors get
+  it; the LLM's unique value is `--mode chains` (matn/isnād re-segmentation).
+
+**Method gotchas (reusable):** the LLM-cache reconstruction is **CONFOUNDED for the matn** (it converts «» →
+" , and `split_isnad_matn` is quote-driven), so the matn MUST be diagnosed on real book text, not the cache
+(narrators are fine — they're before the quotes). The container **can't pull the 15-30MB books** (network
+allowlist blocks Drive/turath; the Google_Drive MCP would dump ~20MB base64 into context) — the user runs
+the slice command and uploads the small (~KB-MB) result; small Drive files ARE fetchable via the
+`Google_Drive` MCP (`search_files` by title, `download_file_content` by id).
+
+**Waiting on the user:** run `update.bat` with the LLM enabled (`LLM_DEFAULT_ENGINE=local` or `--llm`) →
+the regex applies #142–#145 corpus-wide AND the LLM repairs the flagged ~10% → send the new W/S/A and
+eyeball the matns.
+
+**★ (2026-06-09, large session → #129).** Two arcs on main; user to run `update.bat` (and,
 optionally, `build_rijal_llm`) then send the new W/S/A.
 - **(A) Real-data fixes #117–#126** (each verified against the *source books*, not the tiny sample):
   isnād boundaries + terminal-صحابي gated on `reaches_prophet` + ح-seam (#117) · death-year≠age (#118)
