@@ -2,7 +2,7 @@
 
 Two modes, one tool, one infrastructure (config LLM · hash cache · dry-run · validation):
 
-* ``--mode rijal``  — turn each تقريب/الكاشف/تهذيب tarjama into a structured record
+* ``--mode rijal``  — turn each تقريب/الكاشف tarjama into a structured record
   ``{name, kunya, grade_word, category, death_year, tabaqa, shuyukh[], talamidh[], note}``.
   The terse-book regex (``rijal_extract``) drops the شيوخ/تلاميذ **network** and trips on the
   long tail of natural language (Companions by description, enmity-accusations, hamza, ضبط,
@@ -54,7 +54,13 @@ from app.rijal.grades import classify
 # Where the books and the cache live.
 BOOKS = Path("data/raw/turath/books")
 CACHE_DB = Path("data/llm_cache.db")
-RIJAL_BOOKS = {"تقريب التهذيب": 8609, "الكاشف": 2171, "تهذيب الكمال": 3722}
+# The LLM rijal pass runs on the NUMBERED, terse grade-books only. تهذيب الكمال (3722) is
+# deliberately excluded: its narrator dictionary has no number index, so iter_tarjamas (which
+# segments on numbered boundaries) can't see it — it would catch only the editor's numbered
+# muqaddima bibliography (al-Mizzī the author, al-Ṣafadī, book titles → anachronistic garbage)
+# and miss the real, «عَن:»-marked entries. تهذيب's network is already extracted by the dedicated
+# regex (app/parsing/tahdhib_extract.py, ~94% شيوخ/تلاميذ) and wired into build_graph.
+RIJAL_BOOKS = {"تقريب التهذيب": 8609, "الكاشف": 2171}
 CHAIN_BOOKS = {"صحيح البخاري": 1284, "صحيح مسلم": 1727}
 PROMPT_VERSION = "v1"          # bump to invalidate the cache when a prompt changes
 
