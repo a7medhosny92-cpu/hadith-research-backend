@@ -256,8 +256,32 @@ def iter_chain_texts(book_id: int) -> Iterator[str]:
 
 
 # ── the two passes ────────────────────────────────────────────────────────────────────────────
+def _query(llm, prompt: str, cache: Cache, key: str, stats: dict) -> dict:
+    """A cached, RESILIENT LLM call: a per-entry error is skipped (that entry falls back to the
+    regex) instead of crashing the whole batch; but if the first calls all fail, the engine is down,
+    so we abort with a clear message — update.bat's step is non-fatal, and the regex pipeline runs."""
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+    try:
+        out = _parse_json(llm(prompt)) or {}
+    except Exception as e:                       # noqa: BLE001 — any provider/transport error
+        stats["err"] += 1
+        if stats["err"] == 1:
+            print(f"  [!] LLM call failed — {type(e).__name__}: {str(e)[:200]}")
+        if stats["err"] >= 8 and stats["ok"] == 0:
+            sys.exit("[x] LLM engine not responding — is Ollama running with the model pulled "
+                     "(`ollama pull <model>`), or the API key set? Aborting the LLM pass; the regex "
+                     "pipeline is unaffected.")
+        return {}
+    stats["ok"] += 1
+    cache.put(key, out)
+    return out
+
+
 def run_rijal(books: Iterable[int], llm, cache: Cache, *, sample: int | None, dry: bool, out) -> None:
     n = kept = rejected = 0
+    stats = {"ok": 0, "err": 0}
     for bid in books:
         source = next((k for k, v in RIJAL_BOOKS.items() if v == bid), str(bid))
         for _num, body in iter_tarjamas(bid):
@@ -269,11 +293,7 @@ def run_rijal(books: Iterable[int], llm, cache: Cache, *, sample: int | None, dr
                 if n <= 3:
                     print(f"\n── PROMPT (rijal, {source}) ──\n{prompt}\n")
                 continue
-            k = cache.key("rijal", body)
-            rec = cache.get(k)
-            if rec is None:
-                rec = _parse_json(llm(prompt)) or {}
-                cache.put(k, rec)
+            rec = _query(llm, prompt, cache, cache.key("rijal", body), stats)
             good = validate_rijal(rec, body)
             if good:
                 kept += 1
@@ -287,6 +307,7 @@ def run_rijal(books: Iterable[int], llm, cache: Cache, *, sample: int | None, dr
 
 def run_chains(books: Iterable[int], llm, cache: Cache, *, sample: int | None, dry: bool, out) -> None:
     seen = sent = fixed = rejected = 0
+    stats = {"ok": 0, "err": 0}
     for bid in books:
         for text in iter_chain_texts(bid):
             if sample is not None and seen >= sample:
@@ -300,11 +321,7 @@ def run_chains(books: Iterable[int], llm, cache: Cache, *, sample: int | None, d
                 if sent <= 3:
                     print(f"\n── PROMPT (chain) ──\n{prompt}\n")
                 continue
-            k = cache.key("chains", text)
-            seg = cache.get(k)
-            if seg is None:
-                seg = _parse_json(llm(prompt)) or {}
-                cache.put(k, seg)
+            seg = _query(llm, prompt, cache, cache.key("chains", text), stats)
             good = validate_chain(seg, text)
             if good:
                 fixed += 1
