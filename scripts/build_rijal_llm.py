@@ -28,6 +28,7 @@ your machine with your configured engine; ``--dry-run`` and ``--sample N`` let y
     python -m scripts.build_rijal_llm --mode rijal  --sample 20 --dry-run
     python -m scripts.build_rijal_llm --mode rijal              # uses llm_extract_model (gemma4:31b-cloud)
     python -m scripts.build_rijal_llm --mode chains --model ollama/qwen2.5:7b
+    python -m scripts.build_rijal_llm --mode chains-diff --book 1284 --sample 200  # is the regex base sound?
 """
 
 from __future__ import annotations
@@ -379,9 +380,66 @@ def run_chains(books: Iterable[int], llm, cache: Cache, *, sample: int | None, d
           f"rejected→regex {rejected}{tail}")
 
 
+def _narrators_aligned(regex_names: list[str], llm_names: list[str]) -> bool:
+    """True if the two lists describe the SAME chain: equal length and, position by position, one
+    folded name contains the other (so «ابن شهاب» ≡ «ابن شهاب الزهري» — surface detail, same man)."""
+    if not regex_names or len(regex_names) != len(llm_names):
+        return False
+    for r, l in zip(regex_names, llm_names):
+        rt, lt = set(_folded_tokens(r)), set(_folded_tokens(l))
+        if not (rt and lt and (rt <= lt or lt <= rt)):
+            return False
+    return True
+
+
+def run_chains_diff(books: Iterable[int], llm, cache: Cache, *, sample: int | None, dry: bool, out) -> None:
+    """DIAGNOSTIC: on the NON-suspicious chains — the ones the regex believes it parsed fine — compare
+    the regex narrators to the LLM's, to settle whether the regex base is sound or silently mis-splits.
+    Reuses the «chains» cache (so a later --mode chains is free); divergences are written out to read."""
+    from app.qa.isnad import analyze_isnad
+    scanned = checked = count_ok = aligned = llm_bad = 0
+    stats = {"ok": 0, "err": 0, "hit": 0}
+    for bid in books:
+        taken = 0
+        for text in iter_chain_texts(bid):
+            if sample is not None and taken >= sample:
+                break
+            taken += 1
+            scanned += 1
+            if chain_is_suspicious(text):
+                continue                                  # already covered by run_chains — not the question
+            regex_names = [n["name"] for n in analyze_isnad(text).narrators]
+            checked += 1
+            if dry:
+                if checked <= 3:
+                    print(f"\n── REGEX narrators ──\n{regex_names}\n   {text[:160]}")
+                continue
+            seg = _query(llm, CHAIN_PROMPT.format(text=text), cache, cache.key("chains", text), stats)
+            good = validate_chain(seg, text)
+            if not good:
+                llm_bad += 1                              # the LLM's own segmentation wasn't faithful — skip
+                continue
+            llm_names = good["narrators"]
+            count_ok += len(regex_names) == len(llm_names)
+            if _narrators_aligned(regex_names, llm_names):
+                aligned += 1
+            else:                                         # regex≠llm → record for the eye (either could be wrong)
+                out.write(json.dumps({"book": bid, "regex": regex_names, "llm": llm_names,
+                                      "text": text[:220]}, ensure_ascii=False) + "\n")
+    base = checked - llm_bad                              # chains where the LLM gave a comparable answer
+    tail = " (dry-run)" if dry else f" · {stats['hit']} cached · {stats['ok']} new LLM calls"
+    pct = (100 * aligned / base) if base else 0.0
+    print(f"chains-diff: scanned {scanned} · non-suspicious checked {checked} · llm-valid {base} · "
+          f"count-agree {count_ok} · FULLY ALIGNED {aligned} ({pct:.1f}%) · llm-invalid {llm_bad}{tail}")
+    if not dry:
+        print("  → divergences (regex≠llm) written to the out file — eyeball them (either side can be wrong)")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--mode", choices=("rijal", "chains"), required=True)
+    ap.add_argument("--mode", choices=("rijal", "chains", "chains-diff"), required=True,
+                    help="rijal | chains (repair suspicious) | chains-diff (measure regex-vs-LLM "
+                         "narrators on the NON-suspicious chains — is the regex base sound?)")
     ap.add_argument("--engine", choices=("local", "remote"),
                     help="use the config llm_local_model / llm_remote_model instead of the extraction model")
     ap.add_argument("--model", help="exact model id (e.g. ollama/gemma4:31b-cloud); "
@@ -416,7 +474,7 @@ def main() -> None:
     if not args.dry_run:
         print(f"model={model_name} · books={books} · out={out_path}  (cache: {CACHE_DB})")
     with (open(os.devnull, "w") if args.dry_run else open(out_path, "w", encoding="utf-8")) as out:
-        runner = run_rijal if args.mode == "rijal" else run_chains
+        runner = {"rijal": run_rijal, "chains": run_chains, "chains-diff": run_chains_diff}[args.mode]
         runner(books, llm, cache, sample=args.sample, dry=args.dry_run, out=out)
 
 

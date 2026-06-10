@@ -5,7 +5,7 @@ machine with their engine; here we prove that an unfaithful answer can never sli
 from __future__ import annotations
 
 from scripts.build_rijal_llm import (
-    Cache, chain_is_suspicious, validate_chain, validate_rijal,
+    Cache, _narrators_aligned, chain_is_suspicious, validate_chain, validate_rijal,
 )
 
 _RIJAL_SRC = ("مالك بن أنس الأصبحي أبو عبد الله الإمام عن نافع والزهري "
@@ -89,3 +89,13 @@ def test_cache_roundtrip_and_deterministic_key(tmp_path):
     assert c.get(k1) is None
     c.put(k1, {"a": 1})
     assert c.get(k1) == {"a": 1}
+
+
+def test_narrators_aligned():
+    # same chain → aligned; a surface-fuller name at one position still aligns (same man)
+    assert _narrators_aligned(["قتيبة", "مالك", "نافع"], ["قتيبة", "مالك", "نافع"])
+    assert _narrators_aligned(["ابن شهاب", "أبو سلمة"], ["ابن شهاب الزهري", "أبو سلمة"])
+    # a different count, a different man at a position, or an empty list → not aligned
+    assert not _narrators_aligned(["مالك", "نافع"], ["مالك"])
+    assert not _narrators_aligned(["مالك", "نافع"], ["مالك", "شعبة"])
+    assert not _narrators_aligned([], [])
