@@ -26,8 +26,8 @@ Nothing here runs at request time — it is a one-time, cached, resumable build 
 your machine with your configured engine; ``--dry-run`` and ``--sample N`` let you preview first.
 
     python -m scripts.build_rijal_llm --mode rijal  --sample 20 --dry-run
-    python -m scripts.build_rijal_llm --mode rijal  --engine local
-    python -m scripts.build_rijal_llm --mode chains --engine remote
+    python -m scripts.build_rijal_llm --mode rijal              # uses llm_extract_model (gemma4:31b-cloud)
+    python -m scripts.build_rijal_llm --mode chains --model ollama/qwen2.5:7b
 """
 
 from __future__ import annotations
@@ -64,21 +64,31 @@ _KNOWN_CATEGORIES = {
 
 
 # ── LLM plumbing (litellm via the project's config) ───────────────────────────────────────────
-def _resolve_model(settings: Settings, engine: str) -> tuple[str, str | None]:
-    """(model, api_base) for the chosen engine; export keys so litellm can authenticate."""
+def _resolve_model(settings: Settings, engine: str | None, model: str | None = None) -> tuple[str, str | None]:
+    """(model, api_base) for the extraction; export keys so litellm can authenticate.
+
+    Precedence: explicit ``model`` > ``engine`` (its configured /ask brain) > ``llm_extract_model``
+    (the default — so this tool and update.bat use the dedicated extraction model out of the box,
+    with no .env juggling). The api_base is the local Ollama server for any ``ollama/…`` model,
+    else None (a hosted cloud endpoint litellm reaches directly)."""
     if settings.anthropic_api_key:
         os.environ.setdefault("ANTHROPIC_API_KEY", settings.anthropic_api_key)
     if settings.openai_api_key:
         os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
-    if engine == "local":
-        return settings.llm_local_model, settings.ollama_api_base
-    return settings.llm_remote_model, None
+    if model:
+        chosen = model
+    elif engine == "local":
+        chosen = settings.llm_local_model
+    elif engine == "remote":
+        chosen = settings.llm_remote_model
+    else:
+        chosen = settings.llm_extract_model
+    api_base = settings.ollama_api_base if chosen.startswith("ollama/") else None
+    return chosen, api_base
 
 
-def _make_llm(settings: Settings, engine: str) -> Callable[[str], str]:
-    """A ``prompt -> raw_text`` callable. litellm is imported lazily (optional 'llm' extra)."""
-    model, api_base = _resolve_model(settings, engine)
-
+def _make_llm(settings: Settings, model: str, api_base: str | None) -> Callable[[str], str]:
+    """A ``prompt -> raw_text`` callable for ``model``. litellm is imported lazily (optional 'llm' extra)."""
     def call(prompt: str) -> str:
         import litellm  # lazy
         resp = litellm.completion(
@@ -262,6 +272,7 @@ def _query(llm, prompt: str, cache: Cache, key: str, stats: dict) -> dict:
     so we abort with a clear message — update.bat's step is non-fatal, and the regex pipeline runs."""
     cached = cache.get(key)
     if cached is not None:
+        stats["hit"] += 1                        # reused — no LLM call (this is what makes re-runs cheap)
         return cached
     try:
         out = _parse_json(llm(prompt)) or {}
@@ -281,7 +292,7 @@ def _query(llm, prompt: str, cache: Cache, key: str, stats: dict) -> dict:
 
 def run_rijal(books: Iterable[int], llm, cache: Cache, *, sample: int | None, dry: bool, out) -> None:
     n = kept = rejected = 0
-    stats = {"ok": 0, "err": 0}
+    stats = {"ok": 0, "err": 0, "hit": 0}
     for bid in books:
         source = next((k for k, v in RIJAL_BOOKS.items() if v == bid), str(bid))
         for _num, body in iter_tarjamas(bid):
@@ -301,13 +312,13 @@ def run_rijal(books: Iterable[int], llm, cache: Cache, *, sample: int | None, dr
                 out.write(json.dumps(good, ensure_ascii=False) + "\n")
             else:
                 rejected += 1
-    print(f"rijal: {n} tarjamas · kept {kept} · rejected→regex {rejected}"
-          + (" (dry-run)" if dry else ""))
+    tail = " (dry-run)" if dry else f" · {stats['hit']} cached · {stats['ok']} new LLM calls"
+    print(f"rijal: {n} tarjamas · kept {kept} · rejected→regex {rejected}{tail}")
 
 
 def run_chains(books: Iterable[int], llm, cache: Cache, *, sample: int | None, dry: bool, out) -> None:
     seen = sent = fixed = rejected = 0
-    stats = {"ok": 0, "err": 0}
+    stats = {"ok": 0, "err": 0, "hit": 0}
     for bid in books:
         for text in iter_chain_texts(bid):
             if sample is not None and seen >= sample:
@@ -328,14 +339,18 @@ def run_chains(books: Iterable[int], llm, cache: Cache, *, sample: int | None, d
                 out.write(json.dumps(good, ensure_ascii=False) + "\n")
             else:
                 rejected += 1
+    tail = " (dry-run)" if dry else f" · {stats['hit']} cached · {stats['ok']} new LLM calls"
     print(f"chains: scanned {seen} · suspicious→LLM {sent} · re-segmented {fixed} · "
-          f"rejected→regex {rejected}" + (" (dry-run)" if dry else ""))
+          f"rejected→regex {rejected}{tail}")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--mode", choices=("rijal", "chains"), required=True)
-    ap.add_argument("--engine", choices=("local", "remote"), help="override config llm_default_engine")
+    ap.add_argument("--engine", choices=("local", "remote"),
+                    help="use the config llm_local_model / llm_remote_model instead of the extraction model")
+    ap.add_argument("--model", help="exact model id (e.g. ollama/gemma4:31b-cloud); "
+                                    "overrides --engine and the default llm_extract_model")
     ap.add_argument("--book", type=int, action="append", help="restrict to a book id (repeatable)")
     ap.add_argument("--sample", type=int, help="process only the first N units (for a quick look)")
     ap.add_argument("--dry-run", action="store_true", help="print prompts, never call the LLM")
@@ -343,18 +358,21 @@ def main() -> None:
     args = ap.parse_args()
 
     settings = Settings()
-    engine = args.engine or (settings.llm_default_engine if settings.llm_default_engine != "off" else "remote")
+    # Model precedence: --model > --engine (its config brain) > llm_extract_model. The last is the
+    # default, so a bare invocation (and update.bat) use the dedicated extraction model — no .env
+    # juggling — while --engine / --model stay available for experiments.
+    model_name, api_base = _resolve_model(settings, args.engine, args.model)
     books = args.book or list((RIJAL_BOOKS if args.mode == "rijal" else CHAIN_BOOKS).values())
     missing = [b for b in books if not (BOOKS / f"{b}.json").exists()]
     if missing:
         sys.exit(f"missing book(s) {missing} under {BOOKS} — run update.bat to download them first")
 
-    llm = None if args.dry_run else _make_llm(settings, engine)
+    llm = None if args.dry_run else _make_llm(settings, model_name, api_base)
     cache = Cache()
     out_path = args.out or Path(f"data/{args.mode}_llm.jsonl")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     if not args.dry_run:
-        print(f"engine={engine} · books={books} · out={out_path}  (cache: {CACHE_DB})")
+        print(f"model={model_name} · books={books} · out={out_path}  (cache: {CACHE_DB})")
     with (open(os.devnull, "w") if args.dry_run else open(out_path, "w", encoding="utf-8")) as out:
         runner = run_rijal if args.mode == "rijal" else run_chains
         runner(books, llm, cache, sample=args.sample, dry=args.dry_run, out=out)

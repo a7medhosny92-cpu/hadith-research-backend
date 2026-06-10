@@ -34,7 +34,7 @@ Depth docs (NOT auto-loaded — open when relevant):
 - **`python -m scripts.build_rijal [--no-download]`** → rebuilds `data/rijal.jsonl` from
   تقريب(8609)+الكاشف(2171). `--no-download` re-parses cached books only (fast — applies an
   extraction fix in seconds without the full update).
-- **`python -m scripts.build_rijal_llm --mode rijal|chains [--engine local|remote] [--sample N] [--dry-run]`**
+- **`python -m scripts.build_rijal_llm --mode rijal|chains [--model ID|--engine local|remote] [--sample N] [--dry-run]`**
   → **LLM-assisted, FAITHFUL** build-time extraction (the regex's long-tail cure). `--mode rijal` →
   `data/rijal_llm.jsonl` (grade + **شيوخ/تلاميذ network** + death/kunya the terse regex drops);
   `--mode chains` → `data/chains_llm.jsonl` (re-segment isnād/matn only for chains the regex flags
@@ -45,6 +45,10 @@ Depth docs (NOT auto-loaded — open when relevant):
   engine/book never breaks the update), then **auto-folds the output in** (GATED → absent = pure regex
   pipeline): `build_rijal` merges the rijal, `build_graph` adds the network to `canon._pick`'s company,
   `parse` overrides the flagged chains. See `app/rijal/llm_source.py`.
+  **Model:** a bare invocation (and `update.bat`) use the dedicated **`llm_extract_model`** (default
+  **`ollama/gemma4:31b-cloud`** — free, direct/fast, via the local Ollama daemon, no GPU/RAM, NO `.env`
+  model juggling); `--engine local|remote` borrows the /ask brain (`llm_local/remote_model`); `--model ID`
+  pins any litellm id (precedence `--model` > `--engine` > `llm_extract_model`).
 - **`python -m scripts.audit_isnad`** → rescans all chains → `data/audit.json` (the «التدقيق» tab).
   **Run by update.bat as its final step** (so a plain update refreshes W/S/A); also runnable standalone.
 - **`python -m scripts.measure_dedup [--input f.jsonl]`** → read-only: how much of «مشترك» is the
@@ -123,6 +127,16 @@ optionally, `build_rijal_llm`) then send the new W/S/A.
   مالك بن أنس in al-Kashif came out of the regex with a truncated kunya, the network in the grade field, and
   no death year — the LLM gets it right + the network.* **The known-but-unfixed matn-leaks** («عائشة جاءت
   امرأة…», «في قوله تعالى ﴿…﴾», «قال فلان:»-start → 0 narrators) are the `--mode chains` target.
+
+**★ FOLLOW-UP (2026-06-10): dedicated extraction model wired into update («mettilo nell'update»).**
+Added `llm_extract_model` (default **`ollama/gemma4:31b-cloud`** — the only free+fast Ollama-Cloud model;
+minimax/nemotron are free but reasoning→~30s, too slow for a 16k-call batch; kimi/glm need a paid sub).
+`build_rijal_llm` gained `--model` (precedence `--model` > `--engine` > `llm_extract_model`); a **bare**
+invocation now uses the extract model with **zero `.env` juggling** (`api_base`=local Ollama for any
+`ollama/…`). `update.py` passes `--model settings.llm_extract_model`, so update.bat always extracts with
+gemma4:31b-cloud regardless of what `llm_local/remote_model` are set to. User still needs
+`LLM_DEFAULT_ENGINE=local` (or `--llm`) to *enable* the LLM step. NB the user hit `ModuleNotFoundError:
+scripts` by running from `…\build\data\` — must run from the **repo root** (`cd ..`).
 
 **Below = the earlier (pre-#117) state, kept for history.**
 

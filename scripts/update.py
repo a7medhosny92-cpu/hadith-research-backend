@@ -89,12 +89,14 @@ def main() -> None:
     # is heavy (one call per tarjama / per suspicious chain) but cached & resumable — re-runs are
     # cheap, and every record is faithfulness-validated (an unfaithful answer falls back to the regex).
     if run_llm:
-        llm = [PY, "-X", "utf8", "-m", "scripts.build_rijal_llm"]
-        eng = ["--engine", "remote"] if settings.llm_default_engine == "off" else []
+        # Always extract with the dedicated model (settings.llm_extract_model — gemma4:31b-cloud
+        # by default, reached through the local Ollama daemon), independent of the /ask «brain»,
+        # so extraction quality never depends on what local/remote happen to be set to in .env.
+        llm = [PY, "-X", "utf8", "-m", "scripts.build_rijal_llm", "--model", settings.llm_extract_model]
         step("+ LLM رجال  (شيوخ/تلاميذ network + grades — faithful, cached)",
-             llm + ["--mode", "rijal"] + eng, fatal=False)
+             llm + ["--mode", "rijal"], fatal=False)
         step("+ LLM إسناد  (re-segment only the chains the regex mis-split — faithful, cached)",
-             llm + ["--mode", "chains"] + eng, fatal=False)
+             llm + ["--mode", "chains"], fatal=False)
     step("5/8  Parse raw pages into structured JSONL", [PY, "-X", "utf8", "-m", "scripts.parse"])
     step("6/8  Rebuild the search indexes", [PY, "-X", "utf8", "-m", "scripts.index"])
     step("7/8  Build the narrator network", [PY, "-X", "utf8", "-m", "scripts.build_graph"])

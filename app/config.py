@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     llm_default_engine: Literal["off", "local", "remote"] = "off"
     llm_local_model: str = "ollama/qwen2.5:7b"             # the local brain (Ollama)
     llm_remote_model: str = "anthropic/claude-sonnet-4-6"  # the remote brain (cloud)
+    # The build-time *extraction* model (scripts.build_rijal_llm, run by update.bat) — kept
+    # separate from the /ask «brain» so corpus extraction always uses a capable, faithful model
+    # no matter what local/remote are set to. Default: Ollama Cloud's gemma4:31b-cloud — free,
+    # fast (direct answer, no chain-of-thought) and reached through the local Ollama daemon, so
+    # no GPU/RAM is needed. Override in .env to use a different extractor.
+    llm_extract_model: str = "ollama/gemma4:31b-cloud"
     llm_temperature: float = 0.2
     llm_timeout: float = 60.0                               # seconds per LLM call (no hang)
     ollama_api_base: str = "http://localhost:11434"        # local Ollama server
