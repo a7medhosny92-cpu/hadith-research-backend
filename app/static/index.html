@@ -408,41 +408,38 @@ function citeOf(x){
           (x.volume!=null&&x.volume!==""?"ج "+x.volume:null),
           (x.page!=null?"ص "+x.page:null)].filter(Boolean).join("  ·  ");
 }
+// the chain (الإسناد) shown INLINE + its حكم loaded on demand — shared by the main card and each
+// variant, so every طريق (the representative's included) is displayed the same way.
+function chainBlock(item){
+  if(!item.isnad) return "";
+  return `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${esc(item.isnad)}</div>`
+    + `<div class="toggle" data-id="${item.id != null ? item.id : ""}" data-closed="عرض الحكم على الإسناد ▾" data-open="إخفاء الحكم ▴">عرض الحكم على الإسناد ▾</div>`
+    + `<div class="isnad"><div class="chain-verdict"></div></div>`;
+}
 function _varRow(m){
   const cite = citeOf(m);
   const g = m.grade ? `<span class="grade ${gradeClass(m.grade)}">${esc(m.grade)}</span>` : "";
   const text = m.matn ? `<div class="var-matn">${hlMatn(m.matn)}</div>` : "";
-  // each narration shows its OWN chain (الإسناد), with its حكم loaded on demand — every طريق visible.
-  const chain = m.isnad
-    ? `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${esc(m.isnad)}</div>`
-      + `<div class="toggle" data-id="${m.id != null ? m.id : ""}" data-closed="عرض الحكم على الإسناد ▾" data-open="إخفاء الحكم ▴">عرض الحكم على الإسناد ▾</div>`
-      + `<div class="isnad"><div class="chain-verdict"></div></div>`
-    : "";
-  return `<div class="var-row"><div class="rawi-item"><span>${esc(cite)}</span>${g}</div>${text}${chain}</div>`;
+  return `<div class="var-row"><div class="rawi-item"><span>${esc(cite)}</span>${g}</div>${text}${chainBlock(m)}</div>`;
 }
 function hadithCard(h, n){
   const cite = citeOf(h);
   const grade = h.grade ? `<span class="grade ${gradeClass(h.grade)}">${esc(h.grade)}</span>` : "";
-  // the isnad folds open with a chain verdict («الحكم على الإسناد») loaded on demand
-  const isnad = h.isnad
-    ? `<div class="toggle" data-id="${h.id != null ? h.id : ""}">عرض الإسناد والحكم عليه ▾</div>`
-      + `<div class="isnad"><div class="chain-text">${esc(h.isnad)}</div>`
-      + `<div class="chain-verdict"></div></div>`
-    : "";
   const save = saveChip({kind:"hadith", title:cite, body:h.matn,
     meta:{collection:h.collection, number:h.number, volume:h.volume, page:h.page, grade:h.grade,
           isnad:h.isnad, rulings:h.rulings}});
   const trace = `<span class="go-takhrij" data-q="${esc(h.matn)}">تتبّع تخريجه ⟶</span>`;
-  // when this is a grouped report, its other rivayat are foldable underneath
-  const variants = h.count > 1
-    ? `<span class="var-toggle">عرض رواياته الأخرى (${h.count}) عبر ${(h.sources||[]).length} مصدرًا ▾</span>`
-      + `<div class="variants">${(h.members || []).map(_varRow).join("")}</div>`
+  // OTHER narrations only — exclude this representative (members[0]), so it isn't listed twice
+  const others = (h.members || []).slice(1);
+  const variants = others.length
+    ? `<span class="var-toggle">عرض رواياته الأخرى (${others.length}) عبر ${(h.sources||[]).length} مصدرًا ▾</span>`
+      + `<div class="variants">${others.map(_varRow).join("")}</div>`
     : "";
   const txt = `${h.matn}\n— ${cite}${h.grade ? " · " + h.grade : ""}`;
   const num = n ? `<span class="r-num">${n}</span>` : "";
   return `<div class="card">${num}<div class="matn">${hlMatn(h.matn)}</div>
     <div class="cite">${grade}<span>${esc(cite)}</span>${save}</div>
-    <div class="actions">${trace}${shareTools(txt)}</div>${rulingsHtml(h.rulings)}${variants}${isnad}</div>`;
+    <div class="actions">${trace}${shareTools(txt)}</div>${rulingsHtml(h.rulings)}${chainBlock(h)}${variants}</div>`;
 }
 
 // Reveal long result lists in batches so the window stays responsive even with
