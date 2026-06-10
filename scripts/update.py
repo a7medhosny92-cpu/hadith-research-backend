@@ -6,6 +6,12 @@ up to date: download new/updated books -> parse -> rebuild the search indexes.
     python -m scripts.update              # code + corpus (full sync)
     python -m scripts.update --code-only  # just pull code + refresh deps (fast)
     python -m scripts.update --full       # refresh the FULL corpus, not just canonical
+    python -m scripts.update --llm-rijal  # also run the optional (marginal) LLM رجال grade pass
+
+When an LLM engine is configured (``LLM_DEFAULT_ENGINE=local``), every update also runs a
+faithful, cached LLM pass that re-segments the few chains the regex mis-splits — the recovered
+narrators feed the narrator network. The رجال grade pass is OFF by default (the terse تقريب/الكاشف
+carry no شيوخ/تلاميذ network, so the regex already covers them); opt in with ``--llm-rijal``.
 
 Once the semantic index exists, every update re-embeds **incrementally** (only the
 matns whose text changed) to keep it aligned with the freshly-rebuilt id space — so
@@ -53,6 +59,9 @@ def main() -> None:
                     help="run the LLM extraction (rijal network + chain segmentation) before parsing")
     ap.add_argument("--no-llm", action="store_true",
                     help="skip the LLM extraction even if an engine is configured")
+    ap.add_argument("--llm-rijal", action="store_true",
+                    help="also run the (marginal) LLM رجال pass — off by default: تقريب/الكاشف are "
+                         "terse grade-books with no شيوخ/تلاميذ network, so the regex already covers them")
     args = ap.parse_args()
 
     settings = get_settings()
@@ -86,17 +95,24 @@ def main() -> None:
                else ["--priority", "--with-commentaries"])
     step("4/8  Download new/updated books (resumable — may take a while)", ingest)
     # LLM extraction BEFORE parse, so parse/build_rijal/build_graph all see the data. The FIRST run
-    # is heavy (one call per tarjama / per suspicious chain) but cached & resumable — re-runs are
-    # cheap, and every record is faithfulness-validated (an unfaithful answer falls back to the regex).
+    # is heavy (one call per suspicious chain) but cached & resumable — re-runs are cheap, and every
+    # record is faithfulness-validated (an unfaithful answer falls back to the regex).
     if run_llm:
         # Always extract with the dedicated model (settings.llm_extract_model — gemma4:31b-cloud
         # by default, reached through the local Ollama daemon), independent of the /ask «brain»,
         # so extraction quality never depends on what local/remote happen to be set to in .env.
         llm = [PY, "-X", "utf8", "-m", "scripts.build_rijal_llm", "--model", settings.llm_extract_model]
-        step("+ LLM رجال  (شيوخ/تلاميذ network + grades — faithful, cached)",
-             llm + ["--mode", "rijal"], fatal=False)
+        # CHAINS is the LLM's unique value: it re-segments only the chains the regex mis-split (matn
+        # leaked into the isnad, a verse, 0 narrators). The recovered narrators then feed build_graph's
+        # network — so the chain pass actually STRENGTHENS «the link», it doesn't replace it.
         step("+ LLM إسناد  (re-segment only the chains the regex mis-split — faithful, cached)",
              llm + ["--mode", "chains"], fatal=False)
+        # The رجال pass is OFF by default (opt in with --llm-rijal): تقريب/الكاشف are terse grade-books
+        # with no شيوخ/تلاميذ lists, so the LLM only re-derives grades the regex already has and builds
+        # no link. The network comes from the corpus chains + the regex tahdhib/jarh extractors.
+        if args.llm_rijal:
+            step("+ LLM رجال  (grades only — تقريب/الكاشف have no network; opt-in)",
+                 llm + ["--mode", "rijal"], fatal=False)
     step("5/8  Parse raw pages into structured JSONL", [PY, "-X", "utf8", "-m", "scripts.parse"])
     step("6/8  Rebuild the search indexes", [PY, "-X", "utf8", "-m", "scripts.index"])
     step("7/8  Build the narrator network", [PY, "-X", "utf8", "-m", "scripts.build_graph"])
@@ -111,8 +127,8 @@ def main() -> None:
     # Refresh the isnad-audit report (the «التدقيق» review tab) so it reflects the new data.
     step("+ تدقيق  Build the isnad audit report (review tab)",
          [PY, "-X", "utf8", "-m", "scripts.audit_isnad"])
-    print(f"\nDone — code, corpus and indexes are all up to date"
-          f"{' (incl. the LLM rijal + chains)' if run_llm else ''}.")
+    tail = (" (incl. the LLM chain re-segmentation" + (" + رجال" if args.llm_rijal else "") + ")") if run_llm else ""
+    print(f"\nDone — code, corpus and indexes are all up to date{tail}.")
 
 
 if __name__ == "__main__":
