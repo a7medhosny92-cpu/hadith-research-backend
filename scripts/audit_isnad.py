@@ -97,7 +97,12 @@ def _flag_chain(narrators: list[dict]) -> list[tuple[str, str]]:
         # …and the cited name must be CONSISTENT with the matched man — else a more-specific
         # namesake (الحسن بن علي بن زياد) wrongly wears a short Companion's/متروك's grade.
         compatible = _name_compatible(name, rij.get("name") or "")
-        if grade == "صحابي" and i < n - _TWO_LAST and certain and compatible:
+        # صحابيٌّ عن صحابيّ is legitimate at ANY depth — a younger Companion narrating from an older
+        # one («ابن عباس عن عمر»، «أنس عن أبي بكر») is sound, not a misplaced صحابي. So extend the
+        # last-two-links exception: a صحابي whose own شيخ (the NEXT link) is also a صحابي isn't flagged.
+        nxt = narrators[i + 1] if i + 1 < n else None
+        shaykh_sahabi = bool(nxt and (nxt.get("rijal") or {}).get("grade") == "صحابي")
+        if grade == "صحابي" and i < n - _TWO_LAST and certain and compatible and not shaykh_sahabi:
             out.append(("S", f"«{name}» (الحلقة {i+1}/{n}) حُكم له «صحابي» وموضعه ليس آخر السند"))
         if any(w in verdict for w in _WEAK) and len(name.split()) >= 3 and certain and compatible:
             out.append(("W", f"«{name}» (اسمٌ كامل) حُكم له «{verdict}» — يُحتمل خلطٌ باسمٍ مشابه"))

@@ -203,6 +203,17 @@ LLM step skipped — gemma cloud weekly cap, non-fatal). New numbers, **84,807 c
   False)** so the grade-agreement gate never grades the chain متروك. A lone grave (أصبغ — no namesake) still
   resolves. Re-swept: **DANGEROUS 2→0 · held 61→63.** Narrow (only fires for a grave contained match), live in
   `_lookup`, +1 test, **339 green.** → the rijal is now CLEAN of grave-shadowing conflicts; W should drop further.
+  **Then made `audit_conflicts` permanent**: new read-only `scripts/audit_conflicts.py` (`sweep` + `_GRAVE`/`_TRUST`)
+  → `data/conflicts.json`; **wired into `update.bat`** (after the isnad/matn audits) and surfaced as the app
+  **«تعارض الرجال» tab** (`/conflicts` endpoint, mirrors `/audit`; `renderConflicts` in index.html) — a watchdog
+  so the «كذاب في صحيح مسلم» class is caught in-app, not by accident. +1 test, node --check clean.
+- **★ S #2 REFINEMENT — صحابيٌّ عن صحابيّ is legitimate at any depth** (`audit_isnad._flag_chain`): the S residual
+  after name-compat/ابن-X is now mostly a younger Companion narrating from an older one («ابن عباس عن عمر»، «أنس عن
+  أبي بكر») — NOT a misplaced صحابي. Extend the last-two-links exception: don't flag a صحابي whose own شيخ (the next
+  link, `narrators[i+1]`) is ALSO a صحابي. Kept the guard tight: a صحابي whose شيخ is a non-Companion (تابعي) deep in
+  the chain is STILL flagged (the real anachronism). Masking risk (a non-Companion mis-graded صحابي with a صحابي شيخ)
+  is narrow — the residual صحابي resolutions are real Companions (ابن عباس→عبد الله بن عباس &c., verified). +1 test,
+  341 green. Expect **S↓** (the صحابي-عن-صحابي class); measure on the next `audit_isnad`.
 
 **★ (2026-06-11, THIS SESSION). 5-FIX RUN MEASURED → the GRAPH-LAG throttle found · buried-ancestor
 fix · MATN AUDIT built. On main, branch `claude/intelligent-bardeen-HAsrg` (HEAD `81d08db`).**

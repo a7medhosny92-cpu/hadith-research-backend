@@ -299,3 +299,24 @@ def test_kinship_particle_refused():
     r = RijalIndex([{"name": "جعفر بن أبي ثور واسم أبيه عكرمة", "grade": "مقبول"}])
     assert r.lookup("أبيه") is None
     assert r.lookup("جده") is None
+
+
+def test_a_companion_narrating_from_a_companion_is_not_flagged_S():
+    # «ابن عباس عن عمر» — a younger Companion narrating from an older one is legitimate at any depth,
+    # not a misplaced صحابي. The S flag is suppressed when the next link (the شيخ) is also a صحابي…
+    from scripts.audit_isnad import _flag_chain
+    sahabi_chain = [
+        {"name": "قتادة", "rijal": {"name": "قتادة بن دعامة", "grade": "ثقة"}},
+        {"name": "ابن عباس", "rijal": {"name": "عبد الله بن عباس", "grade": "صحابي"}},
+        {"name": "عمر", "rijal": {"name": "عمر بن الخطاب", "grade": "صحابي"}},
+        {"name": "النبي", "is_prophet": True},
+    ]
+    assert "S" not in [c for c, _ in _flag_chain(sahabi_chain)]
+    # …but a Companion whose شيخ is NOT a Companion (a تابعي) deep in the chain is STILL suspect.
+    odd_chain = [
+        {"name": "حماد", "rijal": {"name": "حماد بن سلمة", "grade": "ثقة"}},
+        {"name": "أنس", "rijal": {"name": "أنس بن مالك", "grade": "صحابي"}},
+        {"name": "علقمة", "rijal": {"name": "علقمة بن وقاص", "grade": "ثقة"}},
+        {"name": "عمر", "rijal": {"name": "عمر بن الخطاب", "grade": "صحابي"}},
+    ]
+    assert "S" in [c for c, _ in _flag_chain(odd_chain)]
