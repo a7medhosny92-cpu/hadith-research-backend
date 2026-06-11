@@ -121,3 +121,19 @@ def audit() -> dict:
         return {"available": False}
     report["available"] = True
     return report
+
+
+@router.get("/conflicts")
+def conflicts() -> dict:
+    """The prebuilt رجال-conflict report (``scripts.audit_conflicts``) for the «تعارض الرجال» tab —
+    grave↔trustworthy name collisions, flagged DANGEROUS (a grave wrongly grades a sound chain) or
+    held. Returns ``{available: False}`` when the report hasn't been built yet."""
+    path = get_settings().data_dir / "conflicts.json"
+    if not path.exists():
+        return {"available": False}
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"available": False}
+    report["available"] = True
+    return report

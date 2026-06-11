@@ -65,7 +65,8 @@ Depth docs (NOT auto-loaded — open when relevant):
 - **`python -m scripts.audit_conflicts [--cap N]`** → read-only: sweeps all رجال grouped by ism+father,
   finds **grave↔trustworthy name collisions**, and flags **DANGEROUS** (lookup confidently grades the grave
   → sinks a sound chain, the «كذاب في صحيح مسلم» class) vs **held** (ambiguous, correct) → `data/conflicts.json`.
-  A clean run is DANGEROUS = 0; run after any rijal change to catch new collisions.
+  A clean run is DANGEROUS = 0; run after any rijal change to catch new collisions. **Wired into `update.bat`**
+  (after audit_isnad/audit_matn) and surfaced in the app as the **«تعارض الرجال» tab** (`/conflicts` endpoint).
 - **`python -m scripts.sample_source <id> [--entries N|--find "name"|--pages A-B] --out f.txt`** →
   read-only sampler to study a *prose* rijal source before writing its extractor; downloads the book
   if absent; never touches rijal.jsonl. Ids: تهذيب الكمال 3722, تهذيب التهذيب 1278(دبي)/1293(الرسالة).

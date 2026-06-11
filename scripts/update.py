@@ -131,6 +131,10 @@ def main() -> None:
     # looks empty/truncated, isnad-leaked, grade-tailed, or non-matn.
     step("+ تدقيق المتون  Build the matn audit report (review tab)",
          [PY, "-X", "utf8", "-m", "scripts.audit_matn"])
+    # …and the رجال-conflict report (the «تعارض الرجال» tab): grave↔trustworthy name collisions, so any
+    # new clash that could grade a sound chain by the wrong man is caught the moment it appears.
+    step("+ تعارض الرجال  Build the narrator-conflict report (review tab)",
+         [PY, "-X", "utf8", "-m", "scripts.audit_conflicts"])
     tail = (" (incl. the LLM chain re-segmentation" + (" + رجال" if args.llm_rijal else "") + ")") if run_llm else ""
     print(f"\nDone — code, corpus and indexes are all up to date{tail}.")
 

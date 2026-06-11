@@ -239,6 +239,7 @@
     <button data-mode="notebook">دفتري</button>
     <span class="bar-sep"></span>
     <button data-mode="audit" class="doc">التدقيق</button>
+    <button data-mode="conflicts" class="doc">تعارض الرجال</button>
     <button data-mode="method" class="doc">المنهجية</button>
     <button data-mode="arch" class="doc">البنية</button>
     <button data-mode="tech" class="doc">التقنية</button>
@@ -441,12 +442,12 @@
 <figcaption style="text-align:center;color:#666;font-size:.85rem;margin-top:.4rem;line-height:1.6">المسار: الكتب (المصادر) ← البناء (الغراف ⭐) ← التمييز ← النتيجة. الخيطُ الذهبيّ = شبكةُ الرجال (تهذيب الكمال والجرح والتعديل) التي تَحُلّ «المشترك» بالرفقة.</figcaption></figure></div>
 <script>
 const LABELS = {search:"ابحث", ask:"اسأل", takhrij:"خرّج", narrator:"اعرض",
-  network:"تنقّل", isnad:"حقّق", notebook:"ابحث", method:"اعرض", arch:"اعرض", tech:"اعرض", audit:"اعرض"};
+  network:"تنقّل", isnad:"حقّق", notebook:"ابحث", method:"اعرض", arch:"اعرض", tech:"اعرض", audit:"اعرض", conflicts:"اعرض"};
 const PLACEHOLDER = {search:"اكتب الحديث أو السؤال…", ask:"اكتب سؤالك…",
   takhrij:"اكتب متن الحديث…", narrator:"اكتب اسم الراوي…",
   network:"اكتب اسم الراوي للتنقّل في شبكته…",
   isnad:"الصق الإسناد… أو رقم حديثٍ مفهرس", notebook:"ابحث في دفترك… (فارغ = الكل)",
-  method:"", arch:"", tech:"", audit:""};
+  method:"", arch:"", tech:"", audit:"", conflicts:""};
 const ENGINE_AR = {
   off: "إجابة استخراجية من المصادر (بدون ذكاء اصطناعي)",
   local: "أُجيب عبر محرّك محلي (Ollama)",
@@ -479,7 +480,7 @@ document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
   q.placeholder = PLACEHOLDER[mode];
   syncEngineUI();
   // «المنهجية» / «البنية» / «التقنية» / «التدقيق» are reading pages with no query — hide the box.
-  const info = mode === "method" || mode === "arch" || mode === "tech" || mode === "audit";
+  const info = mode === "method" || mode === "arch" || mode === "tech" || mode === "audit" || mode === "conflicts";
   q.style.display = info ? "none" : "";
   go.style.display = info ? "none" : "";
   if(mode === "notebook" || info){
@@ -727,6 +728,7 @@ async function run(){
   if(mode === "arch"){ renderArchitecture(); return; }     // architecture / how it works
   if(mode === "tech"){ renderTech(); return; }              // full technical reference
   if(mode === "audit"){ renderAudit(); return; }            // isnad audit — cases to review
+  if(mode === "conflicts"){ renderConflicts(); return; }    // rijal grave↔trustworthy collisions
   if(!query && mode !== "notebook") return;   // notebook lists everything when empty
   results.innerHTML = `<div class="state">… جارٍ التنفيذ</div>`;
   try{
@@ -1505,6 +1507,38 @@ async function renderAudit(){
     });
     if(cases.length < total) html += `<div class="note">… و${total - cases.length} حالةً أخرى في التقرير</div>`;
   });
+  results.innerHTML = html;
+}
+
+// «تعارض الرجال» — the rijal-conflict report (scripts.audit_conflicts): grave↔trustworthy name
+// collisions, and whether the matcher HOLDS each (correct) or DANGEROUSLY grades the grave.
+async function renderConflicts(){
+  results.innerHTML = `<div class="state">… جارٍ تحميل تقرير تعارُض الرجال</div>`;
+  let d;
+  try { d = await getJSON("/conflicts"); }
+  catch(e){ results.innerHTML = `<div class="state">${esc(e.message || "تعذّر التحميل")}</div>`; return; }
+  if(!d.available){
+    results.innerHTML =
+      `<div class="note">لم يُبْنَ تقريرُ تعارُض الرجال بعد. شغّل الأمر التالي بِبيئة المشروع، ثم أعد فتح هذه الصفحة:</div>`
+      + `<div class="card"><div class="answer">.venv\\Scripts\\python.exe -m scripts.audit_conflicts</div></div>`
+      + `<div class="note">يَفحص كلَّ الرواة المتشاركين في «الاسم + الأب» ويرصد تصادُمَ جرحٍ شديدٍ مع ثقةٍ (ويتجدّد تلقائيًّا مع update.bat).</div>`;
+    return;
+  }
+  const c = d.counts || {}, danger = d.dangerous || [];
+  let html = `<div class="note">تعارُضُ الرجال — قاعدةُ رجالٍ <b>${d.rijal_entries}</b> · ${esc(d.generated)}</div>`
+    + `<div class="note">يَرصد تصادُمَ الأسماء حيث يتشارك «متروكٌ/كذّابٌ» الاسمَ (الاسم + الأب) مع «ثقةٍ/صدوقٍ/صحابيّ»، فقد يُحكَم على إسنادٍ سليمٍ بحكم الرجل الخطأ. الكاملُ في data/conflicts.json.</div>`
+    + `<div class="comp-head">إجماليُّ التصادمات <span class="simbadge">(${d.collisions || 0})</span></div>`
+    + `<div class="rawi-item"><span>✅ مُعلَّقٌ «مشترك» (صحيحٌ — لا يُخمَّن)</span><span class="simbadge">${c.held || 0}</span></div>`
+    + `<div class="rawi-item"><span>↩︎ يُحَلُّ إلى الثقة / بلا مطابقة</span><span class="simbadge">${c.ok || 0}</span></div>`
+    + `<div class="comp-head" style="color:#b03030">⚠️ خطِرٌ — الجرحُ يَغلِب فيَهدِم إسنادًا سليمًا <span class="simbadge">(${danger.length})</span></div>`;
+  if(!danger.length){
+    html += `<div class="note">لا حالاتٍ خطِرة — كلُّ تصادمٍ بين جرحٍ وثقةٍ مُعلَّقٌ «مشترك». 👍</div>`;
+  } else {
+    danger.forEach(x => {
+      html += `<div class="rawi-item audit-head"><span>«${esc(x.name)}» ← [${esc(x.grade)}] ${esc(x.grave)}</span>`
+        + `<span class="simbadge">الثقة: ${esc((x.trustworthy || []).join("، "))}</span></div>`;
+    });
+  }
   results.innerHTML = html;
 }
 
