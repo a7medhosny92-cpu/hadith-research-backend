@@ -97,7 +97,7 @@ def _order_ok(q_seq: list[str], f_seq: list[str], shared: set[str]) -> bool:
 
 def _score_entry(
     query_seq: list[str], query: set[str], seqs: list[list[str]], kunya_seqs: list[list[str]],
-    *, teknonym: bool = True,
+    *, teknonym: bool = True, nasab_ref: bool = False,
 ) -> tuple[int, tuple[int, bool, int] | None]:
     """Score one entry against the query.
 
@@ -108,14 +108,20 @@ def _score_entry(
     which marks the natural identity: «عدي بن حاتم» is عدي بن حاتم الطائي (prefix), not عدي بن
     الفضل … أبو حاتم (where حاتم only shows up later, inside a kunya). Teknonym forms
     (``kunya_seqs``) match reverse-only and only when the query is itself a kunya.
-    """
+
+    ``nasab_ref`` (a «ابن X» citation) means X is a FATHER, so a leading (ism-position) match is
+    wrong: «ابن عمر» is the son عبد الله بن عمر, never عمر بن الخطاب the eponym (nor any of the 134
+    men *named* عمر). Such prefix partials are dropped — X must sit non-leading (as a father)."""
     specificity = 0
     best: tuple[int, bool, int] | None = None
     qlen = len(query_seq)
 
     def offer(seq: list[str]) -> None:
         nonlocal best
-        cand = (len(query), seq[:qlen] == query_seq, len(seq))   # (cover, is_prefix, form_len)
+        is_prefix = seq[:qlen] == query_seq
+        if nasab_ref and is_prefix:
+            return    # «ابن عمر» — عمر is the FATHER (non-leading); never the ism (the eponym)
+        cand = (len(query), is_prefix, len(seq))   # (cover, is_prefix, form_len)
         if best is None or (cand[0], cand[1], -cand[2]) > (best[0], best[1], -best[2]):
             best = cand
 
@@ -262,7 +268,8 @@ class RijalIndex:
         contained: list[tuple[int, RijalEntry]] = []                  # (specificity, entry)
         partial: list[tuple[int, bool, int, RijalEntry]] = []         # (cover, is_prefix, len, entry)
         for entry, seqs, kunya_seqs in zip(self._entries, self._form_seqs, self._kunya_seqs):
-            specificity, best = _score_entry(query_seq, query, seqs, kunya_seqs, teknonym=teknonym)
+            specificity, best = _score_entry(
+                query_seq, query, seqs, kunya_seqs, teknonym=teknonym, nasab_ref=not teknonym)
             if specificity:
                 contained.append((specificity, entry))
             elif best:
@@ -316,7 +323,8 @@ class RijalIndex:
         contained: list[tuple[int, RijalEntry]] = []
         partial: list[tuple[int, bool, RijalEntry]] = []
         for entry, seqs, kunya_seqs in zip(self._entries, self._form_seqs, self._kunya_seqs):
-            specificity, best = _score_entry(query_seq, query, seqs, kunya_seqs, teknonym=teknonym)
+            specificity, best = _score_entry(
+                query_seq, query, seqs, kunya_seqs, teknonym=teknonym, nasab_ref=not teknonym)
             if specificity:
                 contained.append((specificity, entry))
             elif best:

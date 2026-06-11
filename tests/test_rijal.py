@@ -86,6 +86,25 @@ def test_ibn_abi_X_is_the_descendant_not_the_kunya_grandfather():
     assert rij.lookup("أبو مليكة").entry.name == "زهير بن عبد الله"
 
 
+def test_ibn_X_patronymic_does_not_match_the_eponym_named_X():
+    # «ابن عمر» is the son عبد الله بن عمر, NEVER عمر himself nor any man whose ISM is عمر — «ابن»
+    # makes عمر a FATHER, so he must sit non-leading. (Real bug: «ابن عمر» matched 134 عمر-named men,
+    # held مشترك with the eponym عمر بن الخطاب; same for «ابن عباس».)
+    rij = RijalIndex([
+        {"name": "عمر بن الخطاب العدوي", "grade": "صحابي"},        # the eponym — he is عمر, not ابن عمر
+        {"name": "عمر بن إبراهيم العبدي", "grade": "ثقة"},          # another man whose ism is عمر
+        {"name": "عبد الله بن عمر بن الخطاب", "grade": "صحابي"},    # the son — IS «ابن عمر»
+        {"name": "عبيد الله بن عمر العمري", "grade": "ثقة"},        # another son of عمر
+    ])
+    cands = [e.name for e in rij.candidates("ابن عمر", max_results=None)]
+    assert any("عبد الله بن عمر" in n for n in cands)              # a son IS a candidate
+    assert all(not n.startswith("عمر ") for n in cands)           # …no عمر-led eponym
+    m = rij.lookup("ابن عمر")
+    assert m is None or not m.entry.name.startswith("عمر ")        # lookup never picks the father
+    # a bare ism citation «عمر بن الخطاب» (no «ابن») is unaffected — still reaches an عمر-led man
+    assert rij.lookup("عمر بن الخطاب") is not None
+
+
 def test_a_complete_name_is_not_ambiguous_with_a_descendant_burying_it():
     # «محمد بن عبد الله بن جحش» (a صحابي) must NOT read «مشترك» with his descendant «إبراهيم بن محمد
     # بن عبد الله بن جحش» — the descendant merely carries the ancestor's nasab. When the query is

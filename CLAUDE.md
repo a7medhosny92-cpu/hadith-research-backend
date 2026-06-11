@@ -144,8 +144,18 @@ LLM step skipped — gemma cloud weekly cap, non-fatal). New numbers, **84,807 c
   _clean_tokens(matched)`), else a more-specific namesake («الحسن بن علي بن زياد») is wearing a short Companion's/
   متروك's grade → don't flag. Validated on the real rijal (kills الخلال/المعمري/بن زياد; KEEPS «محمد بن سعيد بن
   حسان»→المصلوب كذاب and the deeper-ancestor «عبد الله بن عمر بن الخطاب»). **Est. ~150/500 S-sample suppressed**
-  (≈ the الحسن/الحسين-بن-علي + concatenation-artifact class); +2 tests, 336 green. **WAITING ON THE USER: one
-  `update.bat`** → send `audit.json` + W/S/A to measure the S drop (and whether A/W move).
+  (≈ the الحسن/الحسين-بن-علي + concatenation-artifact class); +2 tests, 336 green.
+- **★ FIX 2 — «ابن X» patronymic must not match the eponym** (`index._score_entry`, new `nasab_ref` param; gates
+  the partial `offer`): a citation literally starting with «ابن»/«بن» means X is a FATHER, so a leading
+  (ism-position) match is wrong. **«ابن عمر» matched 134 men NAMED عمر** (lookup picked عمر بن الخطاب the eponym,
+  held مشترك) — now 0 عمر-led; «ابن عباس» same; reinforces the «ابن أبي مليكة» #3 fix; non-nasab citations
+  («مالك بن أنس»، bare «عمر بن الخطاب») untouched. +1 test, 337 green. **HONEST scope: this is a CORRECTNESS fix
+  (right candidates, and cuts «ابن X»→father-صحابي false S the name-compat guard misses because عمر∈«عمر بن الخطاب»)
+  — it does NOT cut the A COUNT**: «ابن عمر» stays ambiguous among the *sons* (إسحاق بن عمر…), just no longer the
+  father. **A's count-lever is NETWORK COVERAGE** (تهذيب 3722 / الجرح 2170 give `canon._pick` the شيوخ company to
+  resolve «علي بن محمد» ×52 = 4 real men — تقريب/الكاشف carry NO network, so the dominant A is structural homonymy
+  the relaxation can't touch). **WAITING ON THE USER: one `update.bat`** → send `audit.json` + W/S/A to measure the
+  S drop (name-compat + ابن-X) and confirm A holds; and whether تهذيب 3722/الجرح 2170 are downloaded (the A lever).
 
 **★ (2026-06-11, THIS SESSION). 5-FIX RUN MEASURED → the GRAPH-LAG throttle found · buried-ancestor
 fix · MATN AUDIT built. On main, branch `claude/intelligent-bardeen-HAsrg` (HEAD `81d08db`).**
