@@ -229,6 +229,20 @@ LLM step skipped — gemma cloud weekly cap, non-fatal). New numbers, **84,807 c
   «محمد بن محمد» → the 7 real «محمد بن محمد X» (genuine homonymy, not every محمد). Live in matching → effective on the
   next `audit_isnad`. +1 test, 342 green. → part of A WAS a real bug (every «X بن X» narrator), now resolved; proves
   the screenshots are gold for separating A-bugs from honest homonymy.
+- **★ BUG-HUNT SWEEP + the «مجهول → known» recovery (user: «cerca tutti i bug» / «molti noti sono ignoti»).**
+  Systematic detectors on the real rijal: token-collapse = 0 (X-بن-X covered the class), self-match-failure = 0
+  (no narrator's own name resolves to a wrong man — the grave/flipped/X-بن-X fixes closed shadowing), only 2
+  truncated-name unreachables. → the MATCHING is clean; what remains is **extraction noise** (a few «بنمحمد»
+  concatenations, 19 ضبط residuals, relational «صاحب/ابن عم الشعبي») and the **«غير معروف» class (358)**. Three
+  user screenshots pinned the worst: **عبد الرحمن بن عوف** (أحد العشرة) read «مجهول» — his Companion bio leaked into
+  the NAME, grade empty. Fixes: (1) `grades.classify` now reads Companion-by-DESCRIPTION («أحد العشرة، أسلم قديمًا،
+  مذكور في الصحابة، بدري…») + the missing verdicts «متهم»→متروك, «ليس بالقوي»→لين; (2) `rijal_extract._COMPANION`
+  gains the same; (3) **`RijalIndex.add` recovers** an ungraded entry: a curated CLOSED anchor —
+  `app/rijal/companions.py` `MAJOR_COMPANIONS` (→صحابي) + `MAJOR_TABIIN` (the فقهاء السبعة، الزهري، الحسن، ابن
+  سيرين… →ثقة) — else a POSITIVE grade leaked into the name (never a negative → can't sink a chain). **«غير معروف»
+  358→307**: أبي بن كعب/عبد الله بن مسعود/معاذ بن جبل→صحابي, سعيد بن المسيب→ثقة; a GRADED namesake (عمر بن الخطاب
+  السجستاني صدوق) is never overridden. +5 tests, 344 green. The remaining ~307 are genuinely-obscure or
+  extraction-failed NON-famous entries → build-time re-extraction (most have a grade in تقريب; the empty = bugs).
 
 **★ (2026-06-11, THIS SESSION). 5-FIX RUN MEASURED → the GRAPH-LAG throttle found · buried-ancestor
 fix · MATN AUDIT built. On main, branch `claude/intelligent-bardeen-HAsrg` (HEAD `81d08db`).**

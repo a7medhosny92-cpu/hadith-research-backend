@@ -20,7 +20,8 @@ from pathlib import Path
 from typing import Iterable, Iterator
 
 from app.parsing.normalize import fold_kunya, normalize_for_search
-from app.rijal.grades import classify
+from app.rijal.companions import MAJOR_COMPANIONS, MAJOR_TABIIN
+from app.rijal.grades import RANKS, classify
 
 # Honorific ligatures (ﷺ ﵁ …), Quranic/honorific marks, and spelled-out eulogies.
 _HONORIFIC_CH = re.compile(r"[﴾-﷿ؐ-ؚۖ-ۭ]")
@@ -66,6 +67,23 @@ def _clean_seq(name: str) -> list[str]:
 
 def _clean_tokens(name: str) -> set[str]:
     return set(_clean_seq(name))
+
+
+# Curated, closed anchor sets (folded once): a high-status narrator whose رجال entry carries NO grade
+# must not read «مجهول». Each form is ≥2 distinctive tokens; an entry whose name CONTAINS one is graded
+# accordingly. See app/rijal/companions.py.
+_COMPANION_FORMS = [f for f in (frozenset(_clean_tokens(c)) for c in MAJOR_COMPANIONS) if len(f) >= 2]
+_TABII_FORMS = [f for f in (frozenset(_clean_tokens(c)) for c in MAJOR_TABIIN) if len(f) >= 2]
+
+
+def _anchor_grade(name_tokens: set[str]) -> tuple[str, int] | None:
+    """If the name contains a major Companion → («صحابي», 10); a major تابعي ثقة → («ثقة», 9); else
+    ``None``. Only consulted for an otherwise-ungraded entry (see ``RijalIndex.add``)."""
+    if any(f <= name_tokens for f in _COMPANION_FORMS):
+        return "صحابي", RANKS["صحابي"]
+    if any(f <= name_tokens for f in _TABII_FORMS):
+        return "ثقة", RANKS["ثقة"]
+    return None
 
 
 # Kunya particles after folding (أبو/أبا/أبي → ابو, أم → ام). A form that *starts* with
@@ -227,13 +245,18 @@ class RijalIndex:
             # so a major صحابي (عبد الرحمن بن عوف) is mis-graded «مجهول» → a chain through him reads «راوٍ
             # مجهول». Recover صحابي from his own name when the grade is silent (only ever PROMOTES).
             if category == "غير معروف":
-                # A Companion's / trustworthy man's grade sometimes leaks into his NAME instead of the
-                # grade field (عبد الرحمن بن عوف «أحد العشرة أسلم قديمًا …» → mis-graded «مجهول»; a chain
-                # through him then reads «راوٍ مجهول»). Recover a POSITIVE grade from the name — never a
-                # negative one, which could sink a sound chain on a coincidental word.
-                name_cat, name_rank = classify(raw["name"])
-                if name_cat in ("صحابي", "ثقة", "صدوق", "مقبول"):
-                    category, rank = name_cat, name_rank
+                # A high-status narrator must not read «مجهول» just because his grade wasn't extracted.
+                # (1) A curated, CLOSED anchor — a major Companion (→صحابي) or a major تابعي ثقة (→ثقة);
+                # these are the well-known referents, documentary not guessed (app/rijal/companions.py).
+                # (2) Else recover a POSITIVE grade that leaked into his NAME (عبد الرحمن بن عوف «أحد
+                # العشرة …») — never a negative one, which could sink a sound chain on a coincidental word.
+                anchor = _anchor_grade(_clean_tokens(raw["name"]))
+                if anchor:
+                    category, rank = anchor
+                else:
+                    name_cat, name_rank = classify(raw["name"])
+                    if name_cat in ("صحابي", "ثقة", "صدوق", "مقبول"):
+                        category, rank = name_cat, name_rank
             entry = RijalEntry(
                 name=raw["name"],
                 aliases=list(raw.get("aliases") or []),

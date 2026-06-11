@@ -353,3 +353,17 @@ def test_companion_by_description_is_recovered_from_an_empty_grade():
     # a NEGATIVE word in a NAME must NOT be recovered — only a positive one (never sink a sound chain)
     rij2 = RijalIndex([{"name": "فلان بن فلان صاحب الضعيف", "grade": ""}])
     assert rij2._entries[0].category == "غير معروف"
+
+
+def test_high_status_unknown_is_recovered_by_the_curated_anchor():
+    # A famous Companion / major تابعي whose grade was never extracted must not read «مجهول» — the
+    # curated, closed anchor (companions.py) grades him; a GRADED namesake must NOT be anchored.
+    rij = RijalIndex([
+        {"name": "أبي بن كعب بن قيس الأنصاري", "grade": "غير محدد"},     # Companion, empty grade
+        {"name": "سعيد بن المسيب بن حزن المخزومي", "grade": ""},          # major تابعي ثقة, empty grade
+        {"name": "عمر بن الخطاب السجستاني", "grade": "صدوق"},             # graded namesake → NOT anchored
+    ])
+    by = {e.name: e.category for e in rij._entries}
+    assert by["أبي بن كعب بن قيس الأنصاري"] == "صحابي"
+    assert by["سعيد بن المسيب بن حزن المخزومي"] == "ثقة"
+    assert by["عمر بن الخطاب السجستاني"] == "صدوق"      # safety: an existing grade is never overridden
