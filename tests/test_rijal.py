@@ -337,3 +337,19 @@ def test_X_ibn_X_is_not_collapsed_to_the_bare_ism():
     m = rij.lookup("معاذ بن معاذ")
     assert m.entry.name == "معاذ بن معاذ العنبري" and not m.ambiguous   # the one real «معاذ بن معاذ»
     assert len(rij.candidates("معاذ بن معاذ", max_results=None)) == 1   # not every معاذ بن فلان
+
+
+def test_companion_by_description_is_recovered_from_an_empty_grade():
+    # عبد الرحمن بن عوف (one of العشرة المبشرة) had his Companion status «أحد العشرة أسلم قديمًا …»
+    # leaked into the NAME while the grade field was empty → he was mis-graded «غير معروف» (مجهول), so
+    # a chain through a major صحابي read «راوٍ مجهول». classify now reads the description, and add()
+    # recovers a POSITIVE grade from the name when the grade is silent.
+    from app.rijal.grades import classify
+    assert classify("أحد العشرة أسلم قديمًا ومناقبه شهيرة") == ("صحابي", 10)
+    assert classify("مذكور في الصحابة")[0] == "صحابي"
+    assert classify("متهم")[0] == "متروك" and classify("ليس بالقوي")[0] == "لين"
+    rij = RijalIndex([{"name": "عبد الرحمن بن عوف الزهري أحد العشرة أسلم قديمًا", "grade": "غير محدد"}])
+    assert rij._entries[0].category == "صحابي"
+    # a NEGATIVE word in a NAME must NOT be recovered — only a positive one (never sink a sound chain)
+    rij2 = RijalIndex([{"name": "فلان بن فلان صاحب الضعيف", "grade": ""}])
+    assert rij2._entries[0].category == "غير معروف"

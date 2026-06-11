@@ -223,6 +223,17 @@ class RijalIndex:
         n = 0
         for raw in entries:
             category, rank = classify(raw.get("grade") or "")
+            # A Companion's bio («أحد العشرة أسلم قديمًا …») sometimes leaks into his NAME, not the grade,
+            # so a major صحابي (عبد الرحمن بن عوف) is mis-graded «مجهول» → a chain through him reads «راوٍ
+            # مجهول». Recover صحابي from his own name when the grade is silent (only ever PROMOTES).
+            if category == "غير معروف":
+                # A Companion's / trustworthy man's grade sometimes leaks into his NAME instead of the
+                # grade field (عبد الرحمن بن عوف «أحد العشرة أسلم قديمًا …» → mis-graded «مجهول»; a chain
+                # through him then reads «راوٍ مجهول»). Recover a POSITIVE grade from the name — never a
+                # negative one, which could sink a sound chain on a coincidental word.
+                name_cat, name_rank = classify(raw["name"])
+                if name_cat in ("صحابي", "ثقة", "صدوق", "مقبول"):
+                    category, rank = name_cat, name_rank
             entry = RijalEntry(
                 name=raw["name"],
                 aliases=list(raw.get("aliases") or []),
