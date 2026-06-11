@@ -104,3 +104,55 @@ def test_tahwil_secondary_chain_leaked_into_the_matn_is_re_split():
     isnad, matn, conf = split_isnad_matn(text)
     assert matn == "إنما الماء من الماء"
     assert "حدثنا أبو الزبير" in isnad and "حدثنا أبو الزبير" not in matn
+
+
+def test_anna_report_with_no_qal_is_recovered():
+    # «عن نافع أنّ ابن عمر كان …» / «عن رسول الله ﷺ: أنّه توضّأ …» — a mawqūf/marfūʿ report
+    # introduced by «أنّ» with NO «قال» (the dominant empty-matn / V audit case). The matn must
+    # start at «أنّ», and the chain before it stay isnad.
+    iz, matn, conf = split_isnad_matn(
+        "حدثنا فلان عن مالك عن نافع، أنَّ عبد الله بن عمر كان إذا أحرم من مكة لم يطف بالبيت")
+    assert conf == "anna"
+    assert matn.startswith("أنَّ عبد الله بن عمر") and "كان إذا أحرم" in matn
+    assert "نافع" in iz and "نافع" not in matn
+    _, m2, c2 = split_isnad_matn(
+        "حدثنا فلان عن عمر، عن رسول الله ﷺ: أنَّه توضأ عام تبوك واحدة واحدة")
+    assert c2 == "anna" and m2.startswith("أنَّه توضأ") and "عام تبوك" in m2
+
+
+def test_anna_skips_a_sub_narrator_link_and_starts_at_the_report():
+    # «… أنّ فلانًا أخبره: أنّه فعل …» — the FIRST «أنّ» opens another isnad link («أخبره»), so the
+    # matn must begin at the SECOND «أنّ» (the report), not swallow the sub-narrator.
+    iz, matn, _ = split_isnad_matn(
+        "حدثنا فلان عن حميد، أنَّ عبد الرحمن بن عبد القاري أخبره: أنَّه طاف بالبيت مع عمر فصلى ركعتين")
+    assert matn.startswith("أنَّه طاف بالبيت") and "أخبره" not in matn
+    assert "عبد الرحمن بن عبد القاري أخبره" in iz
+
+
+def test_authority_introduced_matn_quote_without_qal_is_recovered():
+    # «عن النبيّ ﷺ: "إذا استأذنت امرأة أحدكم فلا يمنعها"» — a quoted matn introduced by the terminal
+    # authority with no «قال». The matn is the quote; the chain stays isnad.
+    iz, matn, conf = split_isnad_matn(
+        'حدثنا فلان عن الزهري عن سالم عن أبيه، عن النبيِّ ﷺ: "إذا استأذنت امرأة أحدكم فلا يمنعها"')
+    assert conf == "authority"
+    assert "إذا استأذنت امرأة أحدكم فلا يمنعها" in matn
+    assert "الزهري" in iz and "الزهري" not in matn
+
+
+def test_chain_comparison_backreference_stays_matn_less():
+    # al-Ḥākim's chain-comparison «… عن النبيّ ﷺ؛ في حديث القبر. وأما حديث زائدة» and a «بمعنى فلان»
+    # back-reference carry NO independent matn — they must stay empty (not be force-recovered).
+    assert split_isnad_matn(
+        "حدثنا فلان عن الأعمش عن المنهال عن البراء، عن النبي ﷺ؛ في حديث القبر . وأما حديث زائدة"
+    )[1] == ""
+    assert split_isnad_matn(
+        "حدثنا فلان عن حماد عن يونس وحميد، عن الحسن، عن النبي ﷺ، بمعنى قتادة")[1] == ""
+
+
+def test_normal_qal_split_is_unaffected_by_the_anna_fallback():
+    # the «أنّ»/authority fallbacks are LATE (empty-only) — a normal «قال:» matn must still split
+    # exactly as before even when an «أنّ» appears earlier in the chain.
+    _, matn, conf = split_isnad_matn(
+        "حدثنا فلان أن أبا هريرة أخبره أن رسول الله ﷺ قال: من غشنا فليس منا")
+    assert conf in ("phrase", "quote")
+    assert "من غشنا فليس منا" in matn and "أخبره" not in matn

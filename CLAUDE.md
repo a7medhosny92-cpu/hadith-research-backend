@@ -65,6 +65,14 @@ Depth docs (NOT auto-loaded — open when relevant):
   only `index.db`, seconds). Built 2026-06-11 to «verify every matn». **Surfaced in the app as the «تدقيق المتون»
   tab** (`/matn-audit` endpoint, `renderMatnAudit` — shows each flagged matn + the reason + citation; with
   **V/I/G/Q filter chips** (`drawMatnAudit`, redraw without refetch) + a **«نسخ القائمة»** copy of the current filter).
+  **★ V was 94% EMPTY matns (~1299, NOT truncations)** — diagnosed via the new **`scripts.peek_matn`** (read-only:
+  dumps each empty-matn row, whose `isnad` column holds the WHOLE text, + the boundary markers split saw): the
+  body was introduced by **«أنّ/أنّه/أنّها» with NO «قال»** («عن نافع أنّ ابن عمر كان…»، «عن رسول الله ﷺ: أنّه
+  توضّأ») which `_ANNA` (only أنّ+النبي/رسول) dropped, or by a **quote right after «النبيّ ﷺ:»** with no قال. **FIXED
+  in `split_isnad_matn`** with two **LATE fallbacks** (`"anna"` + `"authority"`, run only when every strategy fails →
+  can't regress a working split): split at the first post-isnad «أنّ» that isn't itself a link («أنّ فلان أخبره»),
+  else take what follows the terminal authority — both leaving al-Ḥākim's back-references («وأما حديث…»، «بمعنى…»)
+  matn-less. +5 tests, 349 green. **NEEDS A RE-PARSE to apply** (split runs at parse time).
 - **`python -m scripts.measure_dedup [--input f.jsonl]`** → read-only: how much of «مشترك» is the
   same man twice vs genuine homonymy.
 - **`python -m scripts.audit_conflicts [--cap N]`** → read-only: sweeps all رجال grouped by ism+father,

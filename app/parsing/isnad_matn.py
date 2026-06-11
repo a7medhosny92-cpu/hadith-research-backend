@@ -73,6 +73,37 @@ _SPEECH = re.compile(
 _ANNA_WORD = re.compile(
     r"(?<=[\s،؛:])(?:%s)(?=\s)" % "|".join(flexible_word(w) for w in ("أن", "أنه", "أنها"))
 )
+# Same «أنّ/أنّه/أنّها» token, but tolerating a trailing comma/semicolon/colon as well as a space
+# («… أبي هريرة أنّه، رأى النبيّ ﷺ…») — used ONLY by the late matn-recovery fallback below, so the
+# story-detection that reads _ANNA_WORD keeps its stricter whitespace boundary.
+_ANNA_MATN = re.compile(
+    r'(?<=[\s،؛:«"“])(?:%s)(?=[\s،؛:])' % "|".join(flexible_word(w) for w in ("أن", "أنه", "أنها"))
+)
+# A further isnad LINK hiding right behind «أنّ» — «أنّ أبا هريرة أخبره»، «أنّ فلانًا حدّثه» — so this
+# «أنّ» introduces a *sub-narrator*, not the matn (the 3rd-person أخبره/حدّثه the chain markers omit).
+_LINK_AHEAD = re.compile("|".join(flexible_word(w) for w in (
+    "أخبره", "أخبرها", "أخبرهم", "أخبرني", "أخبرنا",
+    "حدثه", "حدثها", "حدثهم", "حدثني", "حدثنا", "أنبأه", "أنبأنا",
+)))
+# A back-reference body that is NOT an independent matn — al-Ḥākim's chain-comparison «وأما حديث
+# فلان»، «في حديث القبر»، a «بمعنى/نحو/بمثل [حديث] فلان»، «بهذا الإسناد»، «مرّة أخرى». Left matn-less.
+_BACKREF = re.compile("^(?:%s)" % "|".join((
+    flexible_word("بمعنى"), flexible_word("نحوه"), flexible_word("نحو"),
+    flexible_word("بمثله"), flexible_word("بمثل"), flexible_word("بنحوه"),
+    flexible_word("بهذا"), flexible_word("بإسناده"), flexible_word("بإسناد"),
+    flexible_word("في") + r"\s+" + flexible_word("حديث"),
+    flexible_word("وأما") + r"\s+" + flexible_word("حديث"),
+    flexible_word("مرة") + r"\s+" + flexible_word("أخرى"),
+)))
+# The terminal authority — «النبيّ ﷺ» / «رسول الله ﷺ» — after which the matn can begin directly
+# («عن النبيّ ﷺ: "إذا استأذنت…"») with neither «قال» nor «أنّ».
+_AUTHORITY = re.compile(
+    r"(?:%s|%s|%s)\s*(?:ﷺ|%s)" % (
+        flexible_word("النبي"), flexible_word("النبى"),
+        flexible_word("رسول") + r"\s+" + flexible_word("الله"),
+        r"صلى\s+الله\s+عليه\s+و?سلم",
+    )
+)
 
 
 def _story_start(lead: str) -> int | None:
@@ -243,5 +274,27 @@ def _split_isnad_matn(text: str) -> tuple[str, str, str]:
     # (e.g. a tied continuation «وكان يأمرني فأتزر…» that shares the previous isnad).
     if not _TRANSMIT.search(text):
         return "", text.strip(_STRIP), "matn-only"
+
+    # A post-isnad «أنّ …» report with no «قال» — «عن نافع أنّ ابن عمر كان…»، «عن أبي هريرة أنّه رأى
+    # النبيّ…»، «عن رسول الله ﷺ: أنّه توضّأ». Split at the FIRST «أنّ/أنّه/أنّها» that sits after the
+    # chain and does NOT itself open another link («أنّ فلانًا أخبره»). A LATE fallback: it runs only
+    # after every strategy above failed, so it can only fill an otherwise-empty matn, never re-cut one.
+    for m in _ANNA_MATN.finditer(text):
+        if not _TRANSMIT.search(text[:m.start()]):            # the «أنّ» must come after chain material
+            continue
+        if _LINK_AHEAD.search(strip_diacritics(text[m.end():m.end() + 110])):  # «أنّ فلان أخبره» → link
+            continue
+        body = _WS.sub(" ", _QUOTE_CHARS.sub(" ", text[m.start():])).strip(_STRIP)
+        if len(body) >= _MIN_MATN:
+            return text[:m.start()].strip(_STRIP), body, "anna"
+
+    # The terminal authority introduces the matn directly — «عن النبيّ ﷺ: "إذا استأذنت…"» — with
+    # neither «قال» nor «أنّ». Take what follows the LAST «النبيّ ﷺ» / «رسول الله ﷺ», unless it is a
+    # back-reference («بمعنى…»، «وأما حديث…») or another chain link. Also a late, empty-only fallback.
+    auths = list(_AUTHORITY.finditer(text))
+    if auths:
+        body = _WS.sub(" ", _QUOTE_CHARS.sub(" ", text[auths[-1].end():])).strip(_STRIP + "؛")
+        if len(body) >= _MIN_MATN and not _CHAIN_AHEAD.match(body) and not _BACKREF.match(body):
+            return text[:auths[-1].end()].strip(_STRIP), body, "authority"
 
     return text.strip(_STRIP), "", "none"
