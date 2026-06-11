@@ -28,3 +28,17 @@ def test_rebuild_replaces_existing_and_stays_queryable(tmp_path):
     n = rebuild(target, _build)                           # rebuild over an existing file
     assert n == 1
     assert HadithIndex(target).count() == 1              # the swapped-in index works
+
+
+def test_parse_drops_stale_rijal_output(tmp_path):
+    # a رجال book parsed-as-hadith in an earlier run leaves a processed/{id}.jsonl; the next parse
+    # SKIPS it but must DELETE that stale output, else it lingers in the rebuilt hadith index
+    # (تهذيب الكمال 3722's tarjamas resurfacing as bogus «hadith» chains in the audit).
+    from scripts.parse import _drop_stale
+    out_dir = tmp_path / "processed"
+    sharh_dir = out_dir / "sharh"
+    sharh_dir.mkdir(parents=True)
+    (out_dir / "3722.jsonl").write_text("{}\n", encoding="utf-8")
+    assert _drop_stale(out_dir, sharh_dir, 3722) is True
+    assert not (out_dir / "3722.jsonl").exists()
+    assert _drop_stale(out_dir, sharh_dir, 3722) is False   # idempotent — nothing left to drop

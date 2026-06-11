@@ -40,6 +40,19 @@ def _dump(records: list, out: Path) -> None:
             fh.write(json.dumps(record.to_dict(), ensure_ascii=False) + "\n")
 
 
+def _drop_stale(out_dir: Path, sharh_dir: Path, book_id: int) -> bool:
+    """Remove any stale ``processed/{id}.jsonl`` (or sharh) for a book we now SKIP — e.g. a رجال
+    source that an earlier run parsed as hadith (before it was reclassified). Parse rebuilds the
+    index from these JSONL files, so an un-deleted output keeps the book in the hadith index forever
+    (تهذيب الكمال 3722's tarjamas then resurface as bogus «hadith» chains in the audit)."""
+    dropped = False
+    for p in (out_dir / f"{book_id}.jsonl", sharh_dir / f"{book_id}.jsonl"):
+        if p.exists():
+            p.unlink()
+            dropped = True
+    return dropped
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Parse downloaded books into JSONL")
     parser.add_argument("--books", type=int, nargs="*", help="book ids (default: all downloaded)")
@@ -71,13 +84,15 @@ def main() -> None:
             continue
         if book_id in RIJAL_SOURCES:
             # A terse رجال biography book, not hadith — handled by scripts.build_rijal so it
-            # doesn't pollute the hadith index. Skip it here.
-            print(f"skip {book_id}: رجال source ({RIJAL_SOURCES[book_id]}) → scripts.build_rijal")
+            # doesn't pollute the hadith index. Skip it here (dropping any stale output first).
+            stale = " (removed stale hadith output)" if _drop_stale(out_dir, sharh_dir, book_id) else ""
+            print(f"skip {book_id}: رجال source ({RIJAL_SOURCES[book_id]}) → scripts.build_rijal{stale}")
             continue
         if book_id in RIJAL_PROSE_BOOKS:
             # A verbose رجال biography (تهذيب الكمال / التهذيب) — also not hadith. No terse
             # extractor for it yet, so just keep it out of the hadith index.
-            print(f"skip {book_id}: رجال (prose) ({RIJAL_PROSE_BOOKS[book_id]}) — not hadith")
+            stale = " (removed stale hadith output)" if _drop_stale(out_dir, sharh_dir, book_id) else ""
+            print(f"skip {book_id}: رجال (prose) ({RIJAL_PROSE_BOOKS[book_id]}) — not hadith{stale}")
             continue
         if _is_sharh(path, book_id):
             passages = parse_sharh_file(path)
