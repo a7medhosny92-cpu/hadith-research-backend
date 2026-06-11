@@ -221,6 +221,14 @@ LLM step skipped — gemma cloud weekly cap, non-fatal). New numbers, **84,807 c
   legit Companion-from-Companion). **W 668→656** (المصلوب alias + bare-grave — the «كذاب في صحيح مسلم» class closed).
   **A flat** (structural homonymy, honest uncertainty — settled). The wins this session are W/S (wrong verdicts);
   A is not chased. Residual S (620) = mostly real anachronisms (a صحابي with a تابعي شيخ) — genuine review cases.
+- **★ FIX (A bug, user-screenshotted) — «X بن X» name-collapse** (`index._clean_seq`): the user saw «معاذ بن معاذ»
+  held «مشترك» among ~20 unrelated معاذ. Cause: `_clean_seq` **de-duplicated** tokens, so «معاذ بن معاذ» (ism =
+  father's name) folded to the bare «معاذ» → matched every معاذ بن فلان. Famous narrator (معاذ بن معاذ العنبري
+  القاضي, ثقة) read as a 20-way ambiguity. Fix: keep an **adjacent** repeat (the «X بن X» pattern), still drop a
+  non-adjacent one (a distant ancestor). After: «معاذ بن معاذ» → 1 candidate (العنبري, ثقة, not ambiguous);
+  «محمد بن محمد» → the 7 real «محمد بن محمد X» (genuine homonymy, not every محمد). Live in matching → effective on the
+  next `audit_isnad`. +1 test, 342 green. → part of A WAS a real bug (every «X بن X» narrator), now resolved; proves
+  the screenshots are gold for separating A-bugs from honest homonymy.
 
 **★ (2026-06-11, THIS SESSION). 5-FIX RUN MEASURED → the GRAPH-LAG throttle found · buried-ancestor
 fix · MATN AUDIT built. On main, branch `claude/intelligent-bardeen-HAsrg` (HEAD `81d08db`).**

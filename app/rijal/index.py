@@ -47,7 +47,10 @@ _NON_IDENTIFYING = {normalize_for_search(w) for w in (
 
 
 def _clean_seq(name: str) -> list[str]:
-    """Folded name tokens **in order**, de-duplicated, honorifics/connectors dropped.
+    """Folded name tokens **in order**, honorifics/connectors dropped. A token repeated NON-adjacently
+    (a distant ancestor) is dropped, but an ADJACENT repeat is KEPT: «معاذ بن معاذ» (ism = father's
+    name) is a real two-token name (معاذ بن معاذ العنبري القاضي), NOT the bare «معاذ» that would match
+    every معاذ بن فلان and make a famous narrator «مشترك» among twenty men.
 
     Kunya cases are unified (أبو/أبا/أبي → أبو) before «بن» is dropped, so «أبي موسى»
     matches «أبو موسى»; «أبي بن …» stays أُبَيّ (a name, not a kunya)."""
@@ -55,7 +58,7 @@ def _clean_seq(name: str) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
     for t in fold_kunya(normalize_for_search(text).split()):
-        if t and t not in _STOP and t not in seen:
+        if t and t not in _STOP and (t not in seen or out[-1] == t):
             seen.add(t)
             out.append(t)
     return out

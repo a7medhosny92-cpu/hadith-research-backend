@@ -320,3 +320,20 @@ def test_a_companion_narrating_from_a_companion_is_not_flagged_S():
         {"name": "عمر", "rijal": {"name": "عمر بن الخطاب", "grade": "صحابي"}},
     ]
     assert "S" in [c for c, _ in _flag_chain(odd_chain)]
+
+
+def test_X_ibn_X_is_not_collapsed_to_the_bare_ism():
+    # «معاذ بن معاذ» (ism = the father's name) is a real two-token name (معاذ بن معاذ العنبري القاضي,
+    # a famous ثقة), NOT the bare «معاذ» — _clean_seq must keep the adjacent repeat, else it matches
+    # every معاذ بن فلان and the famous narrator reads «مشترك» among twenty men.
+    from app.rijal.index import _clean_seq
+    assert _clean_seq("معاذ بن معاذ") == ["معاذ", "معاذ"]
+    assert _clean_seq("محمد بن علي بن محمد") == ["محمد", "علي"]   # non-adjacent repeat still dropped
+    rij = RijalIndex([
+        {"name": "معاذ بن معاذ العنبري", "grade": "ثقة"},
+        {"name": "معاذ بن خالد العسقلاني", "grade": "صدوق"},
+        {"name": "معاذ بن هشام الدستوائي", "grade": "صدوق"},
+    ])
+    m = rij.lookup("معاذ بن معاذ")
+    assert m.entry.name == "معاذ بن معاذ العنبري" and not m.ambiguous   # the one real «معاذ بن معاذ»
+    assert len(rij.candidates("معاذ بن معاذ", max_results=None)) == 1   # not every معاذ بن فلان
