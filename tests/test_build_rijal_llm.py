@@ -5,8 +5,18 @@ machine with their engine; here we prove that an unfaithful answer can never sli
 from __future__ import annotations
 
 from scripts.build_rijal_llm import (
-    Cache, _narrators_aligned, chain_is_suspicious, validate_chain, validate_rijal,
+    Cache, _narrators_aligned, _parse_json, chain_is_suspicious, validate_chain, validate_rijal,
 )
+
+
+def test_parse_json_reads_the_answer_after_a_qwen3_think_block():
+    # Qwen3 (and other reasoning models) prepend a <think>…</think> scratchpad that itself contains
+    # braces — the greedy {…} match must NOT start inside it, or every record is rejected→regex.
+    raw = ('<think>The name is مالك, I should emit {name: ...} as JSON</think>\n'
+           '```json\n{"name": "مالك بن أنس", "grade_word": "الإمام"}\n```')
+    assert _parse_json(raw) == {"name": "مالك بن أنس", "grade_word": "الإمام"}
+    # a plain reply (no think block) still parses
+    assert _parse_json('{"name": "نافع"}') == {"name": "نافع"}
 
 _RIJAL_SRC = ("مالك بن أنس الأصبحي أبو عبد الله الإمام عن نافع والزهري "
               "وعنه ابن مهدي وابن القاسم توفي سنة تسع وسبعين ومائة")

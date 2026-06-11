@@ -46,10 +46,11 @@ class Settings(BaseSettings):
     llm_remote_model: str = "anthropic/claude-sonnet-4-6"  # the remote brain (cloud)
     # The build-time *extraction* model (scripts.build_rijal_llm, run by update.bat) — kept
     # separate from the /ask «brain» so corpus extraction always uses a capable, faithful model
-    # no matter what local/remote are set to. Default: Ollama Cloud's gemma4:31b-cloud — free,
-    # fast (direct answer, no chain-of-thought) and reached through the local Ollama daemon, so
-    # no GPU/RAM is needed. Override in .env to use a different extractor.
-    llm_extract_model: str = "ollama/gemma4:31b-cloud"
+    # no matter what local/remote are set to. Default: a LOCAL Ollama model (qwen3:4b) — free,
+    # offline, and with NO weekly cap (the Ollama-Cloud free tier limits the whole account). Qwen3
+    # emits a <think> reasoning block; build_rijal_llm reads only what follows it. Override in .env
+    # (e.g. LLM_EXTRACT_MODEL=ollama/gemma4:31b-cloud for the cloud extractor).
+    llm_extract_model: str = "ollama/qwen3:4b"
     llm_temperature: float = 0.2
     llm_timeout: float = 60.0                               # seconds per LLM call (no hang)
     ollama_api_base: str = "http://localhost:11434"        # local Ollama server

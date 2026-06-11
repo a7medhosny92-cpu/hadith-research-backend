@@ -46,9 +46,12 @@ Depth docs (NOT auto-loaded — open when relevant):
   pipeline): `build_rijal` merges the rijal, `build_graph` adds the network to `canon._pick`'s company,
   `parse` overrides the flagged chains. See `app/rijal/llm_source.py`.
   **Model:** a bare invocation (and `update.bat`) use the dedicated **`llm_extract_model`** (default
-  **`ollama/gemma4:31b-cloud`** — free, direct/fast, via the local Ollama daemon, no GPU/RAM, NO `.env`
-  model juggling); `--engine local|remote` borrows the /ask brain (`llm_local/remote_model`); `--model ID`
-  pins any litellm id (precedence `--model` > `--engine` > `llm_extract_model`).
+  **`ollama/qwen3:4b`** — LOCAL, free, offline, NO weekly cap; the Ollama-Cloud free tier caps the whole
+  ACCOUNT, which is why `gemma4:31b-cloud` hit «weekly usage limit» mid-update on 2026-06-11. Qwen3 emits a
+  `<think>…</think>` block → `_parse_json` reads only what follows `</think>` else the scratchpad braces
+  corrupt the JSON match. For the fast cloud extractor set `LLM_EXTRACT_MODEL=ollama/gemma4:31b-cloud`).
+  `--engine local|remote` borrows the /ask brain (`llm_local/remote_model`); `--model ID` pins any litellm id
+  (precedence `--model` > `--engine` > `llm_extract_model`).
 - **`python -m scripts.audit_isnad`** → rescans all chains → `data/audit.json` (the «التدقيق» tab).
   **Run by update.bat as its final step** (so a plain update refreshes W/S/A); also runnable standalone.
 - **`python -m scripts.audit_matn`** → rescans every matn → `data/matn_audit.json` (the «تدقيق المتون» tab):

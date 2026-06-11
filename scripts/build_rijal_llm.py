@@ -126,7 +126,11 @@ def _tick(stats: dict, label: str, every: int = 25) -> None:
 
 
 def _parse_json(raw: str) -> dict | None:
-    """Pull the first JSON object out of an LLM reply (tolerates ```json fences / prose)."""
+    """Pull the first JSON object out of an LLM reply (tolerates ```json fences / prose / a
+    <think>…</think> reasoning block from models like Qwen3 — we read only what follows it; the
+    scratchpad's own braces would otherwise corrupt the greedy {…} match → reject → regex)."""
+    if "</think>" in raw:
+        raw = raw.rsplit("</think>", 1)[1]      # reasoning models: the answer follows the scratchpad
     raw = re.sub(r"^```(?:json)?|```$", "", raw.strip(), flags=re.MULTILINE).strip()
     m = re.search(r"\{.*\}", raw, re.S)
     if not m:
