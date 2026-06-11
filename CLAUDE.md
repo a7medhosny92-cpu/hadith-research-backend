@@ -87,6 +87,12 @@ Depth docs (NOT auto-loaded — open when relevant):
   Residual I after this = standalone back-reference chains «حدّثنا X عن Y مثله/نحوه» (corroborating isnads,
   honestly matn-less — an exception candidate, not an error) + al-Bukhārī mu'allaqāt «وقال فلان: حدّثنا…» +
   a few false positives («جبريل أخبرني» = the Prophet quoting — flag_matn's `_CHAIN_VERB` is unanchored).
+  **★ I/G PRECISION (audit-side, `flag_matn`, no re-parse):** the I residual was ~½ FALSE POSITIVES —
+  back-reference chains (excepted now via the existing `backref` flag) and a chain verb DEEP in a complete
+  matn (reported speech «هذا جبريل أخبرني»، Bukhārī muʿallaq tails). Fix: anchor the I chain-verb check to the
+  matn HEAD (`mn.split()[:2]`) + add `not backref`; and guard G's `_EDITORIAL` so «أخرجه الله»/«رواه عنه»
+  (real body) aren't takhrīj. Real head-leaks («ا: حدّثنا [route]») + «عن فلان»-start still flag. +3 tests,
+  353 green. **Re-run `audit_matn` ONLY** (no parse) → expect a big I drop to the genuine head-leaks.
 - **`python -m scripts.measure_dedup [--input f.jsonl]`** → read-only: how much of «مشترك» is the
   same man twice vs genuine homonymy.
 - **`python -m scripts.audit_conflicts [--cap N]`** → read-only: sweeps all رجال grouped by ism+father,

@@ -32,6 +32,27 @@ def test_isnad_material_in_the_matn_is_flagged_I():
     assert "I" in _codes("عن أبي هريرة قال إنما الأعمال بالنيات", "حدثنا فلان")
 
 
+def test_a_narration_verb_DEEP_in_a_complete_matn_is_not_flagged_I():
+    # a chain verb in the MIDDLE of a complete matn is reported speech, not a head-leak: «… هذا
+    # جبريل أخبرني …» (the Prophet quoting), «… ثم قال: حدّثني فلان …». Only a HEAD leak is an error.
+    assert "I" not in _codes(
+        "يا عثمان هذا جبريل أخبرني أن الله قد زوجك أم كلثوم بمثل صداق رقية", "حدثنا فلان")
+    assert "I" not in _codes(
+        "يدخل أهل الجنة الجنة وأهل النار النار ثم يقول الله أخرجوا من كان في قلبه إيمان", "حدثنا فلان عن أبي سعيد")
+
+
+def test_a_backreference_chain_in_the_matn_is_not_flagged_I():
+    # «حدّثنا فلان … مثله/نحوه/بهذا الإسناد» is a corroborating chain with no body — not a leak.
+    assert "I" not in _codes("حدثنا شريك نحوه", "حدثنا فلان عن فلان")
+    assert "I" not in _codes("حدثنا أبو معاوية عن الأعمش بهذا الإسناد مثله", "حدثنا فلان")
+
+
+def test_akhraja_allah_is_body_not_a_takhrij_G():
+    # «أخرجه الله» (God brought out) and «رواه عنه» (his companions narrated) are real body.
+    assert "G" not in _codes("من قال لا إله إلا الله أخرجه الله من النار", "حدثنا فلان")
+    assert "G" not in _codes("الحديث الذي رواه عنه أصحابه حق", "حدثنا فلان")
+
+
 def test_a_grade_tail_in_the_matn_is_flagged_G():
     assert "G" in _codes(
         "من كذب علي متعمدا فليتبوأ مقعده من النار هذا حديث صحيح على شرط الشيخين",
