@@ -340,3 +340,13 @@ def test_alternate_nasab_yuqal_does_not_truncate_kunya_and_nisba():
 def test_bare_qil_before_bio_is_dropped_not_kept():
     # a bare «وقيل» before a bio word leaks no token: it's stripped, and the bio word ends the name.
     assert _trim_name("فلان بن فلان البصري وقيل مات سنة عشرين ثقة") == "فلان بن فلان البصري"
+
+
+def test_dabt_orthography_runs_are_stripped_from_the_name():
+    """تقريب interleaves ضبط (vocalisation) notes mid-name — «… بفتحات … بالمعجمة … بمهملتين بينهما
+    راء …» — which must not become name tokens (they break matching + dedup). The broadened _DABT
+    covers the dual/plural and «بال»-prefixed forms, not just «بفتح»/«مفتوحة»."""
+    assert _trim_name("خرشة بفتحات بن الحر الفزاري") == "خرشة بن الحر الفزاري"
+    assert _trim_name("أحمد بن خالد الخلال بالمعجمة أبو جعفر") == "أحمد بن خالد الخلال أبو جعفر"
+    assert _trim_name("محمد بن يوسف العرعري بمهملات الكوفي") == "محمد بن يوسف العرعري الكوفي"
+    assert _trim_name("سعيد بن المسيب بالتصغير المخزومي") == "سعيد بن المسيب المخزومي"
