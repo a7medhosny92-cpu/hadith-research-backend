@@ -1557,6 +1557,9 @@ async function renderConflicts(){
 // «تدقيق المتون» — the matn-audit report (scripts.audit_matn): every matn flagged V (empty/fragment) ·
 // I (isnad leaked in) · G (grade/takhrīj tail) · Q (verse/heading), with the extracted text and the
 // reason — candidates for review / the faithful LLM `--mode chains` repair, never a verdict.
+let matnData = null;       // last /matn-audit report (for the V/I/G/Q filter + «نسخ القائمة»)
+let matnFilter = "all";    // active flag filter: all | V | I | G | Q
+const _MATN_CHIP = {V: "ناقص", I: "إسناد", G: "تخريج", Q: "آية/عنوان"};   // short filter labels
 async function renderMatnAudit(){
   results.innerHTML = `<div class="state">… جارٍ تحميل تقرير تدقيق المتون</div>`;
   let d;
@@ -1569,9 +1572,26 @@ async function renderMatnAudit(){
       + `<div class="note">يفحص كلَّ متنٍ ويجمع المشتبهة (مبتورًا / تسرَّب إليه الإسناد / حكمًا أو تخريجًا / ليس متنًا) — ويتجدّد تلقائيًّا مع update.bat.</div>`;
     return;
   }
-  let html = `<div class="note">تدقيقُ المتون — فُحص <b>${d.scanned}</b> متنًا · ${esc(d.generated)} · المتونُ الفارغة: ${d.empty_matn || 0}</div>`
-    + `<div class="note">حالاتٌ يُنصح بمراجعتها يدويًّا (قرائنُ اشتباهٍ لا أحكام): المتنُ كما استُخرج، مع سببِ الاشتباه. القائمةُ الكاملةُ في data/matn_audit.json.</div>`;
-  ["V", "I", "G", "Q"].forEach(code => {
+  matnData = d;
+  matnFilter = "all";        // a fresh open always shows every flag
+  drawMatnAudit();
+}
+
+// Draw (or re-draw on a filter click) the matn-audit list — only the selected flag's section.
+function drawMatnAudit(){
+  const d = matnData; if(!d) return;
+  const CODES = ["V", "I", "G", "Q"];
+  const totalAll = CODES.reduce((a, c) => a + ((d.counts || {})[c] || 0), 0);
+  const chip = (code, label, n) =>
+    `<button class="tool matn-filter${matnFilter === code ? " done" : ""}" data-code="${code}">`
+    + `${esc(label)} <span class="simbadge">${n}</span></button>`;
+  let html = `<div class="note">تدقيقُ المتون — فُحص <b>${d.scanned}</b> متنًا · ${esc(d.generated)} · المتونُ الفارغة: ${d.empty_matn || 0} `
+    + `<button class="tool matn-copy">⧉ نسخ القائمة</button></div>`
+    + `<div class="note">حالاتٌ يُنصح بمراجعتها يدويًّا (قرائنُ اشتباهٍ لا أحكام): المتنُ كما استُخرج، مع سببِ الاشتباه. القائمةُ الكاملةُ في data/matn_audit.json.</div>`
+    + `<div class="actions">${chip("all", "الكل", totalAll)}`
+    + CODES.map(c => chip(c, _MATN_CHIP[c] || c, (d.counts || {})[c] || 0)).join("") + `</div>`;
+  CODES.forEach(code => {
+    if(matnFilter !== "all" && matnFilter !== code) return;
     const total = (d.counts || {})[code] || 0;
     if(!total) return;
     const cases = (d.cases || {})[code] || [];
@@ -1584,6 +1604,8 @@ async function renderMatnAudit(){
     });
     if(cases.length < total) html += `<div class="note">… و${total - cases.length} حالةً أخرى في التقرير</div>`;
   });
+  if(matnFilter !== "all" && !((d.counts || {})[matnFilter] || 0))
+    html += `<div class="note">لا حالاتٍ في هذا التصنيف. 👍</div>`;
   results.innerHTML = html;
 }
 
@@ -1604,11 +1626,52 @@ function auditText(d){
   return t;
 }
 
+// Build the (optionally filtered) matn-audit report as plain text (for «نسخ القائمة»).
+function matnText(d, filter){
+  let t = `تدقيق المتون — ${d.scanned} متن · ${d.generated} · فارغة: ${d.empty_matn || 0}\n`;
+  ["V", "I", "G", "Q"].forEach(code => {
+    if(filter && filter !== "all" && filter !== code) return;
+    const total = (d.counts || {})[code] || 0;
+    if(!total) return;
+    const cases = (d.cases || {})[code] || [];
+    t += `\n## ${(d.labels || {})[code] || code} (${total})\n`;
+    cases.forEach(c => {
+      const cite = [c.collection, (c.number != null ? "رقم " + c.number : null)].filter(Boolean).join(" · ");
+      t += `- [${cite}] ${c.matn || ""}${c.detail ? "  — " + c.detail : ""}\n`;
+    });
+    if(cases.length < total) t += `… و${total - cases.length} حالة أخرى (الكاملة في data/matn_audit.json)\n`;
+  });
+  return t;
+}
+
 // «نسخ القائمة» — copy the whole audit report to the clipboard.
 results.addEventListener("click", async e => {
   const btn = e.target.closest(".audit-copy");
   if(!btn || !auditData) return;
   const text = auditText(auditData);
+  try { await navigator.clipboard.writeText(text); }
+  catch(_){
+    const ta = document.createElement("textarea"); ta.value = text;
+    ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+  }
+  const o = btn.textContent; btn.textContent = "✓ نُسخت"; btn.classList.add("done");
+  setTimeout(() => { btn.textContent = o; btn.classList.remove("done"); }, 1200);
+});
+
+// «تدقيق المتون» — V/I/G/Q filter chips: redraw the selected flag's section without refetching.
+results.addEventListener("click", e => {
+  const btn = e.target.closest(".matn-filter");
+  if(!btn || !matnData) return;
+  matnFilter = btn.dataset.code || "all";
+  drawMatnAudit();
+});
+
+// «نسخ القائمة» (المتون) — copy the currently-filtered matn-audit list to the clipboard.
+results.addEventListener("click", async e => {
+  const btn = e.target.closest(".matn-copy");
+  if(!btn || !matnData) return;
+  const text = matnText(matnData, matnFilter);
   try { await navigator.clipboard.writeText(text); }
   catch(_){
     const ta = document.createElement("textarea"); ta.value = text;

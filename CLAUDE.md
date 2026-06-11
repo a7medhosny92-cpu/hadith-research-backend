@@ -63,7 +63,8 @@ Depth docs (NOT auto-loaded — open when relevant):
   flags V (empty/fragment) · I (isnad-in-matn) · G (grade/takhrij tail) · Q (verse/heading). Logic in
   `app.parsing.matn_audit.flag_matn`. **Also run by update.bat** (after audit_isnad); runnable standalone (needs
   only `index.db`, seconds). Built 2026-06-11 to «verify every matn». **Surfaced in the app as the «تدقيق المتون»
-  tab** (`/matn-audit` endpoint, `renderMatnAudit` — shows each flagged matn + the reason + citation).
+  tab** (`/matn-audit` endpoint, `renderMatnAudit` — shows each flagged matn + the reason + citation; with
+  **V/I/G/Q filter chips** (`drawMatnAudit`, redraw without refetch) + a **«نسخ القائمة»** copy of the current filter).
 - **`python -m scripts.measure_dedup [--input f.jsonl]`** → read-only: how much of «مشترك» is the
   same man twice vs genuine homonymy.
 - **`python -m scripts.audit_conflicts [--cap N]`** → read-only: sweeps all رجال grouped by ism+father,
