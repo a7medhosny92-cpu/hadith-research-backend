@@ -120,9 +120,33 @@ _GRADE_TAIL = re.compile(
 )
 
 
+# A takhrīj / متابعة cross-reference the source appends AFTER the matn — «رواه البخاري»، «أخرجه
+# أحمد»، al-Ḥākim's dual «أخرجاه / لم يخرّجاه»، «تابعه فلان». These are notes, not body, but a bare
+# «رواه/أخرجه» can also be real matn («أخرجه الله من النار»، «من رواه عنه»), so we trim only on two
+# safe tells, neither of which occurs inside a body: (a) the cross-reference OPENS a new sentence (a
+# matn-ending . ؟ ! » " ” precedes it), or (b) the verb is followed by a collection/imām name — or
+# the unambiguous dual «أخرجاه».
+_TAKHRIJ_COLL = "|".join(flexible_word(w) for w in (
+    "البخاري", "بخاري", "مسلم", "أحمد", "الترمذي", "النسائي", "النسائى", "ماجه",
+    "الشيخان", "الجماعة", "البيهقي", "الطبراني", "الحاكم", "الدارقطني",
+))
+_TAKHRIJ_RAWA = "(?:و)?(?:%s)" % "|".join(flexible_word(w) for w in ("رواه", "أخرجه", "تابعه"))
+_TAKHRIJ_DUAL = "(?:و)?(?:لم\\s+)?(?:%s)" % "|".join(flexible_word(w) for w in ("أخرجاه", "يخرجاه"))
+_TAKHRIJ_REF = re.compile(
+    "(?:%s).*$" % "|".join((
+        r"(?<=[.؟!»\"”])\s*" + _TAKHRIJ_RAWA,                 # (a) opens a new sentence
+        r"(?:^|\s)" + _TAKHRIJ_RAWA + r"\s+(?:%s)" % _TAKHRIJ_COLL,  # (b) verb + a collection/imām
+        r"(?:^|\s)" + _TAKHRIJ_DUAL,                          # (b) the unambiguous dual «أخرجاه»
+    )),
+    re.DOTALL,
+)
+
+
 def _trim_grade_tail(matn: str) -> str:
-    """Drop a trailing «هذا حديث صحيح…» / «على شرط…» grade or takhrīj note from a matn."""
-    return _GRADE_TAIL.sub("", matn).strip(_STRIP)
+    """Drop a trailing grade («هذا حديث صحيح…» / «على شرط…») or takhrīj / متابعة cross-reference
+    («رواه البخاري»، «أخرجاه»…) from a matn, keeping the body intact."""
+    matn = _GRADE_TAIL.sub("", matn).strip(_STRIP)
+    return _TAKHRIJ_REF.sub("", matn).strip(_STRIP)
 
 
 def _quoted_spans(text: str) -> list[tuple[int, int]]:

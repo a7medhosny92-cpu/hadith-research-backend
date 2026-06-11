@@ -73,6 +73,28 @@ def test_wa_fi_albab_crossreference_is_trimmed():
     assert "لا ضرر ولا ضرار" in matn and "وفي الباب" not in matn
 
 
+def test_takhrij_cross_reference_tail_is_trimmed_from_the_matn():
+    # the «رواه/أخرجه فلان» takhrīj note the source appends after the body (al-Bukhārī/al-Ḥākim
+    # cross-references — the dominant «حكم/تخريج في المتن» / G audit case) must not show as matn.
+    _, m1, _ = split_isnad_matn(
+        "حدثنا فلان قال: قال رسول الله ﷺ: صلوا كما رأيتموني أصلي رواه البخاري")
+    assert "صلوا كما رأيتموني أصلي" in m1 and "رواه" not in m1 and "البخاري" not in m1
+    _, m2, _ = split_isnad_matn(
+        "حدثنا فلان قال: قال رسول الله ﷺ: من حفر بئرا وقع فيه. أخرجه مسلم وأحمد")
+    assert "من حفر بئرا وقع فيه" in m2 and "أخرجه" not in m2 and "مسلم" not in m2
+
+
+def test_takhrij_trim_does_not_eat_a_matn_verb():
+    # «أخرجه الله» / «رواه عنه» are real body, NOT a takhrīj note — the trim must keep them
+    # (guarded: it fires only on a sentence-opening cross-ref or «رواه/أخرجه + collection»).
+    _, m1, _ = split_isnad_matn(
+        "حدثنا فلان قال: قال رسول الله ﷺ: من قال لا إله إلا الله أخرجه الله من النار")
+    assert "أخرجه الله من النار" in m1
+    _, m2, _ = split_isnad_matn(
+        "حدثنا فلان قال: قال رسول الله ﷺ: الحديث الذي رواه عنه أصحابه حق")
+    assert "رواه عنه أصحابه" in m2
+
+
 def test_tahwil_secondary_chain_leaked_into_the_matn_is_re_split():
     # «حدثنا [شيخ] قال: حدثنا [route] … قال <matn>» — the first split cuts after the شيخ's «قال:»,
     # leaving the real route + body at the matn's head; the re-split folds the route back into the
