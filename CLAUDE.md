@@ -46,10 +46,12 @@ Depth docs (NOT auto-loaded — open when relevant):
   pipeline): `build_rijal` merges the rijal, `build_graph` adds the network to `canon._pick`'s company,
   `parse` overrides the flagged chains. See `app/rijal/llm_source.py`.
   **Model:** a bare invocation (and `update.bat`) use the dedicated **`llm_extract_model`** (default
-  **`ollama/qwen3:4b`** — LOCAL, free, offline, NO weekly cap; the Ollama-Cloud free tier caps the whole
-  ACCOUNT, which is why `gemma4:31b-cloud` hit «weekly usage limit» mid-update on 2026-06-11. Qwen3 emits a
-  `<think>…</think>` block → `_parse_json` reads only what follows `</think>` else the scratchpad braces
-  corrupt the JSON match. For the fast cloud extractor set `LLM_EXTRACT_MODEL=ollama/gemma4:31b-cloud`).
+  **`ollama/qwen2.5:3b`** — LOCAL, free, offline, fast (direct-answer instruct, NO chain-of-thought — best
+  for the big batch), NO weekly cap; the Ollama-Cloud free tier caps the whole ACCOUNT, which is why
+  `gemma4:31b-cloud` hit «weekly usage limit» mid-update on 2026-06-11. `_parse_json` also strips a
+  `<think>…</think>` block (reads only what follows `</think>`, else the scratchpad braces corrupt the JSON
+  match), so a reasoning model like `qwen3.5:4b` works too — just slower. For the fast cloud extractor set
+  `LLM_EXTRACT_MODEL=ollama/gemma4:31b-cloud`).
   `--engine local|remote` borrows the /ask brain (`llm_local/remote_model`); `--model ID` pins any litellm id
   (precedence `--model` > `--engine` > `llm_extract_model`).
 - **`python -m scripts.audit_isnad`** → rescans all chains → `data/audit.json` (the «التدقيق» tab).
