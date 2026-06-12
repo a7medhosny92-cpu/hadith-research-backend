@@ -30,7 +30,9 @@ from app.ingestion.catalog import RIJAL_SOURCES, Catalog
 from app.ingestion.downloader import CorpusDownloader
 from app.ingestion.turath_client import TurathClient
 from app.parsing.isaba_extract import ISABA_BOOK_ID, parse_isaba_file
+from app.parsing.jarh_extract import parse_jarh_file
 from app.parsing.rijal_extract import parse_rijal_file
+from app.parsing.tahdhib_extract import parse_tahdhib_file
 from app.rijal.dedup import CorpusCompany, collapse_duplicates
 from app.rijal.grades import classify
 from app.rijal.index import RijalIndex, _clean_tokens, load_seed
@@ -150,6 +152,27 @@ def merge_source(primary: list[dict], secondary: list[dict],
     return primary, added, upgraded
 
 
+def merge_appraisals(records: list[dict], prose_records: list[dict]) -> tuple[list[dict], int]:
+    """Attach the NAMED-critic أقوال الأئمة of a PROSE source (الجرح/تهذيب/الثقات…) to the matching
+    rijal entry — by an UNAMBIGUOUS name match — enriching a KNOWN narrator with «who said what»
+    WITHOUT touching his (تقريب/الكاشف) grade. A man absent from the rijal is skipped here; an entry
+    that already has appraisals is left alone (the first prose source wins). Returns (records, attached)."""
+    index = RijalIndex(records)
+    by_name = {r["name"]: r for r in records}
+    attached = 0
+    for pr in prose_records:
+        aps = pr.get("appraisals")
+        if not aps:
+            continue
+        match = index.lookup(pr.get("name", ""))
+        if match and match.score >= 1.0 and not match.ambiguous:
+            entry = by_name.get(match.entry.name)
+            if entry is not None and not entry.get("appraisals"):
+                entry["appraisals"] = aps
+                attached += 1
+    return records, attached
+
+
 def main() -> None:
     settings = get_settings()
     parser = argparse.ArgumentParser(description="Build the full رجال JSONL for /verify-isnad")
@@ -225,6 +248,18 @@ def main() -> None:
     if removed:
         how = "name + corpus company" if company else "name only — graph not built yet"
         print(f"  collapsed {removed} same-man duplicates ({how}) — deflating «مشترك»")
+
+    # Named أقوال الأئمة (the multi-critic dossier «قال ابن معين: ثقة») from the PROSE sources, attached
+    # to the matching rijal entry — gated on the downloaded book, the grade itself is unchanged. Run
+    # AFTER the dedup so the appraisals land on the final, collapsed entries.
+    for book_id in (2170, 3722):                       # الجرح والتعديل · تهذيب الكمال
+        bp = books_dir / f"{book_id}.json"
+        if not bp.exists():
+            continue
+        prose = parse_jarh_file(bp) if book_id == 2170 else parse_tahdhib_file(bp)
+        result, attached = merge_appraisals(result, prose)
+        if attached:
+            print(f"  attached أقوال الأئمة from {book_id}: {attached} narrators")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as fh:

@@ -218,6 +218,19 @@ match/verdict time, so the cards stay for the «راوٍ»/terminal use. الإ�
   split KEEPS «مالك» where «قرأت على مالك» was one junk node → recovered narrators land as honest homonymy). The
   parsing-cleanup arc is VALIDATED. **Caveat the metric can't see** (told the user): a node «clean» of junk can still
   be a waw-joined dual «ابن عباس وابن عمر» (two men in one) or a truncated chain — those are the residual, not 0.
+- **★ أقوال الأئمة — NAMED multi-critic verdicts (user: «riportare anche i loro nomi»).** The رجال books are not one
+  verdict but a dossier of NAMED judgements («قال ابن معين: ثقة، قال أبو حاتم: لا يُحتجّ به، ذكره ابن حبان في الثقات»);
+  ابن حجر/الذهبي only distil them. The prose sources (الجرح 2170, تهذيب 3722, and the coming الثقات/لسان) report them with
+  the names — but those fed only `build_graph` (network), so the names never reached the cards. NOW captured end-to-end:
+  **`app/parsing/appraisals.py`** `extract_appraisals(body)` → `[{critic, verdict}]` (a curated نقّاد list so an isnad
+  narrator isn't taken for a critic + a grade-word filter on free-text quotes; verb/inclusion verdicts are graded by
+  construction; `normalize_for_search` so «أبو حاتم» folds; `_QIRAA`-free); the prose extractors (`jarh_extract`/
+  `tahdhib_extract.parse_entry`) add `appraisals` to their records; **`build_rijal.merge_appraisals`** attaches them to
+  the matching rijal entry by an UNAMBIGUOUS name match (grade unchanged, add-only, after dedup); `RijalEntry.appraisals`
+  + to_dict/from_dict carry it; the «راوٍ» card shows **«أقوال الأئمة»** (`rijalAppraisals` in index.html). +5 tests,
+  **385 green**, node --check clean. **NEEDS A `build_rijal` (update.bat) with 2170/3722 on disk to populate** (then the
+  card fills). Docs: المنهجية «درجات الرواة» card + التقنية RijalEntry/appraisals. **NEXT:** every new prose extractor
+  (الثقات/لسان) gets `extract_appraisals` for free → more names; consider widening the curated نقّاد list as we see misses.
 - **Docs:** المنهجية أعلام card (الإصابة «only at the chain's end, never mid-chain»), التقنية (analyze_isnad object-pronoun
   forms + الإصابة terminal-only; +scripts.audit_nodes→node_audit.json; ~350→~360 tests). node --check clean.
 

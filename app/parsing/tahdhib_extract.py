@@ -23,6 +23,7 @@ import re
 from pathlib import Path
 from typing import Iterator
 
+from app.parsing.appraisals import extract_appraisals
 from app.parsing.html_clean import arabic_digits_to_int, clean_block, flexible_word
 from app.parsing.normalize import strip_diacritics
 from app.parsing.rijal_extract import _BOUNDARY, _death_year, _first_entry_page
@@ -147,6 +148,9 @@ def parse_entry(number: int | None, body: str) -> dict | None:
     verdicts = _verdicts(body)
     if verdicts:
         record["verdicts"] = verdicts
+    appraisals = extract_appraisals(body)            # «قال ابن معين: ثقة» → named أقوال الأئمة
+    if appraisals:
+        record["appraisals"] = appraisals
     return record
 
 
