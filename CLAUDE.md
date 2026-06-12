@@ -171,6 +171,43 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
 **Focus:** cut wrong isnad verdicts in «التدقيق» by identifying the narrator from the chain — AND now also
 verify every **matn** (the new «تدقيق المتون»).
 
+**★★★ (2026-06-12, THIS SESSION). الإصابة MEASURED → S REGRESSION DIAGNOSED + FIXED · الزهري-أخبره parsing
+bug · the parsing-bug HUNTER. On main, branch `claude/intelligent-bardeen-HAsrg`. 360 tests green.**
+The user ran `build_rijal --no-download` (الإصابة merged: **rijal 9,712 → 15,231, +5,519 صحابة**) + `audit_isnad`
++ `audit_conflicts`. Pulled the real `audit.json`/`rijal.jsonl` from the shared Drive (`data/` subfolder) and
+decomposed them. Result — **الإصابة integrated cleanly (DANGEROUS still 0, W 656→641 ✓) BUT S EXPLODED 620→2528
+(×4.1)** and A fell 83,835→76,845 (84,783 chains). **Diagnosed (reproduced in-container on a synthetic rijal):**
+the +5,519 الإصابة Companions are NON-تقريب obscure men → their **bare ism+father** names («محمد بن عبد الله» ×4,
+«حارثة بن محمد», «أنس بن أبي أنس», «عنبسة بن أبي سفيان»…) **exact-match a mid-chain citation and OUTRANK the real
+تابعي containment-matches** → resolve UNIQUELY to صحابي mid-chain → false S **and** mask the real man's weakness
+(verdict bug, worse than the flag). A↓ is the SAME effect (positions that were honest «مشترك» now resolve onto a
+Companion). A nisba-gate is NOT enough (a nisba Companion «سعد بن مالك الساعدي» still containment-matches bare
+«سعد بن مالك»). **FIX — obscure-Companion dictionaries are mid-chain-INERT** (`index.from_companion_dictionary`,
+gated in `isnad.analyze_isnad`): a صحابي whose grade rests ONLY on الإصابة is usable at the chain's END (terminal /
+penultimate صحابيٌّ عن صحابيّ) but DROPPED to unknown (`match=None`) DEEP (≤ terminal−2) — kills the false S + the
+masking, KEEPS the benefit (an obscure terminal Companion is still identified). Note the match feeds `record["rijal"]`
+directly, NOT via `usable`, so the fix sets `match=None` (not just unusable). +1 test. **Effective on the next
+`audit_isnad` ALONE (no rebuild)** — analyze_isnad is called live. **WAITING ON THE USER: re-run `audit_isnad`** →
+S should fall back toward ~620 (the تقريب-sourced famous-Companion residual — ابن عباس/عمر/أنس — stays, it predates
+الإصابة); send W/S/A. (The الإصابة EXTRACTOR is UNCHANGED — the fix is at match/verdict time, so the +5,519 cards
+stay for the «راوٍ»/terminal use.)
+- **★ PARSING BUG (user screenshot) — «الزهري أخبره» as a narrator name.** `analyze_isnad._VIA` had `أخبرنا/أخبرني`
+  but NOT the **object-pronoun forms** «أخبره/أخبرها/أخبرهم · حدثه/حدثها/حدثهم · أنبأه» — so in the FRONTED-شيخ
+  construction «(أنّ) الزهري أخبره أنّ …» the verb glued onto «الزهري», forging a bogus graph node that aggregated
+  al-Zuhri's whole network. (Curiously `isnad_matn._LINK_AHEAD` already knew this set — an inconsistency.) FIXED:
+  added the forms to `_VIA` (سماع). `scripts.build_graph` segments with `analyze_isnad`, so the «راوٍ» node clears on
+  the next **re-parse + build_graph** (`update.bat`); the audit picks it up live. +1 test.
+- **★ «cercare tutti i bug di parsing» → NEW `scripts.audit_nodes`** (read-only, the segmentation counterpart of
+  audit_isnad/audit_matn): re-segments every isnad, flags any finalised narrator node still carrying a non-name
+  fragment, CLASSIFIED — **verb** (transmission/قراءة glued: «أخبره», «قرأت على» — the dominant class), **say**,
+  **action** (كان/يخطب…), **anna** (أنّ glued), **backref** (مثله/بهذا الإسناد), **number** → `data/node_audit.json`
+  + ranked summary. Zero false positives on real names (سمعان/قرة/علي/أبو بكر/the Prophet — tested). The object-pronoun
+  «أخبره» class was found exactly this way; the detector enumerates the REST on the real corpus. +1 test (8 cases).
+  **WAITING ON THE USER: run `python -m scripts.audit_nodes`** (needs only `index.db`, minutes) → send `node_audit.json`
+  → I read the ranked classes (expect «قرأت على», stray «قال», secondary-صحابي «أنّ فلان» …) and fix each leak.
+- **Docs:** المنهجية أعلام card (الإصابة «only at the chain's end, never mid-chain»), التقنية (analyze_isnad object-pronoun
+  forms + الإصابة terminal-only; +scripts.audit_nodes→node_audit.json; ~350→~360 tests). node --check clean.
+
 **★★ SESSION CONSOLIDATION (2026-06-11) — read this first; details in the dated entries below.**
 **State: main = `e1ac017`, branch aligned (ff-merges, NOT squash), 344 tests green, all pushed.** This session
 (measured on the user's real corpus, 84,807 chains · rijal 9,712):
