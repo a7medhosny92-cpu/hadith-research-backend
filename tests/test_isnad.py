@@ -227,6 +227,24 @@ def test_object_pronoun_verb_closes_the_shaykh_not_glued():
     assert not any("اخبر" in n or "أخبر" in n for n in names)
 
 
+@pytest.mark.parametrize("isnad, expect_node", [
+    # «أنّهما/أنّهم» (dual/plural co-narrators) close the names instead of gluing «أنهما سمعا …» on
+    ("حدثنا قتيبة عن ابن عباس وابن عمر أنهما سمعا النبي صلى الله عليه وسلم", "ابن عباس وابن عمر"),
+    # قراءة + the «على» preposition skipped, so «قرأت على مالك» → مالك, not «قرأت على مالك»/«علي»
+    ("أخبرنا قتيبة قرأت على مالك عن نافع عن ابن عمر", "مالك"),
+    ("حدثنا فلان حدثتني عائشة عن النبي صلى الله عليه وسلم", "عائشة"),    # 1st-person transmission verb
+    ("حدثنا فلان عن عائشة كان النبي صلى الله عليه وسلم يصلي", "عائشة"),  # «كان …» scene opener = matn
+    ("حدثنا فلان عن أبي هريرة فذكره", "أبي هريرة"),                     # «فذكره» back-reference = matn
+    ("حدثنا١ سفيان١ عن عمرو٢ عن جابر١", "سفيان"),                      # footnote-digit glue is stripped
+])
+def test_segmentation_leaves_no_corrupt_nodes(isnad, expect_node):
+    """The boundary rules found by scripts.audit_nodes: every finalised node is a clean name."""
+    from scripts.audit_nodes import junk_in_node
+    names = [n["name"] for n in analyze_isnad(isnad).narrators]
+    assert expect_node in names
+    assert all(not junk_in_node(n) for n in names)
+
+
 # ── terminal-صحابي is gated on reaching the Prophet (C1: no مقطوع false-promotion) ─────────────
 _ASWAD = [
     {"name": "الأسود بن يزيد النخعي", "grade": "ثقة"},      # تابعي — the real الأسود النخعي

@@ -36,31 +36,48 @@ _VIA: dict[str, str] = {
     "اخبره": "سماع", "اخبرها": "سماع", "اخبرهم": "سماع", "اخبرهما": "سماع",
     "حدثه": "سماع", "حدثها": "سماع", "حدثهم": "سماع", "حدثهما": "سماع",
     "انباه": "سماع", "انباها": "سماع", "انباهم": "سماع",
+    # 1st/3rd-person + plural transmission forms the terse list missed (found by scripts.audit_nodes):
+    # «حدّثتني», «حدّثكم», «أخبرتني», «سمعوا» — each a سماع verb that must close the surrounding name.
+    "حدثتني": "سماع", "حدثتنا": "سماع", "حدثكم": "سماع", "حدثت": "سماع",
+    "اخبرتني": "سماع", "اخبرتنا": "سماع", "اخبرتها": "سماع", "اخبرت": "سماع",
+    "سمعوا": "سماع", "سمعوه": "سماع", "حدث": "سماع", "اخبر": "سماع", "انبا": "سماع", "نبا": "سماع",
+    # قراءة / عرض (a mode of تحمّل): «قرأت على مالك», «عرض عليه», «قُرئ على فلان». These take a following
+    # «على/عليه» (the شيخ's preposition) which must be skipped, never read as the name علي — see _QIRAA.
+    "قرات": "سماع", "قرا": "سماع", "قراه": "سماع", "قرانا": "سماع", "اقراه": "سماع", "اقرات": "سماع",
+    "قرئ": "سماع", "قري": "سماع", "عرض": "سماع", "عرضت": "سماع", "عرضنا": "سماع", "عرضوا": "سماع",
+    "عرضتم": "سماع", "عرضه": "سماع",
     "عن": "عنعنة", "عنه": "عنعنة",
 }
+# قراءة/عرض verbs are followed by «على/عليه» (the شيخ's preposition) — skipped in the loop so it
+# never becomes the name «علي» (folded identically). Kept apart from _VIA only to flag the skip.
+_QIRAA = {"قرات", "قرا", "قراه", "قرانا", "اقراه", "اقرات", "قرئ", "قري",
+          "عرض", "عرضت", "عرضنا", "عرضوا", "عرضتم", "عرضه"}
+_DIGITS = re.compile(r"[0-9٠-٩۰-۹]")   # footnote-superscript / hadith-number digits glued onto a name
 # Connective words that are not narrator names. «بهذا/بهذه» introduces a back-reference
 # («بهذا الإسناد») — dropped so «الإسناد» (a hard matn marker below) cleanly ends the chain.
 _SKIP = {"قال", "قالا", "قالوا", "يعني", "قالت", "ح", "بهذا", "بهذه"}
 # Matn-start markers: once the isnad reaches one of these (after a narrator) the matn
 # has begun and the chain ends. «قال/قالت» are *soft* — a boundary only when NOT followed
 # by a transmission verb (… قال حدثنا … keeps going); the rest always begin the matn.
-_MATN_HARD = {"مرفوعا", "رفعه", "يرفعه", "نحوه", "مثله", "بنحوه", "بمثله",
-              # back-reference to a previously-given chain («… بهذا الإسناد / بإسناده / بسنده»):
-              # the isnad is abbreviated here, so the report (matn) follows — stop the chain.
-              "الاسناد", "اسناده", "باسناده", "بسنده", "باسناد"}
+_MATN_HARD = {"مرفوعا", "رفعه", "يرفعه", "نحوه", "مثله", "بنحوه", "بمثله", "بمعناه", "بمعنى",
+              # back-reference to a previously-given chain («… بهذا الإسناد / بإسناده / بسنده»), or an
+              # abbreviated matn «… فذكر الحديث / فذكره»: the report follows — stop the chain.
+              "الاسناد", "اسناده", "باسناده", "بسنده", "باسناد", "فذكر", "فذكره"}
 # «قال/يقول/فقال…» are *soft*: a boundary only when NOT followed by a transmission verb. «X يقول:
 # سمعت Y», «سألت X فقال: حدثني Y» CONTINUE the chain (X reports hearing the next narrator) — making
 # يقول/فقال hard truncated «علقمة … يقول: سمعت عمر» and «… فقال: حدثني عبد الله», dropping the صحابي.
-_MATN_SOFT = {"قال", "قالت", "يقول", "تقول", "فقال"}
+_MATN_SOFT = {"قال", "قالت", "يقول", "تقول", "فقال", "فقالت", "فقالوا", "يقولون"}
 # Action verbs that open a narrated scene («كان رسول الله ﷺ يخطب / يصلّي / يدعو …», «سمعته
 # يحدّث …»): treated like a soft boundary — the matn begins UNLESS a transmission verb
 # follows (… يحدّث عن أبيه … keeps the chain), so a real «سمعته يحدّث عن فلان» is never truncated.
-_MATN_VERB = {"يخطب", "يصلي", "يدعو", "يقرا", "يكبر", "يامر", "يحدث", "يذكر", "يصنع", "يفعل"}
+_MATN_VERB = {"يخطب", "يصلي", "يدعو", "يقرا", "يكبر", "يامر", "يحدث", "يذكر", "يصنع", "يفعل",
+              # narrative-scene openers «كان رسول الله ﷺ …», «رأيت/دخلت/خرجت/سألت …» (audit_nodes)
+              "كان", "رايت", "دخل", "خرج", "سال", "سالت", "سالنا"}
 # «أنّ / أنّه / أنّها» opens the report (matn) — «… عن ابن عمر أنّ رسول الله ﷺ قال …».
 # If its subject is the Prophet the chain is marfūʿ and he is the terminal narrator;
 # otherwise the report has begun and the chain ends. (Without this, «أن رسول الله» glued
 # onto the previous name, making bogus nodes like «ابن عمر أن رسول الله ﷺ».)
-_MATN_ANNA = {"ان", "انه", "انها"}
+_MATN_ANNA = {"ان", "انه", "انها", "انهم", "انهما", "انهن"}   # incl. dual/plural «أنّهما/أنّهم» co-narrators
 _PROPHET_HEAD = {"النبي", "نبي", "رسول"}
 # Tokens still inside a Prophet reference (his name + the eulogy); the first token
 # outside this set ends the Prophet's (terminal) name and starts the matn.
@@ -147,6 +164,7 @@ def analyze_isnad(
     # other's disambiguation context, so these indices are excluded from both below.
     route_starts: set[int] = set()
     pending_break = False
+    pending_ala = False           # the previous token was a قراءة verb → skip its «على/عليه»
 
     def flush() -> bool:
         nonlocal pending_break
@@ -159,10 +177,16 @@ def analyze_isnad(
             return is_prophet(name)   # the Prophet is terminal — nothing narrates from him
         return False
 
-    tokens = _TOKEN.findall(raw)
+    # strip footnote-superscript / hadith-number digits glued onto tokens («الله١»→«الله», «حدثنا١»→
+    # «حدثنا», «م ٢»→«م» then dropped) before they corrupt a node — names never carry a digit.
+    tokens = [t for t in (_DIGITS.sub("", t) for t in _TOKEN.findall(raw)) if t]
     for i, token in enumerate(tokens):
         folded = normalize_for_search(token)
         nxt = normalize_for_search(tokens[i + 1]) if i + 1 < len(tokens) else ""
+        if pending_ala:                       # «قرأت/عرضت [على/عليه] فلان» — drop the قراءة preposition
+            pending_ala = False               # (folds to «علي»; must not be read as the name)
+            if folded in ("علي", "عليه"):
+                continue
         if folded == "ح":
             has_tahwil = True       # تحويل: a standalone ح switches to another route, so
             flush()                 # finalise this route's last narrator and mark the next one
@@ -180,6 +204,7 @@ def analyze_isnad(
             if flush():           # reached the Prophet → stop; the matn follows
                 break
             via, buf = _VIA[conn], []
+            pending_ala = conn in _QIRAA      # a قراءة verb → its next «على/عليه» is a preposition
             continue
         # «أنّ» opens the report: end the current narrator. If it is about the Prophet
         # («… أنّ رسول الله ﷺ قال») the chain is marfūʿ and he is the terminal narrator;
