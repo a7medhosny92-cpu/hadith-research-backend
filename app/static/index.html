@@ -1246,7 +1246,7 @@ const METHODOLOGY = [
   {h:"ما هي شبكةُ الرواة؟ ولماذا؟", p:[
     "الشبكةُ (وهي لسانُ «الشبكة» في التطبيق) خريطةُ «مَن روى عمّن»: كلُّ راوٍ نقطةٌ (عقدة)، وكلُّ صلةِ شيخٍ بتلميذِه سهمٌ بينهما. تُبنى بقراءةِ كلِّ الأسانيد (عشراتُ الألوف): كلَّما تجاور اسمان في إسنادٍ («فلانٌ عن فلان») سجّلنا الصلة؛ فيصيرُ لكلِّ شخصٍ «صحبةٌ» معروفة — شيوخُه وتلاميذه.",
     "ولماذا؟ لأنّها أساسُ قاعدةِ «السلسلةُ تسبق الاسمَ». فحين يشترك الاسمُ بين رجال، لا نخمّن: ننظر إلى مَن جاوره في السلسلة، ونقابله بصحبةِ كلِّ مرشّحٍ في الشبكة، فيُعيَّن مَن توافق صحبتُه ذلك الجوار. مثاله: «محمد بن بشر» يحملُه جماعةٌ؛ والشبكةُ تعلمُ أنّ «محمد بن بشر العبديَّ» (الثقةَ) يروي عن «محمد بن عمرو» وعنه «ابن أبي شيبة»، فإذا جاء هذا الجوارُ في السلسلة عُرِف العبديُّ لا مَن يشاركه الاسمَ. وهو كمعرفةِ المرء بجلسائه لا باسمه وحده.",
-    "وموضعُها: ملفٌّ محليٌّ على جهازك يُبنى بخطوة «بناء شبكة الرواة» ضمن التحديث؛ لذلك لا تأخذ التصويباتُ أثرَها الكاملَ إلّا بعد إعادةِ البناء (update.bat). ويُغني الشبكةَ مستقبلًا «تهذيب الكمال» إذ يَسرُدُ شيوخَ كلِّ راوٍ وتلاميذَه مباشرةً، فتقوى الصحبةُ حتى لمن قلّ ورودُه في الأسانيد."]},
+    "وموضعُها: ملفٌّ محليٌّ على جهازك يُبنى بخطوة «بناء شبكة الرواة» ضمن التحديث؛ لذلك لا تأخذ التصويباتُ أثرَها الكاملَ إلّا بعد إعادةِ البناء (update.bat). ويُغنيها — متى نُزِّلا — «تهذيبُ الكمال» للمِزّيّ و«الجرحُ والتعديل» لابن أبي حاتم، إذ يَسردان شيوخَ كلِّ راوٍ وتلاميذَه مباشرةً، فتقوى الصحبةُ حتى لمن قلّ ورودُه في الأسانيد."]},
   {h:"كيف تُبنى شبكة الرواة؟ — على تمريرتين", p:[
     "تمييزُ المشترك (أهو «سعيد بن المسيب» أم «سعيد بن جبير»؟) أوثقُ قرينةٍ فيه: مَن يصاحبه في الأسانيد. لكنّ هذه «الصحبة» لا تُعرف إلّا بعد بناء الشبكة — وهي نفسُها ما نريد بناءه (مسألةُ البيضة والدجاجة). فنحلُّها بتمريرتين على الأسانيد ذاتها.",
     "نستخرج الأسانيد مرّةً واحدة (كلُّ إسنادٍ سلسلةُ رواةٍ مرتّبة)، ثمّ نمرّ عليها مرّتين:",
@@ -1296,7 +1296,8 @@ const METHODOLOGY = [
     "كيف يعمل: يمرّ على كلِّ أسانيد المكتبة (عشراتُ الألوف)، ويُعيد على كلِّ راوٍ في كلِّ إسنادٍ نفسَ تحليل لسان «الإسناد» — يعيّن الشخصَ من سياق سلسلته (الشبكة)، ثمّ ينقل حكمَه من قاعدة الرجال — ثمّ يَسِم كلَّ موضعٍ يُستراب فيه برمزٍ، ويُحصي الرموزَ، ويحفظ أمثلةً تُفتَح بالنقر (المتنُ + الكتابُ + السلسلةُ + الحكم). ويُبنى من الصفر في آخر كلِّ تحديث، فيواكب تحسُّنَ البيانات.",
     "وما يرصده أربعُ «قرائنِ رِيبة»، لا أخطاءٌ مؤكَّدة: [P] أن يُحكَم على النبيِّ ﷺ كأنّه راوٍ يُجرَّح — وهو مصدرُ الحديث لا راوٍ، فهذا لا يقع (وعددُه صفر). [S] راوٍ حُكم له «صحابيٌّ» وموضعُه ليس آخرَ السند — والصحابيُّ موضعُه آخرُ السند (سَمِع من النبيّ ﷺ)، فظهورُه في الوسط قرينةُ التباسٍ باسمٍ مشابه (كـ«أبي إسحاق» السبيعيِّ الثقةِ يُخلَط بالصحابيِّ سعدٍ صاحبِ الكنية نفسِها). [W] اسمٌ كاملٌ حُكم له «متروكٌ/كذّاب» — وهو حكمٌ شديدٌ يندُر في الصحاح، فيُستراب أنّه خلطٌ بضعيفٍ متأخِّرٍ يشاركه الاسمَ (كـ«عثمان بن أبي شيبة» الثقةِ يُخلَط بأخيه المتروك). [A] مطابقةٌ «مشترَكة»: الأداةُ نفسُها تُقِرّ بأنّها لا تجزم بمن هو.",
     "وقاعدةُ الحكم هنا أمانةٌ لا تخمين: متى اختلف المرشّحون في الحكم (ثقةٌ مقابلَ متروك، أو ثقةٌ مقابلَ صحابيٍّ) لم نُثبِت له «متروكًا» ولا «صحابيًّا»، بل أدرجناه في «المشترَك» يُتوقَّف فيه؛ ومتى اتّفقوا (نسختان لليثِ بن سعد كلتاهما ثقة، أو عديُّ بن حاتم في صورتين كلتاهما صحابيّ) أخذنا بذلك الحكم. فالقرائنُ في «التدقيق» أبوابُ مراجعةٍ تُفتَح بالنقر لتُدرَس باليد، لا أحكامٌ تُغلَق — وهي المِعيارُ الذي نقيس به أثرَ كلِّ تحسينٍ في التعيين والتمييز.",
-    "وليست كلُّ قرينةٍ خطأً: قد يكون الراوي ضعيفًا حقًّا فالوسمُ صوابٌ؛ وإنّما تُجمَع هذه المواضعُ لتُراجَع، فينفصلَ الخطأُ (ثقةٌ التُبس بضعيفٍ) عن الصواب (ضعيفٌ على بابه). وهذا تطبيقٌ لقاعدتنا: حُكمٌ خاطئٌ يُقال بثقةٍ شرٌّ من «مشترَكٍ» صادق."]},
+    "وليست كلُّ قرينةٍ خطأً: قد يكون الراوي ضعيفًا حقًّا فالوسمُ صوابٌ؛ وإنّما تُجمَع هذه المواضعُ لتُراجَع، فينفصلَ الخطأُ (ثقةٌ التُبس بضعيفٍ) عن الصواب (ضعيفٌ على بابه). وهذا تطبيقٌ لقاعدتنا: حُكمٌ خاطئٌ يُقال بثقةٍ شرٌّ من «مشترَكٍ» صادق.",
+    "وللتدقيق أختان على المنوال نفسه — مراجعةٌ آليّةٌ للأداة لا حكمٌ على الحديث: «تدقيقُ المتون» يفحص كلَّ متنٍ ويَسِم المشتبهَ (مبتورًا أو فارغًا، أو تسرَّب إليه الإسناد، أو حكمًا/تخريجًا في المتن، أو ليس متنًا بل آيةً أو عنوانَ باب)؛ و«تعارُضُ الرجال» يرصد تصادمَ اسمٍ بين «متروكٍ/كذّاب» و«ثقةٍ/صحابيّ» لئلّا يُحمَل إسنادٌ سليمٌ على حكم الرجل الخطأ. وكلاهما يُبنى ويتجدّد مع «التدقيق» في كلّ تحديث."]},
   {h:"أحكام العلماء على الحديث", src:"نصوصُ الكتب والشروح والتخريج.",
     how:"نلتقط أحكامَ النقّاد بأنماطٍ نصّيّة (صحّحه فلان، ضعّفه فلان، قال الترمذيّ: حسنٌ صحيح...)، ونستنبط الضمنيّ (ما في الصحيحين فعلى شرطهما)، ونرتّبها بالطبقة، ونضع «هـ» بعد سنة الوفاة، ونُبرز اختلافَ العلماء، ونحلّ «حسن صحيح» بعدد الطرق.",
     pros:"يُظهر الحكمَ بصاحبه وعصره، ويكشف مواضعَ اختلاف النقّاد بدل إخفائها.",
@@ -1359,7 +1360,7 @@ const ARCHITECTURE = [
   {h:"٢) التحليل", p:[
     "النصُّ يأتي صفحاتٍ غير مُهيكلة؛ فنستخرج الأحاديث (بعلامات • [رقم] أو «رقم -»)، ونفصل الإسناد عن المتن، ونلتقط الحكم والباب، ونربط الشروح بالأرقام، ونبني تراجم الرجال من «تقريب التهذيب» و«الكاشف» (بأسمائهم وكُناهم وألقابهم)، ونوحّد صيغَ اسم الراوي الواحد لتجتمع في عقدةٍ واحدةٍ في الشبكة، ونميّز الشخصَ من صلة القرابة (نحلُّ «أبيه/جده» وسائرَ صلات القرابة إلى الشخص الحقيقيّ من النسب، وإلّا أبقينا الصِّلةَ بعقدةٍ موسومةٍ «والد فلان» مرتبطةٍ به فلا يضيع الرابط). ونطبّع الحروف العربية للمطابقة."]},
   {h:"٣) الفهارس", p:[
-    "فهرسٌ لفظيّ (FTS) للمطابقة الحرفية، وفهرسٌ دلاليّ (متّجهات) للمعنى، وشبكةُ الرواة (شيوخ/تلاميذ من الأسانيد، تُبنى على تمريرتين: الأولى تَدمج المؤكَّد وتتعلّم صحبةَ كلّ راوٍ، والثانية تَحلّ المشترك بالسياق)، وقاعدةُ درجات الرجال (نحو 10٬500 راوٍ)."]},
+    "فهرسٌ لفظيّ (FTS) للمطابقة الحرفية، وفهرسٌ دلاليّ (متّجهات) للمعنى، وشبكةُ الرواة (شيوخ/تلاميذ من الأسانيد، تُبنى على تمريرتين: الأولى تَدمج المؤكَّد وتتعلّم صحبةَ كلّ راوٍ، والثانية تَحلّ المشترك بالسياق)، وقاعدةُ درجات الرجال (نحو 9٬700 راوٍ)."]},
   {h:"٤) الاسترجاع الهجين", p:[
     "يدمج اللفظيّ والدلاليّ بترتيبٍ تبادليّ (RRF) مع مرشّحات (الكتاب، الدرجة) — فتجد الحديث بلفظه أو بمعناه."]},
   {h:"٥) علوم الحديث", p:[
@@ -1367,13 +1368,13 @@ const ARCHITECTURE = [
   {h:"٦) المحرّك اللغوي (اختياري)", p:[
     "مفتاحٌ بثلاثة أوضاع: «بدون ذكاء اصطناعي» (استخراجيّ، الأأمن)، أو «محلّي» (Ollama)، أو «سحابيّ» (أيّ مزوّد). وهو مُلزَمٌ بالاستشهاد من المصادر المسترجَعة فقط وعدمِ الاختلاق."]},
   {h:"٧) الواجهة", p:[
-    "خادمُ FastAPI (بحث، سؤال، تخريج، تحقيق إسناد، راوٍ، شبكةٌ بيانيّة، دفتر) ونافذةٌ مكتبية بالعربية مع هذه الألسنة."]},
+    "خادمُ FastAPI (بحث، سؤال، تخريج، تحقيق إسناد، راوٍ، شبكةٌ بيانيّة، دفتر، وألسنةُ المراجعة الذاتية: التدقيق وتدقيق المتون وتعارض الرجال) ونافذةٌ مكتبية بالعربية مع هذه الألسنة."]},
   {h:"المبدأ الحاكم", p:[
     "يَسترجع ويُوثّق ولا يَختلق؛ ويُميَّز دائمًا المنقولُ (نصُّ المصدر ونسبتُه = موثوق) عن التحليليّ (الفصلُ والمطابقةُ والحكم = اجتهاديٌّ يُراجَع) — كما تُفصّله صفحة «المنهجية»."]},
   {h:"أين يمكن أن يتحسّن", p:[
     "• تحليلٌ أدقّ لفصل الإسناد/المتن واستخراج الحكم (قواعد أكثر أو نموذج).",
     "• تخصيصُ نموذج المتّجهات على نصوص الحديث → دلالةٌ أدقّ في المجال.",
-    "• رجالٌ أوسع (تهذيب الكمال كاملًا، والجرح والتعديل) لتوسيع التغطية.",
+    "• معرفةُ الصحابة (الإصابةُ وأخواتُها: أسد الغابة، الاستيعاب، الطبقات) لإخراج «المجهولين» الذين هم في الحقيقة صحابةٌ معروفون، وكتبُ الثقات والميزان للتوسّع خارج الكتب الستّة — وقد دخل «تهذيبُ الكمال» و«الجرحُ والتعديل» في الشبكة بالفعل.",
     "• النظرُ في العلّة والشذوذ بنيويًّا، لا الرجال والاتصال فحسب.",
     "• مُعيدُ ترتيبٍ (reranker) بعد الاسترجاع، والانتقالُ إلى Postgres + pgvector للتوسّع."]},
   {h:"الحدود وإخلاءُ المسؤولية", p:[
@@ -1405,12 +1406,13 @@ const TECH = [
     "app/rijal — narrators: index (RijalIndex: matching), graph (NarratorGraph: the network), canon (Canonicalizer: unification), grades (classify + RANKS), and a curated seed.jsonl.",
     "app/qa — hadith sciences: isnad, rulings (verdicts and ʿilal), takhrij, answer (grounded answering), dossier (aggregated cards), intent, llm.",
     "app/search — retrieval: index (HadithIndex/SharhIndex over FTS5), vectors (VectorIndex), embeddings (Embedder), hybrid (HybridSearcher: RRF fusion), grouping (report clustering).",
-    "app/routers — endpoints; app/main + app/config (settings); scripts/ — build tools; tests/ — ~240 tests."]},
+    "app/routers — endpoints; app/main + app/config (settings); scripts/ — build tools; tests/ — ~350 tests."]},
   {h:"Processing pipeline — scripts", p:[
     "scripts.ingest: download books from turath.io (rate limit, retry, resume via manifest.json) → data/raw/turath/{id}.json.",
     "scripts.parse: parse pages into structured JSONL (matn/isnad/grade/bab + sharh linking) → data/processed/*.jsonl and sharh/.",
     "scripts.index: FTS5 indexes → data/index.db and data/sharh_index.db. scripts.build_graph: the narrator network (two passes) → data/narrators.db.",
-    "scripts.build_rijal: narrator gradings (Taqrib al-Tahdhib + al-Kashif) → data/rijal.jsonl. scripts.embed: the vector index (incremental) → data/vectors.db + data/embed_cache.db. scripts.audit_isnad: the isnad review report → data/audit.json (the «التدقيق» tab).",
+    "scripts.build_rijal: narrator gradings (Taqrib al-Tahdhib + al-Kashif) → data/rijal.jsonl; scripts.build_graph also folds in the شيوخ/تلاميذ network from تهذيب الكمال (3722) + الجرح والتعديل (2170) when present. scripts.build_rijal_llm (optional, gated): a faithful LLM re-extraction of grades + network and a re-segmentation of suspect chains, every record validated against the source or it falls back to the regex. scripts.embed: the vector index (incremental) → data/vectors.db + data/embed_cache.db.",
+    "Three self-review reports, rebuilt each update: scripts.audit_isnad → data/audit.json (the «التدقيق» tab), scripts.audit_matn → data/matn_audit.json (the «تدقيق المتون» tab), scripts.audit_conflicts → data/conflicts.json (the «تعارض الرجال» tab).",
     "scripts.update: orchestrates all of it (checkout main → pull → deps → steps 4-8); every step is idempotent and safe to re-run."]},
   {h:"Data files — data/", p:[
     "raw/turath/{id}.json: the raw book. processed/*.jsonl: structured hadith. manifest.json: download state (for resume).",
@@ -1422,7 +1424,7 @@ const TECH = [
     "fold_kunya: unifies the kunya forms Abu/Aba/Abi → «ابو», except «أبي بن…» which stays Ubayy (a name, not a kunya). Used in both the graph and rijal for consistent matching.",
     "negated_before: cancels a verdict preceded by a negation (غير/ليس/لم…) within a short window."]},
   {h:"Isnad/matn split and recovery — app/parsing/isnad_matn.py", p:[
-    "split_isnad_matn(text) → (isnad, matn, confidence). Strategies in order: the first quoted span; the last «قال …:» speech-introducer; then two fallbacks — split after the last «قال» even without a colon (when real matn follows, not another chain link), or, if there is no transmission marker at all, treat the whole text as the matn (a tied continuation that shares the previous isnad).",
+    "split_isnad_matn(text) → (isnad, matn, confidence). Strategies in order: the first SPEECH-introduced quoted span (extended over one story's dialogue, stopping at an editorial/takhrīj tail); the last «قال…:» introducer; «قال» without a colon (anchored to a word-END so it never splits at the dual «قالا:» of «حدّثنا A وB قالا: حدّثنا [route]»); «أنّ النبيّ ﷺ…». Then two LATE fallbacks that only fill an otherwise-EMPTY matn (so they can never re-cut a working split): a post-isnad «أنّ فلان [حدثٌ]» report (skipping a sub-narrator «أنّ فلان أخبره»), else the matn after the terminal authority «النبيّ ﷺ:». The wrapper also peels a secondary route (تحويل ح) leaked into the matn head back into the isnad, and trims a trailing grade/takhrīj tail.",
     "hadith_extract._inherit_rimandi: in a book reading order, an empty-matn reference entry («…مثله / …نحوه / بهذا الإسناد / …بذلك») inherits the previous hadith matn (marked confidence «ref»), so the parallel narration is searchable by its text instead of showing blank.",
     "Together these recover the matn for entries (common in ʿilal works) where the splitter had left it inside the isnad field — restoring it to search, to the narrator graph (the matn no longer pollutes the chain), and to takhrij."]},
   {h:"Rijal database — app/rijal/index.py", p:[
@@ -1450,7 +1452,8 @@ const TECH = [
     "A bulk quality report (the «التدقيق» tab), NOT a religious ruling: it re-runs analyze_isnad over EVERY isnad in the corpus — with the live رجال DB and a Canonicalizer built from graph.adjacency() — and flags each narrator whose grading looks wrong, so a human can review it. Rebuilt from scratch as the last step of update.bat, so it tracks the data as it improves.",
     "_flag_chain emits four codes per chain. P — the Prophet ﷺ was graded as a narrator (he is the source; should be 0). S — a «صحابي» grading away from the chain's end (a Companion belongs last, having heard the Prophet ﷺ; mid-chain ⇒ likely a same-name mix, e.g. «أبي إسحاق» the ثقة ↦ the Companion سعد who shares the kunya). W — a full name (≥3 tokens) graded متروك/كذاب (rare in the Ṣaḥīḥs ⇒ likely confusion with a weak namesake, e.g. «عثمان بن أبي شيبة» the ثقة ↦ his متروك brother). A — an ambiguous (مشترك) match the tool will not guess.",
     "certain = (not ambiguous) OR grade_agreed — the W and S flags fire only on a confident grade. A مشترك match whose tied candidates DISAGREE (ثقة vs متروك) is undecided ⇒ it goes to A, never to a confident متروك/صحابي; when they AGREE it keeps the grade. This mirrors analyze_isnad exactly, so the audit and the per-chain verdict never contradict each other.",
-    "Output: data/audit.json {generated, rijal_entries, scanned, counts:{P,W,S,A}, labels, cases (capped per code)}, served by GET /audit and rendered as the clickable, selectable «التدقيق» review tab (each case expands its matn + book + chain + verdict in place). The codes are review prompts, not closed rulings — and the metric we measure every identification/تمييز improvement against."]},
+    "Output: data/audit.json {generated, rijal_entries, scanned, counts:{P,W,S,A}, labels, cases (capped per code)}, served by GET /audit and rendered as the clickable, selectable «التدقيق» review tab (each case expands its matn + book + chain + verdict in place). The codes are review prompts, not closed rulings — and the metric we measure every identification/تمييز improvement against.",
+    "Two sibling audits run the same way (a tool self-check, not a ruling on the hadith): scripts/audit_matn.py (app/parsing/matn_audit.flag_matn) flags every matn — V empty/fragment · I a chain verb at the matn HEAD or a leading «عن فلان» (back-references and a verb deep in a complete matn are excepted) · G a grade/takhrīj tail · Q a verse-only or chapter-heading «matn» → data/matn_audit.json (the «تدقيق المتون» tab); and scripts/audit_conflicts.py sweeps the رجال for a grave name (متروك/كذاب) sharing «ism+father» with a trustworthy man, flagging the DANGEROUS case where the matcher would grade the grave and sink a sound chain → data/conflicts.json (the «تعارض الرجال» tab)."]},
   {h:"Takhrij and scholars rulings — app/qa/takhrij.py + rulings.py", p:[
     "analyze_narrations: gathers near-matching narrations of a matn (lexically and semantically), clusters them into «wordings» (verbatim / near / by-meaning), and groups them under the Companion with an «akhrajahu» summary.",
     "extract_rulings/collect_rulings: capture critics verdicts by text patterns, ordered by era, resolving «hasan sahih» by the number of routes and flagging divergence.",
@@ -1464,15 +1467,15 @@ const TECH = [
     "litellm as a unified interface. Three modes: off (extractive from the sources, the safest), local (Ollama), remote (any provider); selected with ?engine= and ?model=.",
     "In every mode the engine is constrained to rely only on the retrieved sources, to cite, and not to fabricate; the sources are always returned so the answer stays verifiable."]},
   {h:"API — app/routers/", p:[
-    "GET /search?q=&mode=&field=&group=&collection=&grade= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /verify-isnad?isnad=|hadith_id= · GET /audit (isnad review report) · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
+    "GET /search?q=&mode=&field=&group=&collection=&grade= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /verify-isnad?isnad=|hadith_id= · GET /audit (isnad review) · GET /conflicts (rijal grave↔trustworthy collisions) · GET /matn-audit (matn review) · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
     "Notebook: GET/POST /notebook and PATCH/DELETE /notebook/{id}. Maintenance: POST /admin/reload (clears the provider caches). Health: GET /health and /health/ingestion."]},
   {h:"Settings — app/config.py (.env)", p:[
     "pydantic-settings. The main ones: data_dir (=data), rijal_path (a larger rijal base), embedding_model/embedding_dim (768); the data file paths are properties derived from data_dir.",
-    "Engine: llm_default_engine (off), llm_local_model (ollama/qwen2.5:7b), llm_remote_model (anthropic/claude-sonnet-4-6), llm_temperature/llm_timeout, ollama_api_base, anthropic_api_key/openai_api_key.",
+    "Engine: llm_default_engine (off), llm_local_model (ollama/qwen2.5:7b), llm_remote_model (anthropic/claude-sonnet-4-6), llm_extract_model (ollama/qwen2.5:3b — the dedicated build-time extractor for build_rijal_llm), llm_temperature/llm_timeout, ollama_api_base, anthropic_api_key/openai_api_key.",
     "Fetching: turath_rate_per_sec (4), turath_max_retries (4), hadith_category_ids (6,7,8,9,10,26)."]},
   {h:"Build and tests", p:[
-    "scripts.update: 1) checkout main 2) pull 3) deps 4) ingest 5) parse 6) index 7) build_graph 8) build_rijal (+ incremental embedding). Every step is idempotent and resumable, and a build replaces the file atomically.",
-    "Testing: python -m pytest (~240 tests). CI: pytest + a UI syntax check (node --check) via GitHub Actions."]},
+    "scripts.update: 1) checkout main 2) pull 3) deps 4) ingest 5) parse 6) index 7) build_graph 8) build_rijal — then folds in the optional LLM extraction (build_rijal_llm, gated on a configured engine) and runs the three review reports (audit_isnad, audit_matn, audit_conflicts) plus the incremental embedding. Every step is idempotent and resumable, and a build replaces the file atomically.",
+    "Testing: python -m pytest (~350 tests). CI: pytest + a UI syntax check (node --check) via GitHub Actions."]},
   {h:"Maintaining the reference pages", p:[
     "Three pages stay in sync with the code on every update: «Methodology» (where each datum comes from and why it is trustworthy), «Architecture» (the overview), and «Technical» (this one — the full implementation detail).",
     "Rule: any change in behaviour or structure is accompanied by updating whatever these pages need, so they stay a living reference that never goes stale."]},

@@ -138,7 +138,15 @@ Depth docs (NOT auto-loaded — open when relevant):
   NB: this container can push but **cannot delete remote branches** (the git proxy hangs up on `--delete`);
   the user prunes from the GitHub UI.
 - Tests: `PYTHONPATH=. python3 -m pytest -q`. CI also runs `node --check` on the `<script>` extracted
-  from `index.html` — keep it valid JS. Update the in-app «المنهجية»/«البنية» pages when behaviour changes.
+  from `index.html` — keep it valid JS.
+- **★ STANDING RULE (user, 2026-06-12): keep the THREE in-app reference pages ALWAYS in sync with the code,
+  every change as we go — never let them drift.** «المنهجية» (`METHODOLOGY` array — where each datum comes
+  from + why it's trustworthy), «البنية» (`ARCHITECTURE` — the overview), «التقنية» (`TECH` — the exact
+  implementation: modules, scripts, data files, endpoints, config, counts). Each behaviour/structure change
+  updates whatever these need (new tab/endpoint/script, a changed algorithm, a count like rijal≈9.7k or
+  ~350 tests). They are user-facing and the user audits them — a stale point is a real bug. Audited+realigned
+  2026-06-12 (rijal 10.5k→9.7k, ~240→~350 tests, تهذيب/الجرح «future»→integrated, +the audit/conflict tabs,
+  +endpoints /conflicts·/matn-audit, +build_rijal_llm/audit_matn/audit_conflicts, +the new split strategies).
 - **No model id / assistant identity** in commits, PRs, code, or any pushed artifact.
 - Commit/PR trailer: use the CURRENT session's trailer (the harness supplies it); latest was
   `https://claude.ai/code/session_01Q4Em93bJfdgE2TVT3yeeXr`.
