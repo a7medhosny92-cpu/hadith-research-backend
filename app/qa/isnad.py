@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 from app.parsing.normalize import normalize_for_search, strip_diacritics
 from app.rijal.graph import is_prophet
-from app.rijal.index import _clean_tokens
+from app.rijal.index import _clean_tokens, from_companion_dictionary
 
 if TYPE_CHECKING:
     from app.rijal import RijalIndex, RijalMatch
@@ -27,8 +27,15 @@ if TYPE_CHECKING:
 # Transmission terms → mode. Keys are in the folded form of normalize_for_search.
 _VIA: dict[str, str] = {
     "حدثنا": "سماع", "حدثني": "سماع", "حدثناه": "سماع", "ثنا": "سماع", "نا": "سماع",
-    "اخبرنا": "سماع", "اخبرني": "سماع", "اخبرناه": "سماع", "انبانا": "سماع",
+    "اخبرنا": "سماع", "اخبرني": "سماع", "اخبرناه": "سماع", "انبانا": "سماع", "انباني": "سماع",
     "سمعت": "سماع", "سمعنا": "سماع", "سمع": "سماع", "سمعه": "سماع",
+    # Object-pronoun transmission forms: here the شيخ comes BEFORE the verb, in the topicalised
+    # «(أنّ) الزهري أخبره أنّ …» / «أبا سلمة حدّثه». The verb must CLOSE the شيخ's name — without it
+    # «أخبره/حدثه/أنبأه» glue onto it, forging bogus narrator nodes like «الزهري أخبره» (which then
+    # aggregate the real man's whole network). isnad_matn._LINK_AHEAD already recognises this set.
+    "اخبره": "سماع", "اخبرها": "سماع", "اخبرهم": "سماع", "اخبرهما": "سماع",
+    "حدثه": "سماع", "حدثها": "سماع", "حدثهم": "سماع", "حدثهما": "سماع",
+    "انباه": "سماع", "انباها": "سماع", "انباهم": "سماع",
     "عن": "عنعنة", "عنه": "عنعنة",
 }
 # Connective words that are not narrator names. «بهذا/بهذه» introduces a back-reference
@@ -284,6 +291,15 @@ def analyze_isnad(
                         cats = {c.category for c in other}
                         match = RijalMatch(entry=other[0], score=1.0, ambiguous=len(other) > 1,
                                            alternatives=[c.name for c in other[1:]], grade_agreed=(len(cats) == 1))
+                # A صحابي whose grade rests ONLY on an obscure-Companion dictionary (الإصابة) must not
+                # place a Companion DEEP in the chain (≤ terminal−2): his bare ism+father over-matches a
+                # later same-named تابعي (محمد بن عبد الله، حارثة بن محمد…) → a false «صحابي mid-chain» that
+                # also MASKS the real man's weakness. Drop the match entirely (the card too, not just the
+                # verdict): mid-chain he is honestly unknown, not a held ambiguity. He is still identified
+                # at the END (terminal / penultimate صحابيٌّ عن صحابيّ) — the whole point of الإصابة.
+                if (match is not None and match.entry.category == "صحابي" and i < terminal_idx - 1
+                        and from_companion_dictionary(match.entry)):
+                    match = None
                 # An ambiguous match whose candidates DISAGREE on the grade (عثمان بن أبي شيبة:
                 # ثقة vs a متروك namesake) is no confident identification — count him as
                 # undetermined (يُتوقَّف), while the card still shows the candidates. But when the

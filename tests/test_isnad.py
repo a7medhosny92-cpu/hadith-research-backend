@@ -194,6 +194,39 @@ def test_penultimate_companion_from_companion_kept():
     assert anas["rijal"]["grade"] == "صحابي"
 
 
+def test_companion_dictionary_sahabi_is_inert_mid_chain():
+    """An obscure-Companion-dictionary (الإصابة) صحابي must not place a Companion DEEP in the chain:
+    his bare ism+father over-matches a later same-named تابعي → a false «صحابي mid-chain» that also
+    masks the real man. He is dropped to unknown mid-chain — but STILL identified at the terminal link
+    (the whole point of الإصابة). A تقريب صحابي (a real famous Companion) is NOT affected by this guard."""
+    from app.rijal.index import RijalIndex
+    _ISABA = "الإصابة في تمييز الصحابة (رقم 9767)"
+    rijal = RijalIndex([
+        {"name": "سفيان بن عيينة", "grade": "ثقة", "source": "تقريب التهذيب (رقم 8609)"},
+        {"name": "محمد بن عبد الله", "grade": "صحابي", "source": _ISABA},
+        {"name": "حماد بن زيد", "grade": "ثقة", "source": "تقريب التهذيب (رقم 8609)"},
+        {"name": "سعد بن مالك الساعدي", "grade": "صحابي", "source": _ISABA},
+    ])
+    # DEEP (≤ terminal−2): the الإصابة «محمد بن عبد الله» is honestly unknown, NOT graded صحابي
+    deep = analyze_isnad("حدثنا أحمد عن سفيان بن عيينة عن محمد بن عبد الله عن حماد بن زيد "
+                         "عن سعد بن مالك الساعدي عن النبي صلى الله عليه وسلم قال كذا", rijal=rijal)
+    assert next(n for n in deep.narrators if n["name"] == "محمد بن عبد الله")["rijal"] is None
+    # TERMINAL: an obscure الإصابة Companion at the chain's END is still identified صحابي
+    term = analyze_isnad("حدثنا حماد بن زيد عن سعد بن مالك الساعدي عن النبي صلى الله عليه وسلم قال كذا",
+                         rijal=rijal).narrators
+    assert term[-2]["name"] == "سعد بن مالك الساعدي" and term[-2]["rijal"]["grade"] == "صحابي"
+
+
+def test_object_pronoun_verb_closes_the_shaykh_not_glued():
+    """«(أنّ) الزهري أخبره أنّ …» — an object-pronoun transmission verb «أخبره/حدثه/أنبأه» CLOSES the
+    شيخ's name; it must not glue on, forging bogus nodes like «الزهري أخبره» (which aggregate his
+    whole network in the narrator graph)."""
+    names = [n["name"] for n in analyze_isnad(
+        "حدثنا مالك عن الزهري أخبره أن رسول الله صلى الله عليه وسلم قال إنما الأعمال بالنيات").narrators]
+    assert "الزهري" in names
+    assert not any("اخبر" in n or "أخبر" in n for n in names)
+
+
 # ── terminal-صحابي is gated on reaching the Prophet (C1: no مقطوع false-promotion) ─────────────
 _ASWAD = [
     {"name": "الأسود بن يزيد النخعي", "grade": "ثقة"},      # تابعي — the real الأسود النخعي

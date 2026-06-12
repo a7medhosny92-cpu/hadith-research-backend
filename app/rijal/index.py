@@ -226,6 +226,18 @@ class RijalMatch:
         }
 
 
+# Companion dictionaries (الإصابة and, later, its siblings) catalogue the obscure صحابة who barely
+# narrate. Their worth is identifying a Companion at the chain's END; DEEP in a chain a bare ism+father
+# from one of them over-matches a later same-named تابعي (محمد بن عبد الله، حارثة بن محمد…). So a صحابي
+# whose grade rests ONLY on such a source is not used to place a Companion mid-chain (see analyze_isnad).
+_COMPANION_DICTIONARIES = ("الإصابة",)
+
+
+def from_companion_dictionary(entry: RijalEntry) -> bool:
+    """True if the entry's grade comes from an obscure-Companion dictionary (الإصابة …)."""
+    return any(s in (entry.source or "") for s in _COMPANION_DICTIONARIES)
+
+
 class RijalIndex:
     """In-memory narrator lookup (linear; the corpus of named narrators is small)."""
 
