@@ -92,7 +92,10 @@ Depth docs (NOT auto-loaded — open when relevant):
   matn (reported speech «هذا جبريل أخبرني»، Bukhārī muʿallaq tails). Fix: anchor the I chain-verb check to the
   matn HEAD (`mn.split()[:2]`) + add `not backref`; and guard G's `_EDITORIAL` so «أخرجه الله»/«رواه عنه»
   (real body) aren't takhrīj. Real head-leaks («ا: حدّثنا [route]») + «عن فلان»-start still flag. +3 tests,
-  353 green. **Re-run `audit_matn` ONLY** (no parse) → expect a big I drop to the genuine head-leaks.
+  353 green. **★ MEASURED (audit-only re-run):** **I 1930→371 (−81%) · G 286→269 · V/Q flat.** ★★ MATN ARC
+  SETTLED vs the very first audit: **V 1384→479 (−65%) · empty 1299→299 (−77%) · I 2641→371 (−86%) · G
+  563→269 (−52%)** — ~5,000→~1,257 flags, residual = legit (short answers «نعم/لا», back-refs, verses, real
+  takhrīj) or LLM `--mode chains` territory (the hard re-segmentations). The «detti non completi» are resolved.
 - **`python -m scripts.measure_dedup [--input f.jsonl]`** → read-only: how much of «مشترك» is the
   same man twice vs genuine homonymy.
 - **`python -m scripts.audit_conflicts [--cap N]`** → read-only: sweeps all رجال grouped by ism+father,
