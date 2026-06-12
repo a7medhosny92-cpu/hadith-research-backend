@@ -172,7 +172,7 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
 verify every **matn** (the new «تدقيق المتون»).
 
 **★★★ (2026-06-12, THIS SESSION). الإصابة MEASURED → S REGRESSION DIAGNOSED + FIXED · الزهري-أخبره parsing
-bug · the parsing-bug HUNTER. On main, branch `claude/intelligent-bardeen-HAsrg`. 360 tests green.**
+bug · the parsing-bug HUNTER (6 leak classes fixed). On main, branch `claude/intelligent-bardeen-HAsrg`. 380 tests green.**
 The user ran `build_rijal --no-download` (الإصابة merged: **rijal 9,712 → 15,231, +5,519 صحابة**) + `audit_isnad`
 + `audit_conflicts`. Pulled the real `audit.json`/`rijal.jsonl` from the shared Drive (`data/` subfolder) and
 decomposed them. Result — **الإصابة integrated cleanly (DANGEROUS still 0, W 656→641 ✓) BUT S EXPLODED 620→2528
@@ -187,10 +187,10 @@ gated in `isnad.analyze_isnad`): a صحابي whose grade rests ONLY on الإص
 penultimate صحابيٌّ عن صحابيّ) but DROPPED to unknown (`match=None`) DEEP (≤ terminal−2) — kills the false S + the
 masking, KEEPS the benefit (an obscure terminal Companion is still identified). Note the match feeds `record["rijal"]`
 directly, NOT via `usable`, so the fix sets `match=None` (not just unusable). +1 test. **Effective on the next
-`audit_isnad` ALONE (no rebuild)** — analyze_isnad is called live. **WAITING ON THE USER: re-run `audit_isnad`** →
-S should fall back toward ~620 (the تقريب-sourced famous-Companion residual — ابن عباس/عمر/أنس — stays, it predates
-الإصابة); send W/S/A. (The الإصابة EXTRACTOR is UNCHANGED — the fix is at match/verdict time, so the +5,519 cards
-stay for the «راوٍ»/terminal use.)
+`audit_isnad` ALONE (no rebuild)** — analyze_isnad is called live. **★ MEASURED (user re-ran audit_isnad at `c889837`):
+S 2528 → 596 ✓ (BELOW the pre-الإصابة ~620), W 642, A 76,578, DANGEROUS 0** — the regression is eliminated and the
++5,519 صحابة are kept (identified as terminal Companions). The الإصابة EXTRACTOR is UNCHANGED — the fix is at
+match/verdict time, so the cards stay for the «راوٍ»/terminal use. الإصابة is now net-positive.
 - **★ PARSING BUG (user screenshot) — «الزهري أخبره» as a narrator name.** `analyze_isnad._VIA` had `أخبرنا/أخبرني`
   but NOT the **object-pronoun forms** «أخبره/أخبرها/أخبرهم · حدثه/حدثها/حدثهم · أنبأه» — so in the FRONTED-شيخ
   construction «(أنّ) الزهري أخبره أنّ …» the verb glued onto «الزهري», forging a bogus graph node that aggregated
@@ -203,8 +203,17 @@ stay for the «راوٍ»/terminal use.)
   **action** (كان/يخطب…), **anna** (أنّ glued), **backref** (مثله/بهذا الإسناد), **number** → `data/node_audit.json`
   + ranked summary. Zero false positives on real names (سمعان/قرة/علي/أبو بكر/the Prophet — tested). The object-pronoun
   «أخبره» class was found exactly this way; the detector enumerates the REST on the real corpus. +1 test (8 cases).
-  **WAITING ON THE USER: run `python -m scripts.audit_nodes`** (needs only `index.db`, minutes) → send `node_audit.json`
-  → I read the ranked classes (expect «قرأت على», stray «قال», secondary-صحابي «أنّ فلان» …) and fix each leak.
+  **★ MEASURED + ALL 6 CLASSES FIXED (2nd PR):** the user ran it → **1,868 corrupted nodes (1,523 distinct)**:
+  **verb 553** (قرات/قراه = «قرأت/قُرئ على» 321 · حدثتني/حدثكم/سمعوا/اخبرتني…) · **number 482** (footnote-superscript
+  digits glued: «الله١», «حدثنا١», «م ٢») · **action 291** (كان 191 · رأيت/دخل/خرج/سألت) · **backref 274** (فذكر/فذكره/
+  بمعناه) · **anna 263** (أنّهما/أنّهم — DUAL/PLURAL co-narrators «X وY أنهما حدثاه/سمعا») · **say 46** (فقالت/فقالوا/
+  يقولون). Each = a missing boundary rule, all added to `analyze_isnad`: _VIA gains the 1st/3rd/plural + قراءة forms
+  (+ a `_QIRAA` set whose following «على/عليه» is SKIPPED, never read as the name «علي»); _MATN_ANNA gains أنّهما/أنّهم/
+  أنّهن; _MATN_HARD gains فذكر/فذكره/بمعناه; _MATN_VERB gains كان/رأيت/دخل/خرج/سأل…; _MATN_SOFT gains فقالت/فقالوا/يقولون;
+  and tokens are **digit-stripped** before segmenting. Verified clean on all 6 synthetic classes + re-checked with the
+  detector. +6 tests, **380 green**. **Effective on the next re-parse (build_graph/update.bat) — it cleans both the
+  graph nodes AND, via cleaner segmentation, shifts W/S/A.** **WAITING ON THE USER: after an `update.bat`, re-run
+  `audit_nodes`** → send `node_audit.json` to see the residual (truly-hard re-segmentations = LLM `--mode chains`).
 - **Docs:** المنهجية أعلام card (الإصابة «only at the chain's end, never mid-chain»), التقنية (analyze_isnad object-pronoun
   forms + الإصابة terminal-only; +scripts.audit_nodes→node_audit.json; ~350→~360 tests). node --check clean.
 
