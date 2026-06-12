@@ -199,6 +199,7 @@ class RijalEntry:
     death_year: int | None
     source: str | None
     opinions: list[dict] | None = None   # [{source, grade}] — the «double opinion» (ابن حجر/الذهبي)
+    appraisals: list[dict] | None = None  # [{critic, verdict}] — the NAMED أقوال الأئمة (from prose sources)
 
 
 @dataclass(slots=True)
@@ -223,6 +224,7 @@ class RijalMatch:
             "grade_agreed": self.grade_agreed,
             "alternatives": self.alternatives,
             "opinions": self.entry.opinions,
+            "appraisals": self.entry.appraisals,
         }
 
 
@@ -279,6 +281,7 @@ class RijalIndex:
                 death_year=raw.get("death_year"),
                 source=raw.get("source"),
                 opinions=raw.get("opinions"),
+                appraisals=raw.get("appraisals"),
             )
             # Non-teknonym names/aliases match by containment either way; teknonyms (a
             # name/alias/kunya leading with أبو/أم) are kept apart and matched reverse-only:

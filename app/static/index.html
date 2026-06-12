@@ -889,6 +889,16 @@ function rijalAttribution(rij){
   const diverge = new Set(ops.map(o => o.grade)).size > 1 ? `<span class="r-diverge">⚠ اختلفوا</span>` : "";
   return `<div class="rulings"><span class="r-lbl">الحكم ومصدره:</span>${parts}${diverge}</div>`;
 }
+// أقوال الأئمة — the NAMED multi-critic verdicts the great رجال books report (beyond ابن حجر/الذهبي's
+// distilled grade): «ثقة — ابن معين · لا بأس به — أبو حاتم · ذكره في الثقات — ابن حبان». From the prose
+// sources (الجرح/تهذيب/الثقات), attached to the man by name in build_rijal.
+function rijalAppraisals(rij){
+  if(!rij || !rij.appraisals || !rij.appraisals.length) return "";
+  const parts = rij.appraisals.map(a =>
+    `<span class="ruling ${rijalClass(a.verdict)}">${esc(a.verdict)}`
+    + ` <span class="r-era">— ${esc(a.critic)}</span></span>`).join("");
+  return `<div class="rulings"><span class="r-lbl">أقوال الأئمة:</span>${parts}</div>`;
+}
 // Compact attribution for a chain row. When the critics agree it shows the author(s)
 // («— ابن حجر»); when they DIFFER it reports every verdict («— ثقة عند ابن حجر · ضعيف عند الذهبي ⚠»).
 function srcTag(rij){
@@ -937,6 +947,7 @@ function renderNarrator(d){
   let html = `<div class="card"><div class="rawi-name">${esc(d.name)} ${badge} ${save}</div>`;
   if(d.summary) html += `<div class="rawi-summary">${esc(d.summary)}</div>`;
   html += rijalAttribution(d.grade);
+  html += rijalAppraisals(d.grade);
   html += `</div>`;
   html += `<div class="rawi-cols">`
     + rawiList("شيوخه — يروي عنهم", d.teachers)
@@ -1275,7 +1286,7 @@ const METHODOLOGY = [
     "ليس كلُّ اسمٍ مشترَكٍ عسيرًا: «سفيان عن عمرو بن دينار» هو ابنُ عيينة، و«سفيان عن منصور» هو الثوريُّ — فالجارُ يفصل، وهذا نحسمه. إنّما يَعسُر حين يشترك المرشّحان في الجار نفسه: «حماد عن ثابت» (ابنُ سلمة أم ابنُ زيد؟)، و«عُبيد الله/عبد الله عن نافع عن ابن عمر» (المصغَّرُ الثقةُ أم المكبَّرُ الضعيف؟) — فالنظرُ إلى الجار لا يفرّق بينهما، فيبقى «مشترَكًا».",
     "وفي هذا العسير تنفع الطبقةُ (سنةُ الوفاة — قرينةٌ يُزمَع إضافتُها) متى اختلف زمنُ المرشّحَين، فيُستبعَد مَن لا يوافق زمنُه؛ لكن تبقى نواةٌ صلبةٌ لا تُحسَم حتى بها: المتشابهان في الطبقة والصحبة معًا (كالعَمريّ المصغَّر والمكبَّر، وفيه يختلف الحكمُ: ثقةٌ أو ضعيف) — وهذا حدُّ الأداة، يُترَك «مشترَكًا» بأمانةٍ لا تخمينًا.",
     "ويُفرَّق بين «المشترك» و«المبهم»: المشتركُ له اسمٌ يحمله جماعةٌ فنجتهد في تعيينه بالقرائن؛ أمّا المبهمُ فلا اسمَ له أصلًا («عن رجلٍ»، «عن شيخٍ له»، «عمّن حدّثه»، «بعض أصحابه») — وهذا لا يعيّنه أحدٌ، وهو في ذاته علّةُ ضعفٍ (جهالةُ عَينٍ) لا نقصٌ في قاعدتنا. ولذلك نَسِمُه «راوٍ مبهم» ونعدّه سببَ ضعفٍ بذاته (فيُضعَّف الإسنادُ لجهالته)، لا نُدرجه في «غير المعروف» الذي يُتوقَّف فيه. ويُستثنى المبهمُ الصحابيّ («رجلٌ من أصحاب النبي ﷺ») فالصحابةُ عدولٌ وإن لم يُسمَّوا."]},
-  {h:"درجات الرواة (الجرح والتعديل)", src:"المرتبةُ منقولةٌ عن أئمّة هذا الفنّ في كتب الحكم المختصرة: أصلُها «تقريب التهذيب» للحافظ ابن حجر (ومنه عباراتُ المراتب: ثقة، صدوق، مقبول، مجهول، صدوق له أوهام، لين، ضعيف، متروك، كذاب)، ويُضمُّ إليه «الكاشف» للذهبي قولًا ثانيًا. والصحابةُ عدولٌ بالإجماع. ولا يُصدِر التطبيقُ جرحًا ولا تعديلًا من عنده — بل ينقل أحكامَ هؤلاء الأئمّة منسوبةً إليهم.",
+  {h:"درجات الرواة (الجرح والتعديل)", src:"المرتبةُ منقولةٌ عن أئمّة هذا الفنّ في كتب الحكم المختصرة: أصلُها «تقريب التهذيب» للحافظ ابن حجر (ومنه عباراتُ المراتب: ثقة، صدوق، مقبول، مجهول، صدوق له أوهام، لين، ضعيف، متروك، كذاب)، ويُضمُّ إليه «الكاشف» للذهبي قولًا ثانيًا. والصحابةُ عدولٌ بالإجماع. ولا يُصدِر التطبيقُ جرحًا ولا تعديلًا من عنده — بل ينقل أحكامَ هؤلاء الأئمّة منسوبةً إليهم. وفوق الدرجةِ المختصرة، تُعرَض في صفحة «راوٍ» **أقوالُ الأئمة بأسمائهم** (قال ابنُ معين: ثقة، قال أبو حاتم: لا يُحتجُّ به، ذكره ابنُ حبّان في الثقات) كما تَنقلها كتبُ الجرح المبسوطةُ (الجرحُ والتعديل لابن أبي حاتم، تهذيبُ الكمال للمِزّيّ) — فيرى الباحثُ مَن قال وماذا قال، لا الخلاصةَ وحدها.",
     how:"نطابق اسمَ الراوي بقاعدة الرجال بالاحتواء (أن يكون الاسمُ المعروف داخلَ ما ورد في الإسناد أو العكس)، لا بمجرّد مشاركةِ كلمةٍ شائعة (فلا يُخلَط «محمد بن عبد الله بن نمير» بـ«عبد الله بن عمر»، ولا تُطابَق الكنيةُ الشائعة «أبو بكر» إلّا إذا ذُكر بها)؛ فإن شارك الاسمَ أكثرُ من راوٍ تُرك «مشترَكًا» ولم نخمّن. والنبيُّ ﷺ مصدرُ الحديث لا راوٍ يُجرَّح. ثمّ نصنّف حكمَ كلّ راوٍ إلى مرتبةٍ (ثقة، صدوق، لين، مجهول، ضعيف، متروك...) ونأخذ بالطرف الأضعف.",
     pros:"أحكامٌ منسوبةٌ إلى مصدرها؛ لا يجتهد النظامُ في تعديلٍ أو تجريح، ويُصرّح بالاشتباه بدل أن يخمّن.",
     cons:"تغطيةُ البذرة محدودة؛ فما لم يُعرف الراوي تتوقّف الأداة (يُتوقَّف فيه) حتى تُحمَّل قاعدةٌ أوسع."},
@@ -1406,7 +1417,7 @@ const TECH = [
     "app/rijal — narrators: index (RijalIndex: matching), graph (NarratorGraph: the network), canon (Canonicalizer: unification), grades (classify + RANKS), and a curated seed.jsonl.",
     "app/qa — hadith sciences: isnad, rulings (verdicts and ʿilal), takhrij, answer (grounded answering), dossier (aggregated cards), intent, llm.",
     "app/search — retrieval: index (HadithIndex/SharhIndex over FTS5), vectors (VectorIndex), embeddings (Embedder), hybrid (HybridSearcher: RRF fusion), grouping (report clustering).",
-    "app/routers — endpoints; app/main + app/config (settings); scripts/ — build tools; tests/ — ~380 tests."]},
+    "app/routers — endpoints; app/main + app/config (settings); scripts/ — build tools; tests/ — ~385 tests."]},
   {h:"Processing pipeline — scripts", p:[
     "scripts.ingest: download books from turath.io (rate limit, retry, resume via manifest.json) → data/raw/turath/{id}.json.",
     "scripts.parse: parse pages into structured JSONL (matn/isnad/grade/bab + sharh linking) → data/processed/*.jsonl and sharh/.",
@@ -1428,7 +1439,7 @@ const TECH = [
     "hadith_extract._inherit_rimandi: in a book reading order, an empty-matn reference entry («…مثله / …نحوه / بهذا الإسناد / …بذلك») inherits the previous hadith matn (marked confidence «ref»), so the parallel narration is searchable by its text instead of showing blank.",
     "Together these recover the matn for entries (common in ʿilal works) where the splitter had left it inside the isnad field — restoring it to search, to the narrator graph (the matn no longer pollutes the chain), and to takhrij."]},
   {h:"Rijal database — app/rijal/index.py", p:[
-    "RijalEntry: name, aliases, kunya, grade_text, category, rank, death_year, source, opinions. Matched on name + aliases + kunya.",
+    "RijalEntry: name, aliases, kunya, grade_text, category, rank, death_year, source, opinions, appraisals. Matched on name + aliases + kunya. opinions = the book-level double opinion {source, grade} (ابن حجر via تقريب / الذهبي via الكاشف); appraisals = the NAMED أقوال الأئمة {critic, verdict} pulled from the PROSE sources by app.parsing.appraisals (a curated نقّاد list + a grade-word filter) and attached to the man by an unambiguous name match in build_rijal.merge_appraisals — shown in the «راوٍ» card under «أقوال الأئمة».",
     "lookup(name): containment-only — a match needs the entry's name inside the query (most specific wins, keeping a man distinct from his longer-named son), or the cited name to be a partial of the entry. Among partials a PREFIX form wins (the cited ism+nasab): «عدي بن حاتم» is عدي بن حاتم الطائي (صحابي), not عدي بن الفضل … أبو حاتم (where حاتم only appears later, in a kunya); equally-good readings (سعيد ↦ المسيب/جبير) are flagged مشترك, never guessed by the shortest. Names that merely SHARE a token are not a match; teknonyms (أبو/أم + one name) match reverse-only and only when the man is cited BY the kunya. Extraction also drops truncated/generic entries («عبد الله ابن…») so they can't contain-match every «عبد الله بن فلان».",
     "candidates(name): the FULL homonym set (all top contained + top-covering partials) rather than one best answer — so the chain can choose. This is «the chain before the name»: a متروك/Companion namesake never wins on the bare name when the company points to a different known man.",
     "Guards: _order_ok (shared tokens in the same order: «يزيد بن جابر» ≠ «جابر بن يزيد»), and rejecting a bulky non-identifying query (Abu/Abi/Umm/Abd alone).",
@@ -1475,7 +1486,7 @@ const TECH = [
     "Fetching: turath_rate_per_sec (4), turath_max_retries (4), hadith_category_ids (6,7,8,9,10,26)."]},
   {h:"Build and tests", p:[
     "scripts.update: 1) checkout main 2) pull 3) deps 4) ingest 5) parse 6) index 7) build_graph 8) build_rijal — then folds in the optional LLM extraction (build_rijal_llm, gated on a configured engine) and runs the three review reports (audit_isnad, audit_matn, audit_conflicts) plus the incremental embedding. Every step is idempotent and resumable, and a build replaces the file atomically.",
-    "Testing: python -m pytest (~380 tests). CI: pytest + a UI syntax check (node --check) via GitHub Actions."]},
+    "Testing: python -m pytest (~385 tests). CI: pytest + a UI syntax check (node --check) via GitHub Actions."]},
   {h:"Maintaining the reference pages", p:[
     "Three pages stay in sync with the code on every update: «Methodology» (where each datum comes from and why it is trustworthy), «Architecture» (the overview), and «Technical» (this one — the full implementation detail).",
     "Rule: any change in behaviour or structure is accompanied by updating whatever these pages need, so they stay a living reference that never goes stale."]},
