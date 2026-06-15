@@ -270,8 +270,30 @@ class RijalIndex:
         self._form_seqs: list[list[list[str]]] = []   # name + alias token-seqs (full matching)
         self._kunya_seqs: list[list[list[str]]] = []   # reverse-only forms: teknonyms + kunya
         self._cache: dict[tuple[str, float], "RijalMatch | None"] = {}  # memoise lookups
+        self._prominence: dict[str, int] = {}          # name → corpus narration frequency (set externally)
         if entries:
             self.add(entries)
+
+    def set_prominence(self, prominence: dict[str, int]) -> None:
+        """Supply each canonical name's corpus narration frequency (from the narrator graph) — the
+        PROMINENCE prior used to break a tie toward the prolific narrator. Clears the lookup cache."""
+        self._prominence = prominence or {}
+        self._cache.clear()
+
+    _PROM_RATIO = 4   # keep a tied candidate only if ≥ 1/RATIO as prolific as the most prolific one
+
+    def _prefer_prominent(self, group: list["RijalEntry"]) -> list["RijalEntry"]:
+        """Among tied candidates, prefer the prolific narrator (corpus-frequency prior): «ابن عمر» is the
+        much-narrated عبد الله بن عمر, not an obscure same-father man; «أبي هريرة» is الدوسي. Drops a
+        candidate FAR less prominent than the top, but KEEPS comparably-prominent rivals (سفيان عيينة/
+        الثوري → both kept → honest «مشترك»). No data, or all-zero → unchanged."""
+        if len(group) <= 1 or not self._prominence:
+            return group
+        ranked = sorted(group, key=lambda e: -self._prominence.get(e.name, 0))
+        top = self._prominence.get(ranked[0].name, 0)
+        if top <= 0:
+            return group
+        return [e for e in ranked if self._prominence.get(e.name, 0) * self._PROM_RATIO >= top]
 
     def add(self, entries: Iterable[dict]) -> int:
         n = 0
@@ -370,7 +392,7 @@ class RijalIndex:
         if contained:
             contained.sort(key=lambda pair: -pair[0])
             top = contained[0][0]
-            group = _prefer_non_coverage([e for s, e in contained if s == top])
+            group = self._prefer_prominent(_prefer_non_coverage([e for s, e in contained if s == top]))
             best_e = group[0]
             extra = [e for e in group if e.name != best_e.name]
             # A SHORT grave exact-match must not confidently stamp a sound chain when a FULLER,
@@ -392,8 +414,8 @@ class RijalIndex:
             # حاتم» → عدي بن حاتم الطائي (the only prefix) is decisive, while «سعيد» → المسيب/جبير
             # (both prefixes) stays مشترك. When the tied readings AGREE on the grade (الليث بن سعد
             # of الكاشف vs تقريب — same man, both ثقة), that grade is still usable.
-            group = _prefer_non_coverage(
-                [e for cov, pref, ln, e in partial if cov == top_cov and pref == top_pref])
+            group = self._prefer_prominent(_prefer_non_coverage(
+                [e for cov, pref, ln, e in partial if cov == top_cov and pref == top_pref]))
             best_e = group[0]
             alternatives = [e.name for e in group if e.name != best_e.name]
             agreed = all(e.category == best_e.category for e in group)
@@ -457,8 +479,9 @@ class RijalIndex:
                     take(e)
         # Prefer the real narrators: an obscure الإصابة/الثقات namesake must not sit in the homonym set a
         # chain chooses among (the terminal-صحابي promotion in analyze_isnad reads this) when a real man is
-        # present — «أبي هريرة» is the Companion الدوسي, not a same-kunya محمد. Kept only when ALL are coverage.
-        out = _prefer_non_coverage(out)
+        # present — «أبي هريرة» is the Companion الدوسي, not a same-kunya محمد. Kept only when ALL are
+        # coverage. Then the prominence prior drops a candidate far less narrated than the most prolific.
+        out = self._prefer_prominent(_prefer_non_coverage(out))
         if max_results is not None and len(out) > max_results:
             return []
         return out

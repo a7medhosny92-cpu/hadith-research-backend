@@ -417,3 +417,22 @@ def test_ibn_X_resolves_to_the_son_not_the_eponym_father():
     m = idx.lookup("ابن عمر")
     assert m.entry.name == "عبد الله بن عمر بن الخطاب" and not m.ambiguous
     assert idx.lookup("عمر بن الخطاب").entry.name == "عمر بن الخطاب"
+
+
+def test_prominence_prior_prefers_the_prolific_narrator():
+    """The corpus-frequency prior breaks a tie toward the much-narrated man: «ابن عمر» → عبد الله بن عمر
+    (the prolific son), not an obscure same-father namesake; «سفيان» stays the honest عيينة/الثوري tie."""
+    from app.rijal.index import RijalIndex
+    entries = [
+        {"name": "عبد الله بن عمر بن الخطاب", "grade": "صحابي", "source": "seed"},
+        {"name": "عبيد الله بن عمر", "grade": "ثقة", "source": "تقريب التهذيب (رقم 8609)"},
+        {"name": "سفيان بن عيينة", "grade": "ثقة", "source": "تقريب التهذيب (رقم 8609)"},
+        {"name": "سفيان بن سعيد الثوري", "grade": "ثقة", "source": "تقريب التهذيب (رقم 8609)"},
+    ]
+    idx = RijalIndex(entries)
+    assert idx.lookup("ابن عمر").ambiguous                       # no prominence → held among the sons
+    idx.set_prominence({"عبد الله بن عمر بن الخطاب": 5000, "عبيد الله بن عمر": 200,
+                        "سفيان بن عيينة": 3000, "سفيان بن سعيد الثوري": 2500})
+    ibn_umar = idx.lookup("ابن عمر")
+    assert ibn_umar.entry.name == "عبد الله بن عمر بن الخطاب" and not ibn_umar.ambiguous
+    assert idx.lookup("سفيان").ambiguous                         # both prolific → honest tie kept
