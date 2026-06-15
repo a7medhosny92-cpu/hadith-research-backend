@@ -228,8 +228,9 @@ def test_object_pronoun_verb_closes_the_shaykh_not_glued():
 
 
 @pytest.mark.parametrize("isnad, expect_node", [
-    # «أنّهما/أنّهم» (dual/plural co-narrators) close the names instead of gluing «أنهما سمعا …» on
-    ("حدثنا قتيبة عن ابن عباس وابن عمر أنهما سمعا النبي صلى الله عليه وسلم", "ابن عباس وابن عمر"),
+    # «أنّهما/أنّهم» (dual/plural co-narrators) close the names; the waw splits the two men, so each is
+    # its OWN clean node (ابن عباس / ابن عمر) and «أنهما سمعا …» does not glue on
+    ("حدثنا قتيبة عن ابن عباس وابن عمر أنهما سمعا النبي صلى الله عليه وسلم", "ابن عباس"),
     # قراءة + the «على» preposition skipped, so «قرأت على مالك» → مالك, not «قرأت على مالك»/«علي»
     ("أخبرنا قتيبة قرأت على مالك عن نافع عن ابن عمر", "مالك"),
     ("حدثنا فلان حدثتني عائشة عن النبي صلى الله عليه وسلم", "عائشة"),    # 1st-person transmission verb
@@ -369,3 +370,34 @@ def test_joint_resolver_identifies_a_held_name_from_the_documented_shaykh():
     res = next(n for n in analyze_isnad(chain, rijal=idx, network=net).narrators if n["name"] == "سفيان")
     assert res.get("resolved") == "سفيان بن سعيد الثوري"     # identified by the documented شيخ
     assert res["rijal"]["name"] == "سفيان بن سعيد الثوري" and not res["rijal"]["ambiguous"]
+
+
+@pytest.mark.parametrize("isnad, expect_names, expect_absent", [
+    # the screenshot bug: «الزهري وهشام بن عروة عن عروة» fused two men → split into two clean nodes
+    ("حدثنا قتيبة عن الزهري وهشام بن عروة عن عروة بن الزبير عن عائشة",
+     ["الزهري", "هشام بن عروة", "عروة بن الزبير"], "الزهري وهشام"),
+    ("حدثنا حماد عن أيوب وعبيد الله عن نافع", ["أيوب", "عبيد الله", "نافع"], "أيوب وعبيد"),
+    ("حدثنا غندر عن سفيان وشعبة عن قتادة", ["سفيان", "شعبة", "قتادة"], "سفيان وشعبة"),
+])
+def test_waw_splits_co_narrators_into_clean_nodes(isnad, expect_names, expect_absent):
+    names = [n["name"] for n in analyze_isnad(isnad).narrators]
+    for nm in expect_names:
+        assert nm in names
+    assert expect_absent not in " | ".join(names)   # the fused «A وB» node is gone
+
+
+@pytest.mark.parametrize("isnad, keep", [
+    ("حدثنا الأعمش عن أبي وائل عن عبد الله", "أبي وائل"),        # waw INSIDE a kunya — not a split
+    ("حدثنا أحمد عن عبد الله بن وهب عن مالك", "عبد الله بن وهب"),  # waw in a nasab (بن وهب)
+    ("حدثنا وكيع عن سفيان عن منصور", "وكيع"),                    # a name that simply starts with waw
+    ("حدثنا وهيب عن أيوب عن نافع", "وهيب"),
+])
+def test_waw_does_not_split_real_names_or_kunyas(isnad, keep):
+    assert keep in [n["name"] for n in analyze_isnad(isnad).narrators]
+
+
+def test_waw_split_marks_a_route_seam_no_false_link():
+    """The second co-narrator begins a new route, so continuity must not read a تلميذ→شيخ link from the
+    first to the second (الزهري↛هشام)."""
+    a = analyze_isnad("حدثنا قتيبة عن الزهري وهشام بن عروة عن عروة بن الزبير")
+    assert next(n for n in a.narrators if n["name"] == "هشام بن عروة").get("route_start")
