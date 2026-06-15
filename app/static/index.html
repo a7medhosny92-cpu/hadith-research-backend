@@ -1417,17 +1417,17 @@ const TECH = [
     "app/rijal — narrators: index (RijalIndex: matching), graph (NarratorGraph: the network), canon (Canonicalizer: unification), grades (classify + RANKS), and a curated seed.jsonl.",
     "app/qa — hadith sciences: isnad, rulings (verdicts and ʿilal), takhrij, answer (grounded answering), dossier (aggregated cards), intent, llm.",
     "app/search — retrieval: index (HadithIndex/SharhIndex over FTS5), vectors (VectorIndex), embeddings (Embedder), hybrid (HybridSearcher: RRF fusion), grouping (report clustering).",
-    "app/routers — endpoints; app/main + app/config (settings); scripts/ — build tools; tests/ — ~406 tests."]},
+    "app/routers — endpoints; app/main + app/config (settings); scripts/ — build tools; tests/ — ~407 tests."]},
   {h:"Processing pipeline — scripts", p:[
     "scripts.ingest: download books from turath.io (rate limit, retry, resume via manifest.json) → data/raw/turath/{id}.json.",
     "scripts.parse: parse pages into structured JSONL (matn/isnad/grade/bab + sharh linking) → data/processed/*.jsonl and sharh/.",
-    "scripts.index: FTS5 indexes → data/index.db and data/sharh_index.db. scripts.build_graph: the narrator network (two passes) → data/narrators.db.",
+    "scripts.index: FTS5 indexes → data/index.db and data/sharh_index.db. scripts.build_graph: the narrator network (two passes) → data/narrators.db, and the DOCUMENTED directional شيخ→تلاميذ network (تهذيب/الجرح/الثقات, resolved to canonical names) → data/documented_network.json.",
     "scripts.build_rijal: narrator gradings (Taqrib al-Tahdhib + al-Kashif) → data/rijal.jsonl; when الإصابة (9767) is downloaded its قسم-I/II tarjamas merge in as add-only Companions (app/parsing/isaba_extract reads the book's headings index — قسم III مخضرمون / IV وهم are skipped); الثقات ممن لم يقع في الكتب الستة (96165, app/parsing/thiqat_extract) merges in the same way as a COVERAGE source for men outside the Six Books — graded «ثقة» by inclusion or the weakest cited verdict (الجرح المفسّر مقدّم), carrying their أقوال الأئمة. scripts.build_graph also folds the شيوخ/تلاميذ network of the prose sources — تهذيب الكمال (3722) + الجرح والتعديل (2170) + الثقات (96165) — into canon._pick's company, so a candidate's stated company can disambiguate a «مشترك» name (a man whose grade is in تقريب/الكاشف, which carry NO network, is then resolvable via the prose source's شيوخ/تلاميذ). scripts.build_rijal_llm (optional, gated): a faithful LLM re-extraction of grades + network and a re-segmentation of suspect chains, every record validated against the source or it falls back to the regex. scripts.embed: the vector index (incremental) → data/vectors.db + data/embed_cache.db.",
     "Three self-review reports, rebuilt each update: scripts.audit_isnad → data/audit.json (the «التدقيق» tab), scripts.audit_matn → data/matn_audit.json (the «تدقيق المتون» tab), scripts.audit_conflicts → data/conflicts.json (the «تعارض الرجال» tab). A fourth, on-demand: scripts.audit_nodes → data/node_audit.json — a parsing-bug detector that re-segments every isnad and flags narrator nodes still carrying a transmission-verb / «أنّ» / back-reference fragment (the leak class that produced «الزهري أخبره»).",
     "scripts.update: orchestrates all of it (checkout main → pull → deps → steps 4-8); every step is idempotent and safe to re-run."]},
   {h:"Data files — data/", p:[
     "raw/turath/{id}.json: the raw book. processed/*.jsonl: structured hadith. manifest.json: download state (for resume).",
-    "index.db and sharh_index.db: the FTS5 indexes (matns and commentaries). narrators.db: the narrator network (narrator and link tables). rijal.jsonl: the built narrator biographies.",
+    "index.db and sharh_index.db: the FTS5 indexes (matns and commentaries). narrators.db: the narrator network (narrator and link tables). documented_network.json: the directional شيخ→تلاميذ network for the joint resolver (تمييز المهمل بالشيخ والتلميذ). rijal.jsonl: the built narrator biographies.",
     "vectors.db: matn vectors (float32 BLOB). embed_cache.db: a cache keyed by text fingerprint for incremental embedding. notebook.db: the user notebook (separate, untouched on rebuild).",
     "Everything under data/ is git-ignored (local) and rebuilt from source."]},
   {h:"Normalization and matching — app/parsing/normalize.py", p:[
@@ -1447,7 +1447,8 @@ const TECH = [
   {h:"Unification — app/rijal/canon.py", p:[
     "Canonicalizer: a memoized wrapper over lookup. canonical(surface, context): the chain decides FIRST — when several known men share the surface (index.candidates), the one whose company best fits the chain wins, even over a confident bare-name match; only then a confident unique hit → its canonical name; ambiguous → candidates weighted by context; otherwise the surface is kept as-is.",
     "associations (context cues) = each narrator «companions» profile gathered in the first build pass — see the Methodology page «how the network is built».",
-    "The verdict reuses this (تمييز المهمل): /verify-isnad builds the company profiles from the live network (graph.adjacency()) and passes the Canonicalizer to analyze_isnad, so a shared name in a chain — «جعفر بن محمد» beside محمد الباقر/جابر → الصادق — is identified from its links before grading, not from the bare name."]},
+    "The verdict reuses this (تمييز المهمل): /verify-isnad builds the company profiles from the live network (graph.adjacency()) and passes the Canonicalizer to analyze_isnad, so a shared name in a chain — «جعفر بن محمد» beside محمد الباقر/جابر → الصادق — is identified from its links before grading, not from the bare name.",
+    "تمييز المهمل بالشيخ والتلميذ (app/rijal/resolve.py): when the surface name and its raw company both leave a link ambiguous, a chain-level joint resolver anchors the links we are sure of (a unique-name match) and fixes an ambiguous link to the homonym DOCUMENTED — in the directional network (documented_network.json from تهذيب/الجرح/الثقات) — as a تلميذ of its resolved شيخ (or شيخ of its resolved تلميذ), propagating from the anchors to a fixpoint. Positive-evidence only: it never overrides a confident match and a non-unique link stays held — so «سفيان» above الأعمش is الثوري (the documented student), but a name flanked only by ambiguous company is left مشترك. Inert when the network file is absent."]},
   {h:"Narrator network — app/rijal/graph.py", p:[
     "NarratorGraph: SQLite with two tables — narrator(id, norm, name, freq) and link(teacher, student, weight). A node identity = its sorted folded name-token set (norm).",
     "add_chain(names, canon): records adjacent links (student→teacher); collapses the Prophet ﷺ into one node, resolves shared names, calls canon, and handles kinship.",
@@ -1486,7 +1487,7 @@ const TECH = [
     "Fetching: turath_rate_per_sec (4), turath_max_retries (4), hadith_category_ids (6,7,8,9,10,26)."]},
   {h:"Build and tests", p:[
     "scripts.update: 1) checkout main 2) pull 3) deps 4) ingest 5) parse 6) index 7) build_graph 8) build_rijal — then folds in the optional LLM extraction (build_rijal_llm, gated on a configured engine) and runs the three review reports (audit_isnad, audit_matn, audit_conflicts) plus the incremental embedding. Every step is idempotent and resumable, and a build replaces the file atomically.",
-    "Testing: python -m pytest (~406 tests). CI: pytest + a UI syntax check (node --check) via GitHub Actions."]},
+    "Testing: python -m pytest (~407 tests). CI: pytest + a UI syntax check (node --check) via GitHub Actions."]},
   {h:"Maintaining the reference pages", p:[
     "Three pages stay in sync with the code on every update: «Methodology» (where each datum comes from and why it is trustworthy), «Architecture» (the overview), and «Technical» (this one — the full implementation detail).",
     "Rule: any change in behaviour or structure is accompanied by updating whatever these pages need, so they stay a living reference that never goes stale."]},

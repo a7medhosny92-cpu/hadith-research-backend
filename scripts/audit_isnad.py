@@ -34,6 +34,7 @@ from collections import Counter
 from app.config import get_settings
 from app.qa.isnad import analyze_isnad
 from app.rijal.muhmal import load_map as load_muhmal_map
+from app.rijal.resolve import load_network
 from app.rijal import RijalIndex, load_entries
 from app.rijal.canon import Canonicalizer
 from app.rijal.graph import NarratorGraph
@@ -124,7 +125,9 @@ def main() -> None:
     rijal = RijalIndex(load_entries(settings.rijal_file))
     canon = _build_canon(settings, rijal)
     muhmal = load_muhmal_map(settings.data_dir / "muhmal.json")   # تمييز المهمل (from build_graph)
-    print(f"rijal entries: {rijal.count()}   index: {settings.index_path}   مهمل: {len(muhmal)}")
+    network = load_network(settings.documented_network_path)      # the documented شيخ/تلميذ resolver
+    print(f"rijal entries: {rijal.count()}   index: {settings.index_path}   "
+          f"مهمل: {len(muhmal)}   شبكة موثّقة: {'yes' if network else 'no'}")
     con = sqlite3.connect(str(settings.index_path))
     sql = "SELECT rowid, collection, number, isnad FROM hadith WHERE trim(isnad) <> ''"
     if args.limit:
@@ -144,7 +147,7 @@ def main() -> None:
         scanned += 1
         if scanned % 500 == 0:
             print(f"  … {scanned}/{total}", end="\r", flush=True)
-        a = analyze_isnad(isnad, rijal=rijal, canon=canon, muhmal=muhmal)
+        a = analyze_isnad(isnad, rijal=rijal, canon=canon, muhmal=muhmal, network=network)
         for code, detail in _flag_chain(a.narrators):
             counts[code] += 1
             if code == "A":

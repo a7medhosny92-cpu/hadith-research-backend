@@ -198,9 +198,18 @@ UNAMBIGUOUS only; populates from BOTH sides — a man's تلميذ gives `studen
 **Simplified to ONE dict** (mirror identity: «T شيخ of S» ⟺ «S تلميذ of T» ⟺ `S ∈ students[T]` → no separate teachers map →
 half the file). `build_graph` now parses each `_NETWORK_SOURCES` book ONCE → builds the flattened company (canon) AND the
 directional network → `resolve.save_network` → `data/documented_network.json` (`settings.documented_network_path`);
-`resolve.load_network` reads it. +2 tests, **406 green**. **NEXT:** (3) WIRE into `analyze_isnad` (anchor terminal صحابي +
-unique-name links → `resolve_chain` → feed the resolved identities to the verdict, BEFORE/around `canon._pick`); (4) MEASURE
-A/W/S on the real corpus. **NEEDS A `build_graph` (update.bat) to generate `documented_network.json` before (3) can bite.**
+`resolve.load_network` reads it. +2 tests. **(3) DONE — WIRED into `analyze_isnad`** (`network=` param, gated): a chain-level
+PRE-PASS builds per-link candidates (`candidates(apply_prominence=False, max_results=None)`) + anchors (a unique-name
+`lookup`) → `resolve_chain(..., route_starts)` (respects ح seams). In the per-narrator loop it is the **LAST تمييز lever**,
+fired only when `name == narrator.name` (muhmal+canon already gave up) → `name = joint[i]` → `record["resolved"]`; the طبقة
+guards (deep-صحابي demotion, الإصابة) still run after, as a safety net. Loaded + passed in `audit_isnad` + the `/verify-isnad`
+router (`_network()`). **Gated on the network file → ZERO overhead/change until `documented_network.json` exists.** +1 e2e
+test (سفيان above الأعمش: no network → held «مشترك»; with the documented network → resolved الثوري, grade flows), **407 green**,
+node --check clean. Docs: التقنية (build_graph + data files + the resolver card). **NEXT: (4) MEASURE.** **WAITING ON THE USER:
+run `update.bat`** (build_graph generates `documented_network.json` — send its «N شيوخ» count to validate coverage) **then
+`audit_isnad`** → expect **A to fall further** where a distinctive شيخ/تلميذ anchors the chain (سفيان→الثوري &c.), W/S stable
+(the طبقة guards + positive-evidence-only). Caveat: the pre-pass adds per-chain `lookup`+`candidates` work → the audit may be
+slower when the network is active (optimise only if needed). The honest floor (bare-flanked names, no documented network) stays A.
 **Caveats (honest):** bounded by network COVERAGE (تهذيب الكمال = exactly the Six-Books men → good for the common case;
 obscure men outside → no constraint → still floor); CASCADE risk → the seed anchors must be CONFIDENT (terminal صحابي +
 unique-name), never override a confident specific match; the genuine floor (a man only ever flanked by bare names with no

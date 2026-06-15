@@ -154,7 +154,7 @@ def _chain_assessment(matches: list["RijalMatch | None"], total: int, mubham: in
 
 def analyze_isnad(
     text: str, rijal: "RijalIndex | None" = None, canon: "Canonicalizer | None" = None,
-    muhmal: "dict[str, str] | None" = None,
+    muhmal: "dict[str, str] | None" = None, network: "DocumentedNetwork | None" = None,
 ) -> IsnadAnalysis:
     raw = strip_diacritics(text or "")
     narrators: list[Narrator] = []
@@ -249,6 +249,30 @@ def analyze_isnad(
     # index is the last non-Prophet narrator — used to prefer a صحابي reading there (تمييز بالطبقة).
     terminal_idx = len(narrators) - 2 if (narrators and is_prophet(narrators[-1].name)) else len(narrators) - 1
 
+    # تمييز المهمل بالشيخ والتلميذ (the joint resolver) — a chain-level pre-pass, only when a
+    # DOCUMENTED network is loaded. Anchor the links we are sure of (a unique-name match) and let
+    # `resolve_chain` propagate: an ambiguous link is fixed to the homonym DOCUMENTED as a تلميذ of
+    # its resolved شيخ (or شيخ of its resolved تلميذ). It only ANCHORS on confident identities and
+    # resolves by positive evidence — so it CANNOT override a confident match (it produces an answer
+    # only for links the name alone left ambiguous), and a non-unique link stays held. Used below as
+    # the LAST تمييز lever, after muhmal/canon, never before them.
+    joint: list[str | None] = [None] * len(narrators)
+    if network and rijal is not None and len(narrators) > 1:
+        from app.rijal.resolve import resolve_chain
+        cand_lists: list[list[str]] = []
+        anchors: list[str | None] = []
+        for nar in narrators:
+            if is_prophet(nar.name) or _is_mubham(nar.name):
+                cand_lists.append([]); anchors.append(None); continue
+            m = rijal.lookup(nar.name)
+            if m is not None and m.score >= 1.0 and not m.ambiguous:   # a confident identity → anchor
+                anchors.append(m.entry.name); cand_lists.append([m.entry.name])
+            else:
+                anchors.append(None)
+                cand_lists.append([c.name for c in
+                                   rijal.candidates(nar.name, apply_prominence=False, max_results=None)])
+        joint = resolve_chain(cand_lists, anchors, network, route_starts)
+
     narrator_dicts: list[dict] = []
     matches: list["RijalMatch | None"] = []
     mubham_count = 0
@@ -293,6 +317,9 @@ def analyze_isnad(
                         nb |= _clean_tokens(narrators[i + 1].name)
                     ctx = frozenset(nb - _clean_tokens(narrator.name))
                     name = canon.canonical(narrator.name, context=ctx)
+                if name == narrator.name and joint[i]:   # still مهمل → the documented شيخ/تلميذ resolver
+                    name = joint[i]
+                    record["resolved"] = name
                 match = rijal.lookup(name)
                 # تمييز بالطبقة (by position): when the chain REACHES the Prophet ﷺ, the last human link
                 # narrates directly from him, so he is a Companion; if it matches a صحابي, prefer that

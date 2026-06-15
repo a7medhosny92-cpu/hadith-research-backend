@@ -72,13 +72,16 @@ def load_network(path: str | Path) -> DocumentedNetwork:
 
 
 def resolve_chain(candidates: list[list[str]], anchors: list[str | None],
-                  network: DocumentedNetwork) -> list[str | None]:
+                  network: DocumentedNetwork,
+                  route_starts: frozenset[int] | set[int] = frozenset()) -> list[str | None]:
     """Resolve the ambiguous links of one chain by directional, anchored propagation.
 
     ``candidates[i]`` — the homonym names for link *i*, in **chain order**: ``[0]`` is the
     collector side (the تلميذ end) and ``[-1]`` is the terminal (الصحابي), each link narrating
     *from* the next (``links[i]`` is the تلميذ of ``links[i+1]``).
     ``anchors[i]`` — a confident name for link *i*, or ``None``.
+    ``route_starts`` — indices that BEGIN a new route after a تحويل (ح): the man before such an
+    index and the one at it are on different routes, so they are not each other's شيخ/تلميذ.
 
     Returns ``resolved[i]`` = the chosen name, or ``None`` when the link must be held.
     """
@@ -92,8 +95,10 @@ def resolve_chain(candidates: list[list[str]], anchors: list[str | None],
         for i in range(n):
             if resolved[i] or len(candidates[i]) <= 1:
                 continue                 # already fixed, or nothing to choose
-            shaykh = resolved[i + 1] if i + 1 < n else None     # the link below = my شيخ
-            tilmidh = resolved[i - 1] if i - 1 >= 0 else None    # the link above = my تلميذ
+            # the link below (i+1) is my شيخ — unless it opens a new route (across a ح seam);
+            # the link above (i-1) is my تلميذ — unless I open one.
+            shaykh = resolved[i + 1] if (i + 1 < n and (i + 1) not in route_starts) else None
+            tilmidh = resolved[i - 1] if (i - 1 >= 0 and i not in route_starts) else None
             if not (shaykh or tilmidh):
                 continue
             supported = {

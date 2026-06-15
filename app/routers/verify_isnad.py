@@ -73,6 +73,19 @@ def _muhmal() -> dict[str, str]:
     return load_map(get_settings().data_dir / "muhmal.json")
 
 
+@lru_cache(maxsize=1)
+def _network():
+    """The documented شيخ→تلاميذ network (data/documented_network.json, built by build_graph): the
+    joint resolver «تمييز المهمل بالشيخ والتلميذ» — resolve an ambiguous link by who is documented as
+    a تلميذ of its resolved شيخ, propagated from the anchored links."""
+    from app.rijal.resolve import load_network
+    return load_network(get_settings().documented_network_path)
+
+
+def get_network():
+    return _network()
+
+
 def get_muhmal() -> dict[str, str]:
     return _muhmal()
 
@@ -86,6 +99,7 @@ def verify_isnad(
     graph: NarratorGraph | None = Depends(get_graph),
     canon: Canonicalizer = Depends(get_canon),
     muhmal: dict[str, str] = Depends(get_muhmal),
+    network=Depends(get_network),
 ) -> dict:
     if hadith_id is not None:
         hit = index.get(hadith_id)
@@ -99,7 +113,7 @@ def verify_isnad(
 
     # تمييز المهمل (the corpus names the bare one in full elsewhere) then canon's company resolve
     # a shared name from the chain it sits in, before grading.
-    analysis = analyze_isnad(chain, rijal=rijal, canon=canon, muhmal=muhmal).to_dict()
+    analysis = analyze_isnad(chain, rijal=rijal, canon=canon, muhmal=muhmal, network=network).to_dict()
     result = {"source": source, "analysis": analysis}
     if graph is not None and graph.count():
         result["continuity"] = continuity(analysis["narrators"], graph)
