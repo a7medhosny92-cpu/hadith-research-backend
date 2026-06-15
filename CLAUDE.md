@@ -205,11 +205,18 @@ fired only when `name == narrator.name` (muhmal+canon already gave up) → `name
 guards (deep-صحابي demotion, الإصابة) still run after, as a safety net. Loaded + passed in `audit_isnad` + the `/verify-isnad`
 router (`_network()`). **Gated on the network file → ZERO overhead/change until `documented_network.json` exists.** +1 e2e
 test (سفيان above الأعمش: no network → held «مشترك»; with the documented network → resolved الثوري, grade flows), **407 green**,
-node --check clean. Docs: التقنية (build_graph + data files + the resolver card). **NEXT: (4) MEASURE.** **WAITING ON THE USER:
-run `update.bat`** (build_graph generates `documented_network.json` — send its «N شيوخ» count to validate coverage) **then
-`audit_isnad`** → expect **A to fall further** where a distinctive شيخ/تلميذ anchors the chain (سفيان→الثوري &c.), W/S stable
-(the طبقة guards + positive-evidence-only). Caveat: the pre-pass adds per-chain `lookup`+`candidates` work → the audit may be
-slower when the network is active (optimise only if needed). The honest floor (bare-flanked names, no documented network) stays A.
+node --check clean. Docs: التقنية (build_graph + data files + the resolver card). **(4) DONE — MEASURED, A BIG WIN.** The user ran
+`build_graph` (**Documented network: 7824 شيوخ** — تهذيب 2013 + الجرح 4313 + الثقات 4968; build took 6028s on a slow PC) then
+`audit_isnad` (`شبكة موثّقة: yes`, sped up by the #164 candidates cache): **A 65971 → 56182 (−9789, −14.8%)** with **W 628→631
+(+3, flat) · S 504→479 (−25, slightly BETTER)** — the joint resolver identified ~9,800 positions that were «مشترك», WITHOUT any
+new wrong verdicts (W/S flat-to-better = the positive-evidence-only + anchors + طبقة guards held, no guessing/cascade). **★★ THE
+WHOLE PROMINENCE+RESOLVER ARC vs the pre-prominence baseline (#156, A 85184 · S 487 · W 659): A 85184 → 56182 = −34% (−29,002),
+S 487 → 479 (flat), W 659 → 631 (better)** — a THIRD of the ambiguity resolved at zero cost in wrong verdicts. The user's
+«تمييز المهمل بالشيخ والتلميذ» insight was the big lever. The residual A (56182) is the honest floor (bare-flanked names + no
+documented network) + further-recoverable by (a) MORE network coverage (more rijal books → more documented شيوخ/تلاميذ) and
+(b) CLEANING the dirty graph nodes (waw-joined duals «وكيع وعبد الرحمن», truncations «عبد الله بن عبد» — the audit_nodes
+«two-men-in-one-node» class that inflates company sets). **NEXT (candidates, not yet chosen):** decompose the new `a_ranked` to
+see WHICH names the resolver resolved (سفيان/ابن عمر?) + spot-check a few `record["resolved"]`; then pick (a) or (b).
 **Caveats (honest):** bounded by network COVERAGE (تهذيب الكمال = exactly the Six-Books men → good for the common case;
 obscure men outside → no constraint → still floor); CASCADE risk → the seed anchors must be CONFIDENT (terminal صحابي +
 unique-name), never override a confident specific match; the genuine floor (a man only ever flanked by bare names with no
