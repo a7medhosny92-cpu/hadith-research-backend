@@ -56,6 +56,7 @@ def _build_canon(settings, rijal: RijalIndex) -> Canonicalizer:
     graph = NarratorGraph(path)
     if not graph.count():
         return Canonicalizer(rijal)
+    rijal.set_prominence(graph.frequencies())   # the prominence prior (corpus narration frequency)
     profiles = {
         name: set().union(*(_clean_tokens(nb) for nb in neigh)) if neigh else set()
         for name, neigh in graph.adjacency().items()

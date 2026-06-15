@@ -388,5 +388,15 @@ class NarratorGraph:
     def count(self) -> int:
         return self._con.execute("SELECT count(*) FROM narrator").fetchone()[0]
 
+    def frequencies(self) -> dict[str, int]:
+        """Each node name → its corpus narration frequency (how many chain occurrences). The PROMINENCE
+        prior: the prolific narrator is the default referent of an ambiguous bare name — «ابن عمر» is the
+        much-narrated عبد الله بن عمر, not an obscure same-father namesake."""
+        out: dict[str, int] = {}
+        for name, freq in self._con.execute("SELECT name, freq FROM narrator"):
+            if name:
+                out[name] = max(out.get(name, 0), int(freq or 0))
+        return out
+
     def close(self) -> None:
         self._con.close()
