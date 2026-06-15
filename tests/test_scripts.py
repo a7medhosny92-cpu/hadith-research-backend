@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.search import HadithIndex
 from scripts._atomic import rebuild
 
@@ -42,6 +44,19 @@ def test_parse_drops_stale_rijal_output(tmp_path):
     assert _drop_stale(out_dir, sharh_dir, 3722) is True
     assert not (out_dir / "3722.jsonl").exists()
     assert _drop_stale(out_dir, sharh_dir, 3722) is False   # idempotent — nothing left to drop
+
+
+def test_compare_company_overlap_and_distinctive_sets():
+    # The ②a-vs-②b lever: two سفيان with DISJOINT تلاميذ/شيوخ → Jaccard 0, all company distinctive.
+    from scripts.compare_company import _names, _overlap
+    a = [{"name": "وكيع", "count": 3}, {"name": "عبد الرزاق", "count": 1}]
+    b = [{"name": "الحميدي", "count": 2}, {"name": "الشافعي", "count": 1}]
+    jac, shared, only_a, only_b = _overlap(_names(a), _names(b))
+    assert jac == 0.0 and not shared
+    assert only_a == {"وكيع", "عبد الرزاق"} and only_b == {"الحميدي", "الشافعي"}
+    # a shared تلميذ lifts the overlap (the ②b floor signal)
+    jac2, shared2, _, _ = _overlap({"وكيع", "x"}, {"وكيع", "y"})
+    assert shared2 == {"وكيع"} and jac2 == pytest.approx(1 / 3)
 
 
 def test_audit_conflicts_holds_a_grave_trust_collision():
