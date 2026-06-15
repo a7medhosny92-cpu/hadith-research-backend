@@ -222,6 +222,28 @@ obscure men outside → no constraint → still floor); CASCADE risk → the see
 unique-name), never override a confident specific match; the genuine floor (a man only ever flanked by bare names with no
 documented network) remains — the goal is NOT A=0, it is «resolve what the text determines, hold the rest» (لا نختلق).
 
+**★ (2026-06-15, cont.) THE RESIDUAL-A DECOMPOSED + the WAW-DUAL node fix (lever c).** The user uploaded the resolver-on
+`audit.json` (W631·S479·A56182) + `matn_audit.json` (V475·empty295·I372·G269·Q138 — the SETTLED matn state, no regression).
+Decomposed the A top: **سفيان 4097** = honest ②a/②b floor (الثوري/عيينة, resolver gets the rest); **محمد بن جعفر 2161** =
+NOT floor → a NAME-GRANULARITY bug: غندر («محمد بن جعفر الهذلي…غندر») IS a candidate, but the documented network stored
+شعبة's student as the BARE «محمد بن جعفر» (key «محمد جعفر») + a البزاز, so the resolver can't UNIQUELY match غندر's full key →
+held (correct given the dirty data; the cure is upstream name consistency / dropping the bare shadow entry); **ابن جريج 1574** =
+shuhra-by-ancestor («ابن جريج» = عبد الملك بن عبد العزيز بن جريج, but the matcher finds literal «X بن جريج» sons — a distinct
+hard case). S479 is healthy (legit صحابيٌّ-عن-صحابيّ أنس/أبي سعيد/جابر + the small 2-3-token tail حميد بن عبد الرحمن/الأشعث/الشعبي).
+**★ WAW-DUAL FIX:** the user screenshotted the «راوٍ» card for a node **«الزهري وهشام بن عروة»** — two men (al-Zuhrī AND Hishām,
+both عن عروة) FUSED by the «و» into one node (the «two-men-in-one-node» class that inflates company sets + pollutes the documented
+network — confirmed: شعبة's تلاميذ include corrupt «كثير هشام الرقي… صاحب جعفر برقان»). FIXED in `analyze_isnad`'s segmenter: a
+co-narrator «وX» (buf holds a COMPLETE name, prev token not a name-joiner بن/أبو, «وX» not itself a name وكيع/وهب nor an eulogy
+«وسلم» nor a matn/aggregator word «وكان/وغيره/وكلاهما») SPLITS — B becomes its own node and a route-seam (no false A→B link).
+Guards: `_NAME_JOINERS` (أبو وائل/بن وهب kept), `_WAW_NAMES` (وكيع/وهب kept), `_WAW_STOP` (وكان/وغيره…), `_EULOGY` (وسلم), buf-empty
+(first-position وكيع). +8 tests (الزهري وهشام/أيوب وعبيد الله/سفيان وشعبة split; أبي وائل/عبد الله بن وهب/وكيع/وهيب kept; the dual
+«ابن عباس وابن عمر» now splits — updated that test), **416 green**, node --check clean. **NEEDS A RE-PARSE + build_graph to apply**
+(the graph nodes are built without rijal, line build_graph:67, so the rijal-free heuristic is exactly what's needed there). **WAITING
+ON THE USER:** next `update.bat` (or parse→build_graph) → the «الزهري وهشام» node should be GONE (al-Zuhri's company re-merges),
+the documented network cleaner → re-run `audit_isnad` (expect A to tick down further as the de-fused nodes match) + `scripts.audit_nodes`
+(verify no new waw-junk like «غيره»/«آخر» from a missed stop-word). **NEXT levers after this:** the محمد بن جعفر/غندر shadow (upstream
+name consistency) + the ابن جريج shuhra-by-ancestor matching.
+
 **★★★ (2026-06-12, THIS SESSION). الإصابة MEASURED → S REGRESSION DIAGNOSED + FIXED · الزهري-أخبره parsing
 bug · the parsing-bug HUNTER (6 leak classes fixed). On main, branch `claude/intelligent-bardeen-HAsrg`. 380 tests green.**
 The user ran `build_rijal --no-download` (الإصابة merged: **rijal 9,712 → 15,231, +5,519 صحابة**) + `audit_isnad`

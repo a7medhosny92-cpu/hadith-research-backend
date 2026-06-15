@@ -84,6 +84,20 @@ _PROPHET_HEAD = {"النبي", "نبي", "رسول"}
 # Tokens still inside a Prophet reference (his name + the eulogy); the first token
 # outside this set ends the Prophet's (terminal) name and starts the matn.
 _EULOGY = {"النبي", "نبي", "رسول", "الله", "صلي", "عليه", "وسلم", "واله", "وصحبه", "سلم"}
+# A waw on a name token joins TWO co-narrators («الزهري وهشام بن عروة» = al-Zuhrī AND Hishām, both from
+# ʿUrwa) — they must be SPLIT into two nodes, not fused into one «الزهري وهشام بن عروة» (which corrupts the
+# graph + the documented network). But a leading waw is also the start of real names (وكيع، وهب) and the
+# waw can sit INSIDE a name after a joiner (أبو وائل، عبد الله بن وهب) — those must NOT split.
+_NAME_JOINERS = {"بن", "ابن", "ابو", "ابا", "ابي", "ام", "عبد", "عبيد", "ذو", "ذي",
+                 "اخو", "اخي", "بنت", "ابنه", "مولي", "ابناء"}
+_WAW_NAMES = {"وكيع", "وهب", "وهيب", "واصل", "وضاح", "ورقا", "وايل", "وبره", "وردان",
+              "ورد", "وازع", "واقد", "وبر", "وهبان", "وثيمه", "ورقاء"}
+# Waw-words that are NOT a co-narrator: pronouns, matn verbs, aggregators («فلان وكلاهما/وغيره») —
+# the remainder after the waw is not a name, so these must never trigger a split.
+_WAW_STOP = {"وهو", "وهي", "وهم", "وهما", "وغير", "وغيره", "وغيرها", "وغيرهم", "واخر", "واخرون",
+             "واخرين", "وذكر", "وذكره", "وكان", "وكانت", "وقال", "وقالت", "وقالوا", "ونحوه",
+             "ونحوها", "وزاد", "وزادني", "وحده", "وفيه", "وفيها", "وكذا", "وكذلك", "ولفظه",
+             "وهذا", "وكلاهما", "وكلهم", "وجميعا", "ومن", "وفي", "وقد"}
 _TOKEN = re.compile(r"[^\s،,.:؛()«»\"']+")
 
 
@@ -225,6 +239,17 @@ def analyze_isnad(
             flush()
             break
         if soft:   # «قال حدثنا …» / «سمعته يحدّث عن …» — connective, not the matn; drop it
+            continue
+        # co-narrator waw: «A وB …» lists two narrators sharing the next شيخ; split so B is its OWN
+        # clean node, not fused into «A وB». Fire only on a COMPLETE name (buf has the prior man and his
+        # last token is not a name-joiner like بن/أبو) and when «وX» is not itself a name (وكيع، وهب).
+        if (buf and folded[:1] == "و" and len(folded) > 3 and folded not in _WAW_NAMES
+                and folded not in _EULOGY      # «وسلم/وآله/وصحبه» are the eulogy, not a co-narrator
+                and folded not in _WAW_STOP    # «وكان/وغيره/وكلاهما» — a matn/aggregator word, not a name
+                and normalize_for_search(buf[-1]) not in _NAME_JOINERS):
+            flush()                            # finalise A (the man before the waw)
+            pending_break = True               # B begins a new route → no false A→B link / company
+            buf = [token[1:]]                  # …and starts with the de-waw'd name (وهشام → هشام)
             continue
         # the Prophet is the terminal narrator: once the buffer is the Prophet and the
         # next token isn't part of the eulogy, the matn has begun
