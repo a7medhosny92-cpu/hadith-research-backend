@@ -20,11 +20,11 @@ def test_resolves_ambiguous_via_documented_shaykh():
 
 
 def test_resolves_via_documented_tilmidh_too():
-    """The mirror: the link ABOVE (my تلميذ) constrains me. وكيع's documented شيوخ include الثوري
-    only → «سفيان» below him resolves to الثوري."""
+    """The mirror: the link ABOVE (my تلميذ) constrains me. وكيع is a documented تلميذ of الثوري only
+    (not of عيينة) → «سفيان» below him resolves to الثوري."""
     cands = [["وكيع بن الجراح"], [_THAWRI, _UYAYNA], [_AMASH]]
     anchors = ["وكيع بن الجراح", None, _AMASH]
-    net = DocumentedNetwork(teachers={_k("وكيع بن الجراح"): {_k(_THAWRI)}})
+    net = DocumentedNetwork(students={_k(_THAWRI): {_k("وكيع بن الجراح")}})
     assert resolve_chain(cands, anchors, net)[1] == _THAWRI
 
 
@@ -64,3 +64,35 @@ def test_conflicting_evidence_holds_not_guesses():
     anchors = [None, _AMASH]
     net = DocumentedNetwork(students={_k(_AMASH): {_k(_THAWRI), _k(_UYAYNA)}})
     assert resolve_chain(cands, anchors, net)[0] is None
+
+
+def test_documented_students_keeps_the_direction():
+    """The builder resolves each man and his quoted شيوخ/تلاميذ to a رجال canonical name and records
+    the شيخ→تلميذ direction from BOTH a man's تلاميذ list and his شيوخ list."""
+    from app.rijal.index import RijalIndex
+    from app.rijal.tahdhib import documented_students
+    rijal = RijalIndex([
+        {"name": _THAWRI, "grade": "ثقة"}, {"name": _AMASH, "grade": "ثقة"},
+        {"name": "وكيع بن الجراح", "grade": "ثقة"},
+    ])
+    records = [
+        {"name": _AMASH, "talamidh": ["سفيان الثوري"], "shuyukh": []},   # الأعمش taught الثوري
+        {"name": "وكيع بن الجراح", "shuyukh": ["سفيان الثوري"], "talamidh": []},  # وكيع heard from الثوري
+    ]
+    students = documented_students(records, rijal)
+    assert _k(_THAWRI) in students[_k(_AMASH)]            # from the تلاميذ side
+    assert _k("وكيع بن الجراح") in students[_k(_THAWRI)]  # from the شيوخ side (mirror)
+    # and it actually drives the resolver: bare «سفيان» above الأعمش → الثوري
+    net = DocumentedNetwork(students=students)
+    assert resolve_chain([[_THAWRI, _UYAYNA], [_AMASH]], [None, _AMASH], net)[0] == _THAWRI
+
+
+def test_network_save_load_round_trip(tmp_path):
+    from app.rijal.resolve import load_network, save_network
+    students = {_k(_AMASH): {_k(_THAWRI), _k("وكيع بن الجراح")}}
+    path = tmp_path / "net.json"
+    save_network(students, path)
+    net = load_network(path)
+    assert net.is_student_of(_THAWRI, _AMASH) and net.is_teacher_of(_AMASH, _THAWRI)
+    assert not net.is_student_of(_UYAYNA, _AMASH)
+    assert not load_network(tmp_path / "absent.json")     # missing file → empty, falsy

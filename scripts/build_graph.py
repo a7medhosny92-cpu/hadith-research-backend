@@ -30,7 +30,8 @@ from app.rijal.canon import Canonicalizer
 from app.rijal.graph import NarratorGraph
 from app.rijal.index import RijalIndex, _clean_tokens, load_entries
 from app.rijal.muhmal import build_map as build_muhmal_map, resolve_chain, save_map as save_muhmal_map
-from app.rijal.tahdhib import tahdhib_associations
+from app.rijal.resolve import save_network
+from app.rijal.tahdhib import documented_students, tahdhib_associations
 from app.search.index import _read_jsonl  # parsed JSONL reader
 from scripts._atomic import rebuild
 
@@ -101,14 +102,24 @@ def main() -> None:
     # …reinforced with the authoritative شيوخ/تلاميذ of the prose رجال sources on disk — al-Mizzī's
     # تهذيب الكمال and Ibn Abī Ḥātim's الجرح والتعديل (early, independent, beyond the Six Books): the
     # company each critic states per man is the surest signal for disambiguating «مشترك» names.
+    documented: dict[str, set[str]] = {}        # DIRECTIONAL تلاميذ network for the joint resolver
     for book_id, parse in _NETWORK_SOURCES.items():
         path = settings.raw_dir / "books" / f"{book_id}.json"
         if not path.exists():
             continue
-        extra = tahdhib_associations(parse(path), rijal)
+        records = parse(path)                    # parse once → flattened company AND directional network
+        extra = tahdhib_associations(records, rijal)
         for name, toks in extra.items():
             profiles.setdefault(name, set()).update(toks)
+        for shaykh_key, tilmidh_keys in documented_students(records, rijal).items():
+            documented.setdefault(shaykh_key, set()).update(tilmidh_keys)
         print(f"Pass 1+: {RIJAL_PROSE_BOOKS.get(book_id, book_id)} company merged for {len(extra)} narrators")
+
+    # Persist the documented direction (شيخ → تلاميذ) for app.rijal.resolve.resolve_chain (الإسناد
+    # joint تمييز المهمل). Written even when empty so a stale file never lingers; unused until wired.
+    save_network(documented, settings.documented_network_path)
+    if documented:
+        print(f"Documented network: {len(documented)} شيوخ → {settings.documented_network_path.name}")
 
     # …and the LLM-extracted شيوخ/تلاميذ (scripts.build_rijal_llm), if present — the network the
     # terse books don't carry. Gated, same mechanism, so absent → unchanged.

@@ -24,6 +24,9 @@ names with no documented network stays the honest floor.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from app.rijal.index import _clean_seq
 
 
@@ -34,12 +37,11 @@ def network_key(name: str) -> str:
 
 
 class DocumentedNetwork:
-    """Each man's documented شيوخ / تلاميذ (as :func:`network_key` sets), from the prose rijal
-    sources. ``students[key]`` = men he taught; ``teachers[key]`` = men he heard from."""
+    """Each man's documented تلاميذ (men who narrated FROM him) as :func:`network_key` sets, from the
+    prose rijal sources. Stored ONE-directional — ``students[T]`` = the تلاميذ of T — because the شيخ
+    relation is just its mirror: «T is a شيخ of S» ⟺ «S is a تلميذ of T» ⟺ ``S ∈ students[T]``."""
 
-    def __init__(self, teachers: dict[str, set[str]] | None = None,
-                 students: dict[str, set[str]] | None = None) -> None:
-        self._teachers = teachers or {}
+    def __init__(self, students: dict[str, set[str]] | None = None) -> None:
         self._students = students or {}
 
     def is_student_of(self, student_name: str, teacher_name: str) -> bool:
@@ -47,11 +49,26 @@ class DocumentedNetwork:
         return network_key(student_name) in self._students.get(network_key(teacher_name), frozenset())
 
     def is_teacher_of(self, teacher_name: str, student_name: str) -> bool:
-        """Is ``teacher_name`` recorded as a شيخ of ``student_name``?"""
-        return network_key(teacher_name) in self._teachers.get(network_key(student_name), frozenset())
+        """Is ``teacher_name`` recorded as a شيخ of ``student_name``? — the mirror of the above."""
+        return self.is_student_of(student_name, teacher_name)
 
     def __bool__(self) -> bool:
-        return bool(self._teachers or self._students)
+        return bool(self._students)
+
+
+def save_network(students: dict[str, set[str]], path: str | Path) -> None:
+    """Persist a documented-تلاميذ map (built by ``rijal.tahdhib.documented_students``) to JSON."""
+    payload = {"students": {k: sorted(v) for k, v in students.items() if v}}
+    Path(path).write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+
+def load_network(path: str | Path) -> DocumentedNetwork:
+    """Load a persisted documented network; an absent file gives an empty (falsy) network."""
+    p = Path(path)
+    if not p.exists():
+        return DocumentedNetwork()
+    data = json.loads(p.read_text(encoding="utf-8"))
+    return DocumentedNetwork(students={k: set(v) for k, v in data.get("students", {}).items()})
 
 
 def resolve_chain(candidates: list[list[str]], anchors: list[str | None],

@@ -192,10 +192,15 @@ lookup, not a token overlap. **BUILT `app/rijal/resolve.py`** (PURE, isolated, N
 **POSITIVE-evidence only** (a documented homonym is selected; ABSENCE never rejects — the تلاميذ lists aren't exhaustive;
 a non-unique survivor → held `None`, never guessed). +5 tests (سفيان→الثوري via الأعمش's documented students; mirror via
 تلميذ; generation-by-generation propagation from ابن مسعود up; the honest floor held when neighbours are bare; conflicting
-evidence held), **404 green**, node --check clean. **NEXT (sequenced, each measurable):** (2) build the DIRECTIONAL network
-from the تهذيب/الجرح/الثقات extractors (keep `shuyukh`/`talamidh` split, key by canonical name) — a new `build_graph` output
-or a `RijalEntry` field; (3) WIRE into `analyze_isnad` (anchor terminal صحابي + unique-name links → `resolve_chain` →
-feed the resolved identities to the verdict, BEFORE/around `canon._pick`); (4) MEASURE A/W/S on the real corpus.
+evidence held), node --check clean. **(2) DONE — the DIRECTIONAL network built + persisted.** `tahdhib.documented_students(records,
+rijal)` → `network_key(شيخ) → {network_key(تلميذ)}` (resolves each man + his quoted شيوخ/تلاميذ to a رجال canonical name,
+UNAMBIGUOUS only; populates from BOTH sides — a man's تلميذ gives `students[man]∋تلميذ`, his شيخ gives `students[شيخ]∋man`).
+**Simplified to ONE dict** (mirror identity: «T شيخ of S» ⟺ «S تلميذ of T» ⟺ `S ∈ students[T]` → no separate teachers map →
+half the file). `build_graph` now parses each `_NETWORK_SOURCES` book ONCE → builds the flattened company (canon) AND the
+directional network → `resolve.save_network` → `data/documented_network.json` (`settings.documented_network_path`);
+`resolve.load_network` reads it. +2 tests, **406 green**. **NEXT:** (3) WIRE into `analyze_isnad` (anchor terminal صحابي +
+unique-name links → `resolve_chain` → feed the resolved identities to the verdict, BEFORE/around `canon._pick`); (4) MEASURE
+A/W/S on the real corpus. **NEEDS A `build_graph` (update.bat) to generate `documented_network.json` before (3) can bite.**
 **Caveats (honest):** bounded by network COVERAGE (تهذيب الكمال = exactly the Six-Books men → good for the common case;
 obscure men outside → no constraint → still floor); CASCADE risk → the seed anchors must be CONFIDENT (terminal صحابي +
 unique-name), never override a confident specific match; the genuine floor (a man only ever flanked by bare names with no

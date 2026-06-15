@@ -115,6 +115,12 @@ class Settings(BaseSettings):
         return self.data_dir / "narrators.db"
 
     @property
+    def documented_network_path(self) -> Path:
+        """The DOCUMENTED directional تلاميذ network (تهذيب/الجرح/الثقات) for the joint resolver
+        (`app.rijal.resolve`), written by `scripts.build_graph`."""
+        return self.data_dir / "documented_network.json"
+
+    @property
     def notebook_path(self) -> Path:
         """The study notebook (saved items + notes) — persistent, never rebuilt."""
         return self.data_dir / "notebook.db"
