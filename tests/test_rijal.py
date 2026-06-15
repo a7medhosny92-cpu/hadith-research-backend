@@ -391,3 +391,16 @@ def test_coverage_only_namesake_does_not_shadow_a_real_narrator():
     assert suf.ambiguous and set(suf.alternatives + [suf.entry.name]) == {"سفيان بن عيينة", "سفيان بن سعيد الثوري"}
     sole = idx.lookup("معاوية بن صالح الجهني")
     assert sole.entry.name == "معاوية بن صالح الجهني" and not sole.ambiguous
+
+
+def test_candidates_also_drops_coverage_namesakes():
+    """candidates() (read by the terminal-صحابي promotion in analyze_isnad) drops a coverage namesake too,
+    so a terminal «أبي هريرة» resolves to the Companion, not held among obscure same-kunya men."""
+    from app.rijal.index import RijalIndex
+    idx = RijalIndex([
+        {"name": "عبد الرحمن بن صخر الدوسي", "kunya": "أبو هريرة", "grade": "صحابي",
+         "source": "تقريب التهذيب (رقم 8609)"},
+        {"name": "أبو هريرة الواسطي", "kunya": "أبو هريرة", "grade": "صحابي",
+         "source": "الإصابة في تمييز الصحابة (رقم 9767)"},
+    ])
+    assert [c.name for c in idx.candidates("أبي هريرة")] == ["عبد الرحمن بن صخر الدوسي"]

@@ -453,6 +453,10 @@ class RijalIndex:
             for c, pref, e in partial:
                 if c == top_cov and (pref or (not any_prefix and not contained)):
                     take(e)
+        # Prefer the real narrators: an obscure الإصابة/الثقات namesake must not sit in the homonym set a
+        # chain chooses among (the terminal-صحابي promotion in analyze_isnad reads this) when a real man is
+        # present — «أبي هريرة» is the Companion الدوسي, not a same-kunya محمد. Kept only when ALL are coverage.
+        out = _prefer_non_coverage(out)
         if max_results is not None and len(out) > max_results:
             return []
         return out
