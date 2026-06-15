@@ -311,8 +311,13 @@ def analyze_isnad(
                     # later narrator is an anachronism → prefer a non-صحابي homonym («جرير» deep →
                     # ابن عبد الحميد الثقة, not البجلي الصحابي). The penultimate link is left alone —
                     # there a younger Companion legitimately narrates from an older one (صحابي عن
-                    # صحابي: «ابن عباس عن عمر», «أنس عن عبادة»).
-                    other = [c for c in rijal.candidates(narrator.name, apply_prominence=False)
+                    # صحابي: «ابن عباس عن عمر», «أنس عن عبادة»). max_results=None so a VERY common ism
+                    # («عبد الله» — hundreds of homonyms) is not capped to [] here: prominence collapses
+                    # the lookup to the prolific bearers (the all-صحابي ابادلة), and the demotion must
+                    # still see the later تابعي «عبد الله» to undo it — else the commonest names regress
+                    # to a false «صحابي mid-chain».
+                    other = [c for c in rijal.candidates(narrator.name, apply_prominence=False,
+                                                          max_results=None)
                              if c.category != "صحابي"]
                     if other:
                         from app.rijal.index import RijalMatch

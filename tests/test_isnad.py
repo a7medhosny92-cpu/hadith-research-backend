@@ -328,3 +328,21 @@ def test_prominence_does_not_force_a_sahabi_mid_chain():
     assert next(n for n in deep.narrators if n["name"] == "جابر")["rijal"]["grade"] == "ضعيف"
     term = analyze_isnad("حدثنا قتيبة عن أبي الزبير عن جابر عن النبي صلى الله عليه وسلم قال كذا", rijal=idx)
     assert term.narrators[-2]["rijal"]["grade"] == "صحابي"
+
+
+def test_demotion_sees_homonyms_even_for_a_very_common_ism():
+    """The «عبد الله» regression: a bare ism with HUNDREDS of homonyms. Prominence collapses the lookup
+    to its prolific bearers — which for «عبد الله» are the all-صحابي ابادلة — so it resolves to صحابي. The
+    deep-صحابي demotion must still see the later تابعي «عبد الله» to undo it; that means candidates() must
+    NOT be capped to [] for a >40-homonym name here, else the commonest isms regress to a false S."""
+    from app.rijal.index import RijalIndex
+    _T = "تقريب التهذيب (رقم 8609)"
+    entries = [{"name": f"عبد الله بن صحابي{i}", "grade": "صحابي", "source": _T} for i in range(45)]
+    entries.append({"name": "عبد الله بن وهب التابعي", "grade": "ثقة", "source": _T})
+    idx = RijalIndex(entries)
+    idx.set_prominence({**{f"عبد الله بن صحابي{i}": 5000 for i in range(45)},
+                        "عبد الله بن وهب التابعي": 100})
+    deep = analyze_isnad("حدثنا قتيبة عن سفيان عن عبد الله عن الشعبي عن مسروق "
+                         "عن النبي صلى الله عليه وسلم قال كذا", rijal=idx)
+    abd = next(n for n in deep.narrators if n["name"] == "عبد الله")
+    assert (abd["rijal"] or {}).get("grade") != "صحابي"   # NOT graded صحابي mid-chain
