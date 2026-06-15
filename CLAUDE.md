@@ -176,6 +176,31 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
 **Focus:** cut wrong isnad verdicts in «التدقيق» by identifying the narrator from the chain — AND now also
 verify every **matn** (the new «تدقيق المتون»).
 
+**★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
+unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
+resolve a name is ITSELF in conflict» — `canon._pick` reads the flat token company of a name's RAW neighbours, but
+those neighbours are themselves ambiguous (a bare «عبد الله» beside «سفيان» gives no signal), so the disambiguation is
+CIRCULAR. Their proposed cure (which IS the classical «تمييز المهمل بالنظر إلى الشيخ والتلميذ»): ANCHOR at the terminal
+صحابي (we can ID him — position + الإصابة), then resolve each ambiguous تلميذ by **who is DOCUMENTED (in تهذيب/الجرح/
+الثقات) as a تلميذ of the resolved شيخ**, propagating UP generation by generation. **Why it beats `canon._pick`:** (1)
+DIRECTIONAL — `tahdhib_associations` (tahdhib.py:37) FLATTENS شيوخ+تلاميذ into ONE undirected token bag, throwing away
+the direction this method needs (the extractors DO keep `shuyukh`/`talamidh` separate — the data exists, we collapse
+it); (2) ANCHORED + PROPAGATED — resolve the certain links first, feed the RESOLVED IDENTITY (not an ambiguous token
+bag) forward as the constraint, iterate to a fixpoint; (3) IDENTITY-level — the constraint is a documented «تلميذ-of»
+lookup, not a token overlap. **BUILT `app/rijal/resolve.py`** (PURE, isolated, NOT wired → zero risk): `DocumentedNetwork`
+(per-man شيوخ/تلاميذ as `network_key` sets) + `resolve_chain(candidates, anchors, network)` → constraint propagation,
+**POSITIVE-evidence only** (a documented homonym is selected; ABSENCE never rejects — the تلاميذ lists aren't exhaustive;
+a non-unique survivor → held `None`, never guessed). +5 tests (سفيان→الثوري via الأعمش's documented students; mirror via
+تلميذ; generation-by-generation propagation from ابن مسعود up; the honest floor held when neighbours are bare; conflicting
+evidence held), **404 green**, node --check clean. **NEXT (sequenced, each measurable):** (2) build the DIRECTIONAL network
+from the تهذيب/الجرح/الثقات extractors (keep `shuyukh`/`talamidh` split, key by canonical name) — a new `build_graph` output
+or a `RijalEntry` field; (3) WIRE into `analyze_isnad` (anchor terminal صحابي + unique-name links → `resolve_chain` →
+feed the resolved identities to the verdict, BEFORE/around `canon._pick`); (4) MEASURE A/W/S on the real corpus.
+**Caveats (honest):** bounded by network COVERAGE (تهذيب الكمال = exactly the Six-Books men → good for the common case;
+obscure men outside → no constraint → still floor); CASCADE risk → the seed anchors must be CONFIDENT (terminal صحابي +
+unique-name), never override a confident specific match; the genuine floor (a man only ever flanked by bare names with no
+documented network) remains — the goal is NOT A=0, it is «resolve what the text determines, hold the rest» (لا نختلق).
+
 **★★★ (2026-06-12, THIS SESSION). الإصابة MEASURED → S REGRESSION DIAGNOSED + FIXED · الزهري-أخبره parsing
 bug · the parsing-bug HUNTER (6 leak classes fixed). On main, branch `claude/intelligent-bardeen-HAsrg`. 380 tests green.**
 The user ran `build_rijal --no-download` (الإصابة merged: **rijal 9,712 → 15,231, +5,519 صحابة**) + `audit_isnad`
