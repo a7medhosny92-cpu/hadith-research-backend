@@ -16,6 +16,39 @@ focused PR with tests, behind green CI.
 
 ---
 
+## Track A — Narrator identity (تمييز المهمل) — the main recent programme
+The bulk of audit flags are **A («مشترك»)**: a name matching several men. This track resolves the
+identity *from the chain*, never by guessing. See `docs/ARCHITECTURE.md §11` for the full design.
+
+**Done (measured on the user's real corpus, 84,783 chains · rijal ≈20k).**
+- Order-aware matching (`_order_ok`), coverage drop (`_prefer_non_coverage`), the «ابن X» eponym guard.
+- **Corpus redundancy** (`muhmal.py`) + the شيخ-only relaxation.
+- **Company** (`canon._pick`) enriched by تهذيب/الجرح/الثقات (`_NETWORK_SOURCES`).
+- **The joint resolver** — تمييز المهمل بالشيخ والتلميذ (`resolve.py` + `documented_students` →
+  `documented_network.json`, wired into `analyze_isnad`): anchored, directional, positive-evidence,
+  the classical method grounded in the curated books. **A −15 % on its own.**
+- **The prominence prior** (`_prefer_prominent`, gated by `apply_prominence`).
+- **Coverage** (الإصابة 9767, الثقات 96165, add-only) + **named-critic verdicts** (`appraisals.py`).
+- **Node hygiene** — the waw-dual co-narrator split + `scripts.audit_nodes` (the parsing-bug detector).
+- **Net result: A 85,184 → 56,182 (−34 %) with S and W flat-to-better** — a third of the ambiguity
+  resolved at no cost in wrong verdicts.
+
+**Open levers (the residual A, ordered by value × feasibility).**
+- **A.1 Name-granularity shadows.** A bare/truncated entry («محمد بن جعفر») shadows the famous man
+  (غندر «محمد بن جعفر الهذلي»), so the documented network can't match the full key → held. Cure:
+  upstream name normalisation / merge the bare shadow into the fuller entry (extends `dedup.py`).
+- **A.2 Better anchoring.** Seed the joint resolver with more confident anchors — the terminal صحابي
+  by *position* (not only unique-name) and the deterministic `muhmal` resolutions — so propagation
+  reaches more mid-chain links.
+- **A.3 More network coverage.** Each new prose رجال source (لسان الميزان, الطبقات, أسد الغابة…) adds
+  documented شيوخ/تلاميذ → the resolver reaches more men outside the current تهذيب/الجرح/الثقات core.
+- **A.4 Shuhra-by-ancestor.** A man known by a *distant* ancestor's name («ابن جريج» = عبد الملك بن
+  عبد العزيز بن جريج) isn't reached by the leading-run rule — a targeted matching enhancement.
+- **A.5 The honest floor (②b).** Two comparably-prolific men with shared company (سفيان عيينة/الثوري
+  flanked by their common teachers) — *correctly* held; not chased. The goal is **not A = 0**.
+
+---
+
 ## Phase 0 — Foundations (evaluation & free training data)
 Nothing else is trustworthy without these. Small, fast, no models.
 
@@ -33,9 +66,8 @@ Nothing else is trustworthy without these. Small, fast, no models.
 *Deliverable:* `data/gold/*.jsonl` (tiny, committed) + `scripts/eval.py`. **Effort: low.**
 
 ## Phase 1 — Quick wins (high value, data already in hand)
-1. **Order-aware name matching (RIJ).** Add a sequence check to `RijalIndex.lookup` so
-   «يزيد بن جابر» ≠ «جابر بن يزيد» (token-set matching loses order today). *Effort: low.*
-   *Validate:* the rijal gold set (no new false matches; same true matches).
+1. **Order-aware name matching (RIJ).** *Status: **DONE** (`_order_ok` + leading-run containment).*
+   «يزيد بن جابر» ≠ «جابر بن يزيد»; shared tokens must appear in the same relative order.
 2. **«Double opinion» rijal (الرأي الثاني).** We already extract Ibn Ḥajar (تقريب) **and**
    al-Dhahabī (الكاشف). Instead of merging to one verdict, **keep both** and, when they
    differ, show «ثقة عند ابن حجر · صدوق عند الذهبي» in the narrator & isnad cards. Needs a
@@ -68,10 +100,9 @@ Nothing else is trustworthy without these. Small, fast, no models.
    possible علّة; a lone ثقة against more/أوثق narrators → possible شذوذ/تفرّد. Always framed
    as **a hint to investigate**, never a verdict. *Effort: high.* *Validate:* precision on
    known cases (favour few, correct flags over many noisy ones).
-8. **Rich rijal from the verbose corpus.** From تهذيب الكمال / الجرح والتعديل extract the
-   *quoted critic statements* per narrator (قال أحمد… / قال ابن معين…) — like the أحكام but
-   for الرجال — giving a detailed, sourced جرح وتعديل page per narrator. *Effort: high.*
-   *Validate:* sample narrators against the printed entries.
+8. **Rich rijal from the verbose corpus.** *Status: **PARTLY DONE** — `appraisals.py` extracts the
+   named «أقوال الأئمة» (قال ابن معين… / ذكره ابن حبان…) from الجرح/تهذيب/الثقات and shows them on the
+   «راوٍ» card.* Remaining: widen the curated نقّاد list and add more prose sources. *Effort: high.*
 
 ## Phase 4 — Scale (only if it goes multi-user / web)
 9. **Postgres + pgvector backend.** Implement the production backend the scaffold already
