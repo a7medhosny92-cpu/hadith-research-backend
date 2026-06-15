@@ -24,6 +24,7 @@ from app.config import get_settings
 from app.ingestion.catalog import RIJAL_PROSE_BOOKS
 from app.parsing.jarh_extract import parse_jarh_file
 from app.parsing.tahdhib_extract import parse_tahdhib_file
+from app.parsing.thiqat_extract import THIQAT_BOOK_ID, parse_thiqat_file
 from app.qa.isnad import analyze_isnad
 from app.rijal.canon import Canonicalizer
 from app.rijal.graph import NarratorGraph
@@ -33,8 +34,10 @@ from app.rijal.tahdhib import tahdhib_associations
 from app.search.index import _read_jsonl  # parsed JSONL reader
 from scripts._atomic import rebuild
 
-# Prose رجال sources with an authoritative شيوخ/تلاميذ network, and their record extractor.
-_NETWORK_SOURCES = {3722: parse_tahdhib_file, 2170: parse_jarh_file}
+# Prose رجال sources with an authoritative شيوخ/تلاميذ network, and their record extractor. Each man's
+# stated company is the surest signal for disambiguating a «مشترك» name — so every prose source that
+# carries a network (تهذيب · الجرح · الثقات, and later لسان/الطبقات) feeds canon._pick here.
+_NETWORK_SOURCES = {3722: parse_tahdhib_file, 2170: parse_jarh_file, THIQAT_BOOK_ID: parse_thiqat_file}
 
 
 def main() -> None:

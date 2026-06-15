@@ -55,3 +55,10 @@ def test_iter_reads_headings_and_skips_muqaddima():
     recs = list(iter_thiqat(data))
     assert len(recs) == 1
     assert recs[0]["name"] == "شبر بن علقمة العبدي" and recs[0]["source"].startswith("الثقات")
+
+
+def test_thiqat_network_feeds_the_disambiguation_graph():
+    """الثقات carries شيوخ/تلاميذ, so it must feed canon._pick (not just the grade) — schema ② → ①."""
+    from app.parsing.thiqat_extract import THIQAT_BOOK_ID
+    from scripts.build_graph import _NETWORK_SOURCES
+    assert THIQAT_BOOK_ID in _NETWORK_SOURCES
