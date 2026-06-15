@@ -404,3 +404,16 @@ def test_candidates_also_drops_coverage_namesakes():
          "source": "الإصابة في تمييز الصحابة (رقم 9767)"},
     ])
     assert [c.name for c in idx.candidates("أبي هريرة")] == ["عبد الرحمن بن صخر الدوسي"]
+
+
+def test_ibn_X_resolves_to_the_son_not_the_eponym_father():
+    """«ابن عمر» is the son عبد الله بن عمر, never the eponym father عمر بن الخطاب (whose bare «عمر» form
+    would otherwise lead-match the containment branch) nor any man merely NAMED عمر."""
+    from app.rijal.index import RijalIndex
+    idx = RijalIndex([
+        {"name": "عمر بن الخطاب", "aliases": ["عمر", "الفاروق"], "grade": "صحابي", "source": "seed"},
+        {"name": "عبد الله بن عمر بن الخطاب", "grade": "صحابي", "source": "seed"},
+    ])
+    m = idx.lookup("ابن عمر")
+    assert m.entry.name == "عبد الله بن عمر بن الخطاب" and not m.ambiguous
+    assert idx.lookup("عمر بن الخطاب").entry.name == "عمر بن الخطاب"

@@ -170,9 +170,11 @@ def _score_entry(
         if not shared or not _order_ok(query_seq, seq, shared):
             continue
         if len(shared) == len(form):               # form ⊆ query → entry's name is in the query …
-            if query_seq[:len(seq)] == seq:        # … as its LEADING run (the cited man), not an
-                specificity = max(specificity, len(form))   # ancestor buried in the nasab: «محمد
-                # بن … بن أنس بن مالك» is not أنس, «عبد الله بن عمر بن الخطاب» is the son not عمر.
+            if query_seq[:len(seq)] == seq and not nasab_ref:   # … as its LEADING run (the cited man).
+                specificity = max(specificity, len(form))   # For «ابن X», X is a FATHER, so a bare-ism
+                # entry «عمر» must NOT lead-match «ابن عمر» (the eponym, nor any of the 134 men NAMED
+                # عمر) — the son «عبد الله بن عمر بن الخطاب» matches via the partial branch (X non-leading)
+                # instead. (Buried ancestors were already excluded — only the LEADING run sets specificity.)
         elif len(shared) == len(query):            # query ⊆ form → cited name is a partial
             offer(seq)
         # else: neither contains the other → coincidental shared token(s), not a match
