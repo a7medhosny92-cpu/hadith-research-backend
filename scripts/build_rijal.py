@@ -33,6 +33,7 @@ from app.parsing.isaba_extract import ISABA_BOOK_ID, parse_isaba_file
 from app.parsing.jarh_extract import parse_jarh_file
 from app.parsing.rijal_extract import parse_rijal_file
 from app.parsing.tahdhib_extract import parse_tahdhib_file
+from app.parsing.thiqat_extract import THIQAT_BOOK_ID, parse_thiqat_file
 from app.rijal.dedup import CorpusCompany, collapse_duplicates
 from app.rijal.grades import classify
 from app.rijal.index import RijalIndex, _clean_tokens, load_seed
@@ -185,7 +186,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if not args.no_download:
-        asyncio.run(_ensure_downloaded(args.books + [ISABA_BOOK_ID]))
+        asyncio.run(_ensure_downloaded(args.books + [ISABA_BOOK_ID, THIQAT_BOOK_ID]))
 
     books_dir = settings.raw_dir / "books"
     extracted: list[list[dict]] = []   # one list per source, in order (first = authority)
@@ -220,6 +221,14 @@ def main() -> None:
         result, added, _ = merge_source(result, parse_isaba_file(isaba_path), fill_gaps=False)
         print(f"  merged الإصابة (أقسام 1-2): +{added} صحابة")
 
+    # الثقات ممن لم يقع في الكتب الستة (ابن قطلوبغا) — a COVERAGE source for men OUTSIDE the Six Books,
+    # graded by inclusion / the weakest cited verdict, carrying their أقوال الأئمة. ADD-ONLY: a confident
+    # match to an existing man is left untouched (تقريب stays the standard); only genuinely-new men are added.
+    thiqat_path = books_dir / f"{THIQAT_BOOK_ID}.json"
+    if thiqat_path.exists():
+        result, added, _ = merge_source(result, parse_thiqat_file(thiqat_path), fill_gaps=False)
+        print(f"  merged الثقات (ابن قطلوبغا): +{added} ثقات")
+
     # optional: fold in the LLM-extracted رجال (scripts.build_rijal_llm) — better grades and the
     # death/kunya the terse regex drops. Gated on the file, so the pipeline is unchanged without it.
     llm_rijal = settings.data_dir / "rijal_llm.jsonl"
@@ -252,12 +261,12 @@ def main() -> None:
     # Named أقوال الأئمة (the multi-critic dossier «قال ابن معين: ثقة») from the PROSE sources, attached
     # to the matching rijal entry — gated on the downloaded book, the grade itself is unchanged. Run
     # AFTER the dedup so the appraisals land on the final, collapsed entries.
-    for book_id in (2170, 3722):                       # الجرح والتعديل · تهذيب الكمال
+    _PROSE = {2170: parse_jarh_file, 3722: parse_tahdhib_file, THIQAT_BOOK_ID: parse_thiqat_file}
+    for book_id, parser in _PROSE.items():             # الجرح · تهذيب الكمال · الثقات
         bp = books_dir / f"{book_id}.json"
         if not bp.exists():
             continue
-        prose = parse_jarh_file(bp) if book_id == 2170 else parse_tahdhib_file(bp)
-        result, attached = merge_appraisals(result, prose)
+        result, attached = merge_appraisals(result, parser(bp))
         if attached:
             print(f"  attached أقوال الأئمة from {book_id}: {attached} narrators")
 
