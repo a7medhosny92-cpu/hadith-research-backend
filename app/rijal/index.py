@@ -240,6 +240,26 @@ def from_companion_dictionary(entry: RijalEntry) -> bool:
     return any(s in (entry.source or "") for s in _COMPANION_DICTIONARIES)
 
 
+# Add-only COVERAGE dictionaries (الإصابة صحابة · الثقات ثقات): men OUTSIDE the Six Books, who barely
+# narrate there. They pull a genuinely-cited obscure man out of «مجهول», but they must NOT shadow a real
+# narrator for a BARE/kunya citation — «أبي هريرة» is the Companion الدوسي, not an obscure محمد who merely
+# shares the kunya. So a coverage man competes only when there is no non-coverage candidate (see _lookup).
+_COVERAGE_SOURCES = ("الإصابة", "الثقات")
+
+
+def from_coverage_source(entry: RijalEntry) -> bool:
+    """True if the entry exists ONLY because an add-only coverage dictionary (الإصابة/الثقات) added it."""
+    return any(s in (entry.source or "") for s in _COVERAGE_SOURCES)
+
+
+def _prefer_non_coverage(group: list[RijalEntry]) -> list[RijalEntry]:
+    """Drop coverage-only men from a tied candidate group when a real (non-coverage) narrator is present —
+    so an obscure الإصابة/الثقات namesake never makes a famous narrator «مشترك». Kept only when EVERY
+    candidate is coverage (a genuinely non-Six-Books citation, where the obscure man may be the referent)."""
+    real = [e for e in group if not from_coverage_source(e)]
+    return real if real else group
+
+
 class RijalIndex:
     """In-memory narrator lookup (linear; the corpus of named narrators is small)."""
 
@@ -348,7 +368,7 @@ class RijalIndex:
         if contained:
             contained.sort(key=lambda pair: -pair[0])
             top = contained[0][0]
-            group = [e for s, e in contained if s == top]
+            group = _prefer_non_coverage([e for s, e in contained if s == top])
             best_e = group[0]
             extra = [e for e in group if e.name != best_e.name]
             # A SHORT grave exact-match must not confidently stamp a sound chain when a FULLER,
@@ -370,7 +390,8 @@ class RijalIndex:
             # حاتم» → عدي بن حاتم الطائي (the only prefix) is decisive, while «سعيد» → المسيب/جبير
             # (both prefixes) stays مشترك. When the tied readings AGREE on the grade (الليث بن سعد
             # of الكاشف vs تقريب — same man, both ثقة), that grade is still usable.
-            group = [e for cov, pref, ln, e in partial if cov == top_cov and pref == top_pref]
+            group = _prefer_non_coverage(
+                [e for cov, pref, ln, e in partial if cov == top_cov and pref == top_pref])
             best_e = group[0]
             alternatives = [e.name for e in group if e.name != best_e.name]
             agreed = all(e.category == best_e.category for e in group)

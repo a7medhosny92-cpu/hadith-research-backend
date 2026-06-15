@@ -367,3 +367,27 @@ def test_high_status_unknown_is_recovered_by_the_curated_anchor():
     assert by["أبي بن كعب بن قيس الأنصاري"] == "صحابي"
     assert by["سعيد بن المسيب بن حزن المخزومي"] == "ثقة"
     assert by["عمر بن الخطاب السجستاني"] == "صدوق"      # safety: an existing grade is never overridden
+
+
+def test_coverage_only_namesake_does_not_shadow_a_real_narrator():
+    """A bare/kunya citation resolves to the REAL narrator, not held «مشترك» because an obscure
+    الإصابة/الثقات namesake shares the name. «أبي هريرة» = the Companion الدوسي, not a محمد who merely
+    carries the kunya; «سفيان» stays the honest عيينة/الثوري tie (coverage dropped); a coverage man is
+    kept only when he is the SOLE option."""
+    from app.rijal.index import RijalIndex
+    T = "تقريب التهذيب (رقم 8609)"
+    TH = "الثقات ممن لم يقع في الكتب الستة (رقم 96165)"
+    idx = RijalIndex([
+        {"name": "عبد الرحمن بن صخر الدوسي", "kunya": "أبو هريرة", "grade": "صحابي", "source": T},
+        {"name": "محمد بن أيوب الواسطي", "kunya": "أبو هريرة", "grade": "ثقة", "source": TH},
+        {"name": "سفيان بن عيينة", "grade": "ثقة", "source": T},
+        {"name": "سفيان بن سعيد الثوري", "grade": "ثقة", "source": T},
+        {"name": "سفيان بن أسد", "grade": "ثقة", "source": TH},
+        {"name": "معاوية بن صالح الجهني", "grade": "ثقة", "source": TH},
+    ])
+    abu = idx.lookup("أبي هريرة")
+    assert abu.entry.name == "عبد الرحمن بن صخر الدوسي" and not abu.ambiguous
+    suf = idx.lookup("سفيان")
+    assert suf.ambiguous and set(suf.alternatives + [suf.entry.name]) == {"سفيان بن عيينة", "سفيان بن سعيد الثوري"}
+    sole = idx.lookup("معاوية بن صالح الجهني")
+    assert sole.entry.name == "معاوية بن صالح الجهني" and not sole.ambiguous
