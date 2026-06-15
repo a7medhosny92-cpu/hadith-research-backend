@@ -270,6 +270,7 @@ class RijalIndex:
         self._form_seqs: list[list[list[str]]] = []   # name + alias token-seqs (full matching)
         self._kunya_seqs: list[list[list[str]]] = []   # reverse-only forms: teknonyms + kunya
         self._cache: dict[tuple[str, float], "RijalMatch | None"] = {}  # memoise lookups
+        self._cand_cache: dict[tuple[str, int | None, bool], list[RijalEntry]] = {}  # memoise candidates
         self._prominence: dict[str, int] = {}          # name → corpus narration frequency (set externally)
         if entries:
             self.add(entries)
@@ -279,6 +280,7 @@ class RijalIndex:
         PROMINENCE prior used to break a tie toward the prolific narrator. Clears the lookup cache."""
         self._prominence = prominence or {}
         self._cache.clear()
+        self._cand_cache.clear()      # prominence changes which candidates survive → drop the memo
 
     _PROM_RATIO = 4   # keep a tied candidate only if ≥ 1/RATIO as prolific as the most prolific one
 
@@ -347,7 +349,8 @@ class RijalIndex:
             self._form_seqs.append([s for s in forms if not _is_kunya_form(s)])
             self._kunya_seqs.append(reverse_only)
             n += 1
-        self._cache.clear()   # entries changed → drop memoised lookups
+        self._cache.clear()        # entries changed → drop memoised lookups
+        self._cand_cache.clear()   # …and memoised candidate sets
         return n
 
     def count(self) -> int:
@@ -438,9 +441,14 @@ class RijalIndex:
         ``max_results=None`` to get the **full** homonym list regardless — for the disambiguation
         UI, where showing all 134 «عمر» is exactly the point (تمييز المهمل left to the user).
         """
+        ckey = (name, max_results, apply_prominence)   # memoised — the joint resolver's pre-pass calls
+        cached = self._cand_cache.get(ckey)            # this for every link across tens of thousands of chains
+        if cached is not None:
+            return cached
         query_seq = _clean_seq(name)
         query = set(query_seq)
         if not query or (len(query) == 1 and query_seq[0] in _NON_IDENTIFYING):
+            self._cand_cache[ckey] = []
             return []
         teknonym = not _is_nasab_ref(name)   # «ابن أبي X» is a descendant, not the kunya «أبو X»
         contained: list[tuple[int, RijalEntry]] = []
@@ -487,7 +495,8 @@ class RijalIndex:
             out = self._prefer_prominent(out)         # the full set (the mid-chain صحابي-demotion seeking a
         # تابعي homonym must still see the less-prolific man — see analyze_isnad).
         if max_results is not None and len(out) > max_results:
-            return []
+            out = []
+        self._cand_cache[ckey] = out
         return out
 
 

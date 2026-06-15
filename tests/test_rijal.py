@@ -436,3 +436,16 @@ def test_prominence_prior_prefers_the_prolific_narrator():
     ibn_umar = idx.lookup("ابن عمر")
     assert ibn_umar.entry.name == "عبد الله بن عمر بن الخطاب" and not ibn_umar.ambiguous
     assert idx.lookup("سفيان").ambiguous                         # both prolific → honest tie kept
+
+
+def test_candidates_cache_is_invalidated_by_set_prominence():
+    """candidates() is memoised (the joint resolver calls it per link over tens of thousands of chains);
+    the cache must refresh when prominence changes, or a stale homonym set survives."""
+    from app.rijal.index import RijalIndex
+    idx = RijalIndex([
+        {"name": "سفيان بن سعيد الثوري", "grade": "ثقة", "source": "تقريب التهذيب (رقم 8609)"},
+        {"name": "سفيان بن عيينة", "grade": "ثقة", "source": "تقريب التهذيب (رقم 8609)"},
+    ])
+    assert len(idx.candidates("سفيان")) == 2                     # warm the cache
+    idx.set_prominence({"سفيان بن سعيد الثوري": 5000, "سفيان بن عيينة": 100})
+    assert [c.name for c in idx.candidates("سفيان")] == ["سفيان بن سعيد الثوري"]   # not the stale 2
