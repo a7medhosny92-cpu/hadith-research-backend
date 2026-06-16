@@ -127,6 +127,7 @@ _NAME_CUT = re.compile(
     r"\s(?:عن|عنه|وعنه|سمع|سمعت|مات|ماتت|توفي|توفى|توفيت|من|قال|قالت|روى|يروي|"
     r"وكان|كان|كانت|وكانت|نزيل|نزل|سكن|وفد|أصله|وثقه|ضعفه|تركه|كذبه|وقال|له|وله|ولها|لها|رمي|اختلط|"
     r"صنف|مشهور|تابعي|مخضرم|صحابي|صحابية|صحبة|شهد|ولد|ولدت|قتل|قتلت|استشهد|عاش|عاشت|تزوج|"
+    r"اسمه|واسمه|يكنى|المتكلم|المنشأ|"  # «… اسمه يحيى» / «يكنى أبا حجية» / «المتكلم بعد الموت» — a name-note tail
     r"تزوجت|تزوجها|ولي|وليت|بايع|أدرك|صحب|صحبت|ذكره|ذكرها|والد|والدة|مولى|ولأبيه|خليفة)\s"
 )
 # An ALTERNATE nasab interjected mid-name: «ويقال ابن علي»، «ويقال ابن أبي شعيرة» — a parenthetical
@@ -134,7 +135,7 @@ _NAME_CUT = re.compile(
 # kunya/nisba. A bare «(و)يقال» left over (e.g. «… وقيل مات سنة») is then dropped by `_QIL_BARE`; the
 # following bio word still ends the name via `_NAME_CUT`.
 _ALT_NASAB = re.compile(r"(?:^|\s)(?:و)?(?:يقال|قيل)\s+ا?بن\s+(?:(?:عبد|عبيد|أب[وي]|أم)\s+)?\S+")
-_QIL_BARE = re.compile(r"(?:^|\s)(?:و)?(?:يقال|قيل)(?=\s|$)")
+_QIL_BARE = re.compile(r"(?:^|\s)(?:و)?(?:يقال|قيل)(?=[\s:]|$)")  # «… وقيل مات» / «ويقال: عبد الله»
 # ضبط fragments (orthography notes) stripped from the name.
 # ضبط fragments (orthography notes) interleaved INSIDE the name and stripped from it — تقريب
 # writes «… البابلتي بموحدتين ولام مضمومة ومثناة ثقيلة أبو سعيد الحراني …», where the run between
@@ -328,6 +329,9 @@ def _trim_name(text: str) -> str:
     verdict = _PRIMARY.search(padded)
     if verdict and verdict.start() < end:
         end = verdict.start()
+    colon = padded.find(":")            # a «:» is always an editorial note tail («ويقال: X»، «اسمه: كذا»)
+    if 0 <= colon < end:
+        end = colon
     text = _NOISE.sub(" ", padded[:end])
     return _WS.sub(" ", text).strip(" -،")
 

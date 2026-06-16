@@ -308,6 +308,16 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
     shadowing the ism-led تقريب full name; they have a DIFFERENT `ident_key`, so collapse never compares them → this is
     exactly the **step 5 (ident_key كنية/ابن-aware)** target, measured by the audit, not yet fixed.
   **NEXT fixes:** clean bio-leak names (371 تلوث الاسم, step 6) · ident_key كنية/ابن-aware (~89 كنية, step 5) · then resolution-on-ingest.
+- **★ STEP 6 STARTED — bio/alternate name-tail cleaning in `rijal_extract` (this session).** The 371 «تلوث الاسم»
+  (a biography tail leaked into the NAME, breaking matching + dedup) are the residual the existing cleaning
+  (`_NAME_CUT`/`_ALT_NASAB`/`_QIL_BARE`/`_DABT`) misses. Added the dominant SAFE cuts: `_NAME_CUT` += «اسمه/واسمه»
+  (real-name note «… أبو بحر اسمه الضحاك») · «يكنى» (kunya note «يكنى أبا حجية») · «المتكلم/المنشأ» (bio descriptors
+  «المتكلم بعد الموت زمن عثمان»، «المنشأ سبته الروم»); a **colon cut** in `_trim_name` (a «:» is always an editorial
+  note «ويقال: عبد الله»); and `_QIL_BARE` now also strips «(و)يقال» before a «:» (was whitespace-only). Verified on
+  the real polluted names + NON-regression (mid-name «ويقال ابن X» alternate nasab still runs on → السبيعي intact;
+  clean names whole). +1 test, **439 green**. **NEEDS a `build_rijal` (re-extract) to apply** → تلوث الاسم should
+  fall. **Residual patterns still open** (to measure after the rebuild): «اسم أبيه»/«والمد» ضبط, «هي امرأة»,
+  free-text bios — the long tail.
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
