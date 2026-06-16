@@ -64,7 +64,9 @@ def main() -> None:
                 isnad = rec.get("isnad")
                 if not isnad:
                     continue
-                names = [n["name"] for n in analyze_isnad(isnad).narrators]
+                # split waw-joined co-narrators here (graph hygiene): the network/«راوٍ» nodes must
+                # be one man each. The verdict path leaves them fused (see analyze_isnad).
+                names = [n["name"] for n in analyze_isnad(isnad, split_conarrators=True).narrators]
                 if len(names) >= 2:
                     fh.write(json.dumps(names, ensure_ascii=False) + "\n")
                     n_chains += 1

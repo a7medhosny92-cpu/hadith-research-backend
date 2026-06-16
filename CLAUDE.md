@@ -243,6 +243,19 @@ ON THE USER:** next `update.bat` (or parse→build_graph) → the «الزهري
 the documented network cleaner → re-run `audit_isnad` (expect A to tick down further as the de-fused nodes match) + `scripts.audit_nodes`
 (verify no new waw-junk like «غيره»/«آخر» from a missed stop-word). **NEXT levers after this:** the محمد بن جعفر/غندر shadow (upstream
 name consistency) + the ابن جريج shuhra-by-ancestor matching.
+  **★★ MEASURED → the waw-split REGRESSED the audit → GATED to graph-build only.** The user ran the full rebuild at `b6636ad`:
+  GRAPH cleaned beautifully (**nodes 30786 → 27038**, `audit_nodes` **1868 → 21**, the «الزهري وهشام» card GONE) BUT the audit
+  REGRESSED: **A 56182 → 60502 (+4320) · S 479 → 576 (+97) · W 631 → 639**. Decomposed the Drive `audit.json` (via the
+  `Google_Drive` MCP): the **A↑ is BROAD + honest** (most names +40–220, spread — the split surfaces a bare «عبد الله» that was
+  hidden inside a corrupt «X وعبد الله» node → real ambiguity, not a wrong verdict); the **S↑ is Companions flagged DEEP**
+  (أنس بن مالك 17→27 at الحلقة 5/7, جابر 11/13, أبي سعيد 9/11 — the split puts a Companion co-narrator mid-chain → trips the
+  deep-صحابي flag). So the split is RIGHT for graph hygiene (one man per node) but WRONG for the verdict (it grades more
+  positions). **FIX — gate it: `analyze_isnad(split_conarrators=False)` by default; `build_graph` passes `True`.** The GRAPH/
+  «راوٍ»/canon company get clean de-fused nodes; the audit/verify keep the old segmentation → no A/S regression. Verified:
+  default fuses «الزهري وهشام بن عروة», `split_conarrators=True` splits. +tests updated, **416 green**. **Effective on the next
+  `audit_isnad` ALONE (live, NO rebuild needed — the graph is already split from this run):** expect **A/S back to ~56182/~479**
+  with the «راوٍ» card STILL fixed (narrators.db already de-fused). **WAITING ON THE USER: pull + `audit_isnad`** → confirm A/S
+  return to baseline.
 
 **★★★ (2026-06-12, THIS SESSION). الإصابة MEASURED → S REGRESSION DIAGNOSED + FIXED · الزهري-أخبره parsing
 bug · the parsing-bug HUNTER (6 leak classes fixed). On main, branch `claude/intelligent-bardeen-HAsrg`. 380 tests green.**

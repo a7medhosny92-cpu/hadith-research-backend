@@ -169,6 +169,7 @@ def _chain_assessment(matches: list["RijalMatch | None"], total: int, mubham: in
 def analyze_isnad(
     text: str, rijal: "RijalIndex | None" = None, canon: "Canonicalizer | None" = None,
     muhmal: "dict[str, str] | None" = None, network: "DocumentedNetwork | None" = None,
+    split_conarrators: bool = False,
 ) -> IsnadAnalysis:
     raw = strip_diacritics(text or "")
     narrators: list[Narrator] = []
@@ -241,11 +242,14 @@ def analyze_isnad(
         if soft:   # «قال حدثنا …» / «سمعته يحدّث عن …» — connective, not the matn; drop it
             continue
         # co-narrator waw: «A وB …» lists two narrators sharing the next شيخ; split so B is its OWN
-        # clean node, not fused into «A وB». Fire only on a COMPLETE name (buf has the prior man and his
-        # last token is not a name-joiner like بن/أبو) and when «وX» is not itself a name (وكيع، وهب).
-        if (buf and folded[:1] == "و" and len(folded) > 3 and folded not in _WAW_NAMES
-                and folded not in _EULOGY      # «وسلم/وآله/وصحبه» are the eulogy, not a co-narrator
-                and folded not in _WAW_STOP    # «وكان/وغيره/وكلاهما» — a matn/aggregator word, not a name
+        # clean node, not fused into «A وB». This is a GRAPH-HYGIENE operation (de-fuse the node for
+        # the network / «راوٍ» card), gated to graph-build: in the VERDICT path it would surface the
+        # newly-separated bare ism as ambiguous (A↑) and trip the deep-صحابي flag on a Companion
+        # co-narrator (S↑), so the audit/verify keep the old segmentation. Fire only on a COMPLETE
+        # name (prev token not a name-joiner بن/أبو) when «وX» is not itself a name (وكيع/وهب), an
+        # eulogy (وسلم), or a matn/aggregator word (وكان/وغيره).
+        if (split_conarrators and buf and folded[:1] == "و" and len(folded) > 3
+                and folded not in _WAW_NAMES and folded not in _EULOGY and folded not in _WAW_STOP
                 and normalize_for_search(buf[-1]) not in _NAME_JOINERS):
             flush()                            # finalise A (the man before the waw)
             pending_break = True               # B begins a new route → no false A→B link / company

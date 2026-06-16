@@ -384,8 +384,9 @@ llm_chains=)` overrides the flagged chains by a tashkeel-stable `text_key`.
 (transmission verbs incl. object-pronoun/قراءة forms; «ح» = a route seam; «أنّ» opens a report;
 footnote digits stripped) — dropping what is never a narrator: a back-reference «بهذا الإسناد», a
 hadith-number «م - ٢٣٤٥», a lone ramz letter, action verbs that open a matn («يخطب/يحدّث…», unless a
-transmission verb follows) [#117], and **splitting a waw-joined co-narrator** «الزهري وهشام بن عروة»
-into two nodes + a route-seam (guarded against وكيع/أبو وائل/بن وهب/وسلم/وكان). A **تحويل (ح)** is a
+transmission verb follows) [#117], and — **only with `split_conarrators=True` (the graph-build path)** —
+**splitting a waw-joined co-narrator** «الزهري وهشام بن عروة» into two nodes + a route-seam (guarded
+against وكيع/أبو وائل/بن وهب/وسلم/وكان); the verdict path leaves it fused. A **تحويل (ح)** is a
 *route seam*: the men either side are not a real link and not each other's company. When given the
 rijal layer it grades each link via the **resolution ladder** (each rung only fires where the prior
 left the name unchanged — none overrides a confident match):
@@ -593,9 +594,13 @@ up, and none overrides a confident specific match):
 **Node hygiene (a precondition for every lever).** The graph nodes and the documented network are only
 as clean as the segmentation. Two-men-in-one-node corruption — a waw-joined dual «الزهري وهشام بن
 عروة» (al-Zuhrī AND Hishām) — splits a real narrator's company off a fake node and pollutes the
-documented network. `analyze_isnad` now splits a co-narrator «وX» (guarded against وكيع/أبو وائل/بن
-وهب/وسلم/وكان) into its own node + a route-seam; `scripts.audit_nodes` is the read-only detector that
-flags any node still carrying a non-name fragment (verb/say/action/anna/backref/number).
+documented network. `analyze_isnad(split_conarrators=True)` splits a co-narrator «وX» (guarded against وكيع/أبو
+وائل/بن وهب/وسلم/وكان) into its own node + a route-seam — **gated to graph-build** (`build_graph` passes
+it; the verdict path leaves the node fused, because in the audit the split surfaces the separated bare
+ism as ambiguous (A↑) and trips the deep-صحابي flag on a Companion co-narrator (S↑), measured +4,320 A /
++97 S). So the graph/«راوٍ»/canon company get one man per node while the verdict keeps the old
+segmentation. `scripts.audit_nodes` is the read-only detector that flags any node still carrying a
+non-name fragment (verb/say/action/anna/backref/number) — it confirmed the split (1,868 → 21 corrupt nodes).
 
 **Coverage sources.** الإصابة (صحابة, book 9767) and الثقات (book 96165) are merged ADD-ONLY
 (`fill_gaps=False`) to pull men out of «مجهول»; their أقوال الأئمة (named-critic verdicts) attach via
