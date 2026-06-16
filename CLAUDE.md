@@ -165,7 +165,8 @@ Depth docs (NOT auto-loaded — open when relevant):
 
 ## The rijal matching model (so I don't re-derive it)
 Identify the narrator **from the chain before the bare name** (تمييز المهمل):
-- `app/rijal/index.py` — folded ordered tokens (بن/ابن dropped, kunya unified); `candidates()`
+- `app/rijal/index.py` — folded ordered tokens (بن/ابن dropped, kunya unified, leading «ال» folded so
+  «ليث»≡«الليث» via `_strip_al` — never الله/الرحمن); `candidates()`
   returns the full homonym set; **containment requires the matched name be the leading run** of the
   citation (not an ancestor buried in the nasab); **teknonyms** (أبو/أم) match a kunya citation only,
   never a bare ism; prefix preference.

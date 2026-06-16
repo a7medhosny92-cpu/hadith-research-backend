@@ -544,3 +544,20 @@ def test_narrators_index_endpoint_facets_and_filters():
     # paging: a small page returns ≤ limit but reports the full total
     p = client.get("/narrators", params={"limit": 3}).json()
     assert len(p["items"]) == 3 and p["total"] == d["grand_total"]
+
+
+def test_lookup_folds_the_definite_article_but_not_the_divine_names():
+    """A chain cites a name with or without «ال» — «ليث»/«الليث», «أسود»/«الأسود» — so the matcher folds a
+    leading definite article (query AND entry alike, recovering the «الـ»-variant coverage misses). The
+    divine names «الله»/«الرحمن» are NEVER folded, so «عبد الله»/«عبد الرحمن» don't collapse to a bare «عبد»
+    that would match every عبد."""
+    idx = RijalIndex([
+        {"name": "الليث بن سعد بن عبد الرحمن الفهمي", "grade": "ثقة"},
+        {"name": "الأسود بن عامر شاذان", "grade": "ثقة"},
+        {"name": "عبد الله بن المبارك", "grade": "ثقة"},
+        {"name": "عبد الرحمن بن مهدي", "grade": "ثقة"},
+    ])
+    assert idx.lookup("ليث بن سعد").entry.name.startswith("الليث بن سعد")       # «ال» folded → match
+    assert idx.lookup("أسود بن عامر").entry.name.startswith("الأسود")
+    assert idx.lookup("عبد الله بن المبارك").entry.name == "عبد الله بن المبارك"   # الله kept whole
+    assert idx.lookup("عبد الرحمن بن مهدي").entry.name == "عبد الرحمن بن مهدي"     # الرحمن kept whole

@@ -46,6 +46,16 @@ _NON_IDENTIFYING = {normalize_for_search(w) for w in (
     "أبو أبي أبا أم عبد أبيه أمه جده جدته أخيه أخته عمه عمته خاله خالته ابنه بنته"
 ).split()}
 
+# A chain cites a name with or without its definite article — «ليث»/«الليث», «حسن»/«الحسن», «أسود»/
+# «الأسود». Fold a leading «ال» so they match, but NEVER the divine names («عبد الله»/«عبد الرحمن» —
+# stripping «الله»→«له» would collapse «عبد الله» to a bare «عبد» that matches every عبد), and only when
+# a real ≥3-char stem survives (so a short «الـ» form isn't mangled). Applied to query AND entry alike.
+_AL_KEEP = {normalize_for_search(w) for w in ("الله", "الرحمن", "الرحيم", "اللهم", "الإله")}
+
+
+def _strip_al(t: str) -> str:
+    return t[2:] if t.startswith("ال") and len(t) >= 5 and t not in _AL_KEEP else t
+
 
 def _clean_seq(name: str) -> list[str]:
     """Folded name tokens **in order**, honorifics/connectors dropped. A token repeated NON-adjacently
@@ -54,11 +64,13 @@ def _clean_seq(name: str) -> list[str]:
     every معاذ بن فلان and make a famous narrator «مشترك» among twenty men.
 
     Kunya cases are unified (أبو/أبا/أبي → أبو) before «بن» is dropped, so «أبي موسى»
-    matches «أبو موسى»; «أبي بن …» stays أُبَيّ (a name, not a kunya)."""
+    matches «أبو موسى»; «أبي بن …» stays أُبَيّ (a name, not a kunya). A leading «ال» is folded
+    (`_strip_al`) so «ليث» matches «الليث»."""
     text = _HONORIFIC_PHRASE.sub(" ", _HONORIFIC_CH.sub(" ", name or ""))
     seen: set[str] = set()
     out: list[str] = []
     for t in fold_kunya(normalize_for_search(text).split()):
+        t = _strip_al(t)
         if t and t not in _STOP and (t not in seen or out[-1] == t):
             seen.add(t)
             out.append(t)
