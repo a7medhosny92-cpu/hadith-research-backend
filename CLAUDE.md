@@ -274,6 +274,11 @@ name consistency) + the ابن جريج shuhra-by-ancestor matching.
   متروك (DANGEROUS); with it → held. +1 test (lookup held + `audit_conflicts.sweep` dangerous==[]), **417 green**. **Effective on the
   next `audit_conflicts`/`audit_isnad` ALONE (live matcher, no rebuild).** **WAITING ON THE USER: pull + `audit_conflicts`** → expect
   **DANGEROUS back to 0** (+ a tiny A tick from the 7 now-held names). The «كذاب في صحيح مسلم» class is closed again.
+  **★ CONFIRMED (user re-ran):** `audit_conflicts` → **DANGEROUS 0 · held 78 · ok 12** (the 7 moved held 71→78). The dangerous class
+  is CLOSED. ★★ «controlla tutto» VERDICT: the system is verified CLEAN end-to-end — waw gating holds (A 55694 · S 489 · W 621,
+  below baseline), DANGEROUS 0, متون settled, network corruption ~0.7% (inert). Residual = the documented GAIN levers (غندر/محمد
+  بن جعفر name-granularity shadow, ابن جريج shuhra-by-ancestor) + the الثقات `_NAME_END` bio-leak cleanup (~72 inert + descriptor
+  tails) + the lone «علي بن موسى الرضا» mis-graded entry — all minor, none dangerous.
 
 **★★★ (2026-06-12, THIS SESSION). الإصابة MEASURED → S REGRESSION DIAGNOSED + FIXED · الزهري-أخبره parsing
 bug · the parsing-bug HUNTER (6 leak classes fixed). On main, branch `claude/intelligent-bardeen-HAsrg`. 380 tests green.**
