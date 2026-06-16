@@ -195,6 +195,18 @@ def test_collapse_prefix_extension_trusts_the_name_over_a_stale_graph_veto(tmp_p
     assert collapse_duplicates([a, b], company=comp, require_confirm=True)[1] == 0   # strict: needs confirm
 
 
+def test_collapse_iterates_to_a_fixpoint_when_a_namesake_frees_a_thin_form():
+    """A same_man merge can remove a namesake that was making a thin form's supersets non-nested, so a
+    SINGLE pass holds the thin form. collapse iterates to a fixpoint → a later pass folds it once the
+    namesake is gone: «زيد بن سهل» + «… أبو طلحة» + a shared-nisba namesake all collapse to ONE in one call."""
+    thin = {"name": "زيد بن سهل", "grade": "صحابي"}
+    full = {"name": "زيد بن سهل بن الأسود الأنصاري النجاري أبو طلحة", "grade": "صحابي"}
+    namesake = {"name": "زيد بن سهل الأنصاري الكوفي", "grade": "صحابي"}   # same_man with full (shared الأنصاري)
+    kept, removed = collapse_duplicates([thin, full, namesake])
+    assert removed == 2 and len(kept) == 1
+    assert kept[0]["name"] == full["name"]
+
+
 # ── the read-only duplicate AUDIT (scripts.audit_duplicates) ──────────────────
 def test_audit_duplicates_classifies_the_missed_same_man_clusters():
     """The audit surfaces same-man records the build leaves split, by cause: a كنية-led shadow of a

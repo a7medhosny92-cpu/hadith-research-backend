@@ -294,10 +294,20 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
   pairs are held (honest count). **The merge KEEPS BOTH opinions** (verified on the user's grade-differing examples:
   محمد بن سالم [صدوق+مقبول], عمر بن إسحاق [ثقة+مقبول] → one record, primary = تقريب's verdict, both as أقوال الأئمة —
   the double-opinion, nothing lost; a slight diff is no `_strong_grade_conflict`, a ثقة-vs-متروك clash still holds apart).
-  +2 tests, **436 green.** **NEEDS `build_rijal --no-download` to apply.** **WAITING ON THE USER: rebuild → re-run
-  `audit_duplicates`** → expect نقص قرينة 36 → ~0 (the coverage doublings folded), كنية ~52 → ~42 (the طبقة pairs
-  dropped); send the new `duplicates.json` + a sanity `audit_isnad` (A flat-to-down). **NEXT fixes:** clean bio-leak
-  names (371 تلوث الاسم) · ident_key كنية/ابن-aware for the cross-key residue (~42) · then resolution-on-ingest.
+  +2 tests, **436 green.** **NEEDS `build_rijal --no-download` to apply.**
+  **★ MEASURED (user rebuilt, cache cleared, #180 CONFIRMED in dedup.py) → نقص قرينة STILL 36→26, NOT ~0. Diagnosed a
+  PASS-ORDERING bug (reproduced in-container) + FIXED with a FIXPOINT iteration.** The residual coverage doublings
+  (زيد بن سهل=أبو طلحة, صهيب الرومي…) merge fine in a 2-name in-container test, but NOT in the real build. Cause: in a
+  real ident_key group, a NAMESAKE X that shares a nisba with the full form (so `same_man` merges X→full) but is NOT
+  nested with it makes the thin form's supersets «≥2 distinct» → the SINGLE pass HOLDS the thin form; then X is removed,
+  and the audit (re-measuring) sees thin+1-full and reports نقص قرينة. **`collapse_duplicates` now ITERATES `_collapse_once`
+  to a FIXPOINT** — a `same_man` merge that removes the namesake frees the prefix-extension fold the prior pass had to
+  hold, so re-running until a pass removes nothing folds the thin form. +1 test, **438 green.** **NEEDS a fresh
+  `build_rijal --no-download` to apply.** **WAITING ON THE USER: rebuild → `audit_duplicates`** → NOW expect نقص قرينة → ~0.
+  - The كنية ~89 is NOT a regression — it is the الإصابة coverage Companions «أبو X» (أبو أسيد/أبو حميد/أبو جحيفة…)
+    shadowing the ism-led تقريب full name; they have a DIFFERENT `ident_key`, so collapse never compares them → this is
+    exactly the **step 5 (ident_key كنية/ابن-aware)** target, measured by the audit, not yet fixed.
+  **NEXT fixes:** clean bio-leak names (371 تلوث الاسم, step 6) · ident_key كنية/ابن-aware (~89 كنية, step 5) · then resolution-on-ingest.
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
