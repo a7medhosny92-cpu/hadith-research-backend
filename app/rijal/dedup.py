@@ -113,6 +113,17 @@ def _strong_grade_conflict(a: dict, b: dict) -> bool:
     return ta is not None and tb is not None and ta != tb
 
 
+def _companion_split(a: dict, b: dict) -> bool:
+    """The طبقة guard: a صحابي and a definite non-صحابي of the same name are DIFFERENT men (a Companion
+    and a later تابعي can't be one person), so a thin «محمد بن عبد الله» (صحابي, الإصابة) is never folded
+    into «… بن عمرو الكوفي» (ثقة تابعي). Ungraded never splits — it could be the same Companion not yet
+    graded. (صحابي vs ثقة is not a `_strong_grade_conflict` — both are «trusted» — so this is the lever
+    that catches the era boundary the grade-rank can't see.)"""
+    ca = classify(a.get("grade") or "")[0]
+    cb = classify(b.get("grade") or "")[0]
+    return (ca == "صحابي") != (cb == "صحابي") and "غير معروف" not in (ca, cb)
+
+
 def same_man(a: dict, b: dict, *, window: int = 20) -> bool:
     """Are two entries (already sharing an ``ident_key``) the same narrator? Prudent — see module
     docstring. Returns ``False`` whenever the evidence can't confirm it."""
@@ -229,8 +240,12 @@ def collapse_duplicates(
 ) -> tuple[list[dict], int]:
     """Return ``(deduped_records, removed)`` — same-man duplicates collapsed into one entry.
 
-    Groups by ``ident_key`` and unions entries by :func:`same_man` (transitively). A
-    :class:`CorpusCompany`, when supplied, gates each name-proposed merge against the chain network:
+    Groups by ``ident_key`` and unions entries by TWO same-man paths (transitively): :func:`same_man`
+    (nisba/death/kunya evidence) **and** a prudent built↔built *prefix-extension* — a thin short form
+    («عبد الله بن قيس») folded into its single fuller man («… أبو موسى الأشعري») when the discriminators
+    :func:`same_man` needs are simply absent, held whenever the short fits ≥2 distinct namesakes or
+    crosses the صحابي/non-صحابي طبقة. A :class:`CorpusCompany`, when supplied, gates each name-proposed
+    merge (both paths) against the chain network:
 
     * **mix** (default, ``require_confirm=False``) — the name proposes, the corpus only **vetoes** a
       merge it positively contradicts (disjoint company); absent men are trusted to the name.
@@ -258,6 +273,28 @@ def collapse_duplicates(
                 i, j = idxs[p], idxs[q]
                 if not same_man(records[i], records[j], window=window):
                     continue
+                if company is not None:
+                    na, nb = records[i]["name"], records[j]["name"]
+                    ok = company.confirms(na, nb) if require_confirm else not company.vetoes(na, nb)
+                    if not ok:
+                        continue
+                parent[find(i)] = find(j)
+
+        # «نقص قرينة» (built↔built prefix-extension): a thin short form — no nisba/death/kunya, so
+        # :func:`same_man` can't confirm it — folded into its SINGLE fuller man («عبد الله بن قيس» →
+        # «… أبو موسى الأشعري»). Held when the short fits ≥2 distinct namesakes (``_all_nested`` →
+        # honest homonymy) or crosses the صحابي/non-صحابي طبقة (``_companion_split`` → different era).
+        gtoks = {i: tokens(records[i].get("name", "")) for i in idxs}
+        for i in idxs:
+            supersets = [j for j in idxs
+                         if j != i and gtoks[i] < gtoks[j]
+                         and lineage_compatible(records[i], records[j])
+                         and (gtoks[i] & _GEN) == (gtoks[j] & _GEN)
+                         and not _strong_grade_conflict(records[i], records[j])
+                         and not _companion_split(records[i], records[j])]
+            if not (supersets and _all_nested([gtoks[j] for j in supersets])):
+                continue
+            for j in supersets:
                 if company is not None:
                     na, nb = records[i]["name"], records[j]["name"]
                     ok = company.confirms(na, nb) if require_confirm else not company.vetoes(na, nb)

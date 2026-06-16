@@ -35,7 +35,8 @@ from app.config import get_settings
 from app.parsing.normalize import normalize_for_search
 from app.rijal import RijalIndex, load_entries
 from app.rijal.dedup import (
-    _BIN, _GEN, _KUNYA_P, _strong_grade_conflict, ident_key, lineage_compatible, same_man, tokens,
+    _BIN, _GEN, _KUNYA_P, _companion_split, _strong_grade_conflict, ident_key, lineage_compatible,
+    same_man, tokens,
 )
 from app.rijal.grades import classify
 
@@ -165,9 +166,10 @@ def audit(records: list[dict]) -> dict:
                          if j != i and toks[i] < toks[j]
                          and lineage_compatible(records[i], records[j])
                          and (toks[i] & _GEN) == (toks[j] & _GEN)
-                         and not _strong_grade_conflict(records[i], records[j])]
+                         and not _strong_grade_conflict(records[i], records[j])
+                         and not _companion_split(records[i], records[j])]
             if not supersets or not _one_man(supersets, toks):
-                continue                               # no extension, or ≥2 distinct namesakes → hold
+                continue                               # no extension, ≥2 namesakes, or طبقة split → hold
             for j in supersets:
                 pairs["نقص قرينة"].append((i, j))
 

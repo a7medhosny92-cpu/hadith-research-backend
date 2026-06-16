@@ -178,7 +178,7 @@ verify every **matn** (the new «تدقيق المتون»). **NEW THREAD (2026-
 per man, no doublings, accumulating everything (the «الرواة» browse + the dedup overhaul below).**
 
 **★★ (2026-06-16, THIS SESSION) THE «الرواة» BROWSE TAB shipped + the CANONICAL-BASE / no-doublings thread STARTED
-(measure-first). On main, branch `claude/intelligent-bardeen-HAsrg`, 428 tests green, node --check clean.**
+(measure-first). On main, branch `claude/intelligent-bardeen-HAsrg`, 434 tests green, node --check clean.**
 - **★ «الرواة» BROWSE TAB (shipped, `912987d`):** the user asked to let the user *navigate/scroll ALL narrators
   without searching*. Built `RijalIndex.browse_rows()` (every narrator as a lightweight row {name·grade·death·kunya·
   letter}, de-duped by exact name, cached, invalidated on add; `_browse_letter` files each name under its first FOLDED
@@ -254,8 +254,21 @@ per man, no doublings, accumulating everything (the «الرواة» browse + th
   (`_all_nested` guard → kept separate, لا نختلق). Wired into `load_entries` (seed+built → reconciled) → effective on
   the next app load / `audit_isnad` / `audit_duplicates` ALONE (no rebuild — it's at LOAD time). +2 tests, **431 green.**
   **WAITING ON THE USER: pull + re-run `python -m scripts.audit_duplicates`** → expect نقص قرينة/كنية to fall (the
-  seed↔built folded), and the famous-men grades corrected; send the new `duplicates.json`. **NEXT fixes:** (built↔built
-  prefix-extension in collapse_duplicates) · clean bio-leak names (371) · ident_key كنية/ابن-aware for the cross-key residue.
+  seed↔built folded), and the famous-men grades corrected; send the new `duplicates.json`.
+- **★ STEP 4 DONE — built↔built PREFIX-EXTENSION merge wired into `collapse_duplicates` (this session).** The «نقص
+  قرينة» residue (≈188) is the SAME man split because the thin short form a chain cites («عبد الله بن قيس») carries NONE
+  of the discriminators `same_man` needs (no nisba/death/kunya) → never confirmed. `collapse_duplicates` now adds a
+  SECOND same-man path beside `same_man`: fold a thin short form into its **single** fuller man when lineage-compatible +
+  same generation + no `_strong_grade_conflict`, **held** when it fits ≥2 distinct namesakes (`_all_nested`) OR crosses
+  the **طبقة boundary** — the new `dedup._companion_split`: a صحابي and a definite non-صحابي of the same name are
+  DIFFERENT men (a Companion ≠ a later تابعي; صحابي-vs-ثقة is NOT a `_strong_grade_conflict` since both are «trusted», so
+  this guard is the lever that catches the era). The CorpusCompany veto gates it like `same_man`. Mirrored into
+  `scripts.audit_duplicates` (the same طبقة guard) so the measurement matches what the build now merges. **NEEDS a
+  `build_rijal` to apply** (collapse runs at BUILD time → re-extracts `rijal.jsonl` with the نقص قرينة folded). +3 tests,
+  **434 green.** **WAITING ON THE USER: `build_rijal --no-download` → re-run `audit_duplicates`** → expect نقص قرينة to
+  drop toward 0 (the built↔built folded), the صحابي↔تابعي pairs HELD; send the new `duplicates.json` + a sanity
+  `audit_isnad` (A should tick down a touch as the bare short forms consolidate, W/S flat). **NEXT fixes:** clean bio-leak
+  names (371 تلوث الاسم) · ident_key كنية/ابن-aware for the cross-key residue (~53) · then resolution-on-ingest.
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
