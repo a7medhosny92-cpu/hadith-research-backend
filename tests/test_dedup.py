@@ -207,6 +207,27 @@ def test_collapse_iterates_to_a_fixpoint_when_a_namesake_frees_a_thin_form():
     assert kept[0]["name"] == full["name"]
 
 
+def test_collapse_folds_kunya_and_ibn_shadows_into_their_fuller_man():
+    """Step 5 — a كنية-led / «ابن X» shadow (a DIFFERENT ident_key, so the per-group passes never compare
+    it) is folded into its fuller ism-led man: «أبو أسيد الساعدي» (coverage Companion) into «مالك بن ربيعة
+    … أبو أسيد الساعدي», the shadow kept as an alias. Held when the كنية fits ≥2 distinct men, sits on a
+    buried father «… بن أبي أمية», or crosses the صحابي/non-صحابي طبقة."""
+    kept, removed = collapse_duplicates([
+        {"name": "مالك بن ربيعة بن البدن أبو أسيد الساعدي", "grade": "صحابي", "source": "تقريب"},
+        {"name": "أبو أسيد الساعدي", "grade": "صحابي", "source": "الإصابة"},
+    ])
+    assert removed == 1 and len(kept) == 1
+    assert kept[0]["name"].startswith("مالك بن ربيعة") and "أبو أسيد الساعدي" in (kept[0].get("aliases") or [])
+    # held: a كنية shared by two distinct men, a buried-father «… بن أبي أمية», and a طبقة-crossing pair
+    assert collapse_duplicates([{"name": "نصر بن عمران أبو حمزة الضبعي", "grade": "ثقة"},
+                                {"name": "محمد بن ميمون أبو حمزة الضبعي", "grade": "صدوق"},
+                                {"name": "أبو حمزة الضبعي", "grade": "ثقة"}])[1] == 0
+    assert collapse_duplicates([{"name": "جنادة بن أبي أمية الأزدي", "grade": "صحابي"},
+                                {"name": "أبو أمية الأزدي", "grade": "صحابي"}])[1] == 0
+    assert collapse_duplicates([{"name": "طريف بن مجالد الهجيمي أبو تميمة البصري", "grade": "ثقة"},
+                                {"name": "أبو تميمة", "grade": "صحابي"}])[1] == 0
+
+
 # ── the read-only duplicate AUDIT (scripts.audit_duplicates) ──────────────────
 def test_audit_duplicates_classifies_the_missed_same_man_clusters():
     """The audit surfaces same-man records the build leaves split, by cause: a كنية-led shadow of a

@@ -172,6 +172,10 @@ def _merge_into(primary: dict, other: dict) -> None:
     for field in ("death_year", "kunya"):
         if not primary.get(field) and other.get(field):
             primary[field] = other[field]
+    aliases = primary.setdefault("aliases", [])          # keep the merged form(s) searchable (a كنية
+    for name in [other.get("name"), *(other.get("aliases") or [])]:   # «أبو أسيد الساعدي» citation still matches)
+        if name and name != primary.get("name") and name not in aliases:
+            aliases.append(name)
 
 
 def _pick_primary(cluster: list[int], records: list[dict]) -> int:
@@ -255,15 +259,17 @@ def collapse_duplicates(
     * **strict** (``require_confirm=True``) — merge only what the corpus **confirms** (same company),
       for both paths.
 
-    With no company it is name-only. Iterated to a FIXPOINT: a :func:`same_man` merge can remove a
-    namesake that was making a thin form's supersets non-nested, freeing a prefix-extension fold the
-    first pass had to hold — so we re-run until a pass removes nothing. Order is otherwise preserved."""
+    With no company it is name-only. Iterated to a FIXPOINT over BOTH `_collapse_once` (the ident_key
+    groups) and `_kunya_shadow_once` (the cross-ident_key كنية/«ابن» shadows): a merge in either can free
+    a fold the other had to hold (a removed namesake; a now-unique fuller), so we re-run until a pass
+    removes nothing. Order is otherwise preserved."""
     total = 0
     while True:
-        records, removed = _collapse_once(records, window=window, company=company,
-                                          require_confirm=require_confirm)
-        total += removed
-        if not removed:
+        records, r1 = _collapse_once(records, window=window, company=company,
+                                     require_confirm=require_confirm)
+        records, r2 = _kunya_shadow_once(records, company=company, require_confirm=require_confirm)
+        total += r1 + r2
+        if not (r1 + r2):
             return records, total
 
 
@@ -332,6 +338,88 @@ def _collapse_once(
                     _merge_into(records[primary], records[i])
                     drop.add(i)
 
+    return [r for i, r in enumerate(records) if i not in drop], len(drop)
+
+
+def _kunya_shadow_once(
+    records: list[dict], *, company: "CorpusCompany | None", require_confirm: bool,
+) -> tuple[list[dict], int]:
+    """One pass folding a كنية-led / «ابن X» SHADOW into its fuller ism-led man — the cross-``ident_key``
+    class (step 5): «أبو أسيد الساعدي» (a coverage Companion, الإصابة) into «مالك بن ربيعة … أبو أسيد
+    الساعدي» (تقريب), which `collapse_duplicates` never compares because their ``ident_key`` differs. The
+    shadow must appear as a CONTIGUOUS run in the right structural slot — a كنية NOT after «بن» (the
+    subject's own, not a father's «… بن أبي أمية»), an «ابن X» as a nasab ancestor — fit exactly ONE man
+    (`_all_nested`), share the طبقة (`_companion_split`), and not clash on grade. Held otherwise (honest
+    homonymy). The fuller name survives; the shadow becomes an alias (so a كنية citation still matches)."""
+    n = len(records)
+    toks = [tokens(r.get("name", "")) for r in records]
+    fseq = [folded_seq(r.get("name", "")) for r in records]
+    keys = [ident_key(r.get("name", "")) for r in records]
+    posting: dict[str, list[int]] = defaultdict(list)
+    for i, ts in enumerate(toks):
+        for t in ts:
+            posting[t].append(i)
+
+    parent = {i: i for i in range(n)}
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    merged = False
+    for i in range(n):
+        if not fseq[i] or len(toks[i]) < 2:
+            continue
+        if fseq[i][0] in _KUNYA_P:
+            sub, want_bin = fseq[i], False
+        elif fseq[i][0] in _BIN:
+            sub, want_bin = fseq[i][1:], True
+        else:
+            continue
+        probe = min(toks[i], key=lambda t: len(posting.get(t, ())))   # rarest token → small scan
+        fulls = []
+        for j in posting.get(probe, ()):
+            if j == i or keys[j] == keys[i] or not (toks[i] < toks[j]):
+                continue
+            pos = _run_at(sub, fseq[j])
+            if pos < 0:
+                continue
+            after_bin = pos > 0 and fseq[j][pos - 1] in _BIN
+            at_tail = pos + len(sub) == len(fseq[j])
+            if want_bin and not (after_bin or at_tail):     # «ابن X»: X must sit in the nasab
+                continue
+            if not want_bin and after_bin:                  # كنية: the subject's own, not a father's
+                continue
+            if _companion_split(records[i], records[j]):    # a صحابي كنية ≠ a تابعي of that kunya
+                continue
+            fulls.append(j)
+        if not fulls or not _all_nested([toks[j] for j in fulls]):  # ≥2 distinct men → honest homonymy → hold
+            continue
+        if _strong_grade_conflict(records[i], records[fulls[0]]):
+            continue
+        for j in fulls:
+            if require_confirm and company is not None \
+                    and not company.confirms(records[i]["name"], records[j]["name"]):
+                continue                                    # strict needs corpus confirmation; mix trusts it
+            parent[find(i)] = find(j)
+            merged = True
+
+    if not merged:
+        return records, 0
+    clusters: dict[int, list[int]] = defaultdict(list)
+    for i in range(n):
+        clusters[find(i)].append(i)
+    drop: set[int] = set()
+    for cluster in clusters.values():
+        if len(cluster) < 2:
+            continue
+        primary = _pick_primary(cluster, records)
+        for i in cluster:
+            if i != primary:
+                _merge_into(records[primary], records[i])
+                drop.add(i)
     return [r for i, r in enumerate(records) if i not in drop], len(drop)
 
 

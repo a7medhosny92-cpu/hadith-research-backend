@@ -318,6 +318,20 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
   clean names whole). +1 test, **439 green**. **NEEDS a `build_rijal` (re-extract) to apply** → تلوث الاسم should
   fall. **Residual patterns still open** (to measure after the rebuild): «اسم أبيه»/«والمد» ضبط, «هي امرأة»,
   free-text bios — the long tail.
+  **★ MEASURED (user pulled + rebuilt) → تلوث الاسم 371 → 73 (−80%)** ✓. Also نقص قرينة held at 2 (the seed edge),
+  كنية 83 (step-5 target). The residual 73 = the long tail above (measure after step 5's rebuild too).
+- **★ STEP 5 DONE — كنية/«ابن» SHADOW fold wired into `collapse_duplicates` (this session).** The ~83 «كنية» are
+  COVERAGE Companions «أبو X» (أبو أسيد الساعدي, أبو حميد, أبو جحيفة… from الإصابة) whose كنية-led form has a DIFFERENT
+  `ident_key` from the full ism-led تقريب name «مالك بن ربيعة … أبو أسيد الساعدي», so the ident_key-grouped passes never
+  compare them. New `dedup._kunya_shadow_once` (a CROSS-ident_key pass, run inside the fixpoint beside `_collapse_once`):
+  ports the AUDIT's proven كنية/ابن detection (a posting index + `_run_at` contiguous-run in the right slot — a كنية NOT
+  after «بن» = the subject's own, an «ابن X» in the nasab; the `_all_nested` one-man guard, `_companion_split` طبقة guard,
+  no `_strong_grade_conflict`) and MERGES the shadow into its single fuller man, the fuller surviving and the shadow kept
+  as an ALIAS (so a كنية citation still matches — `_merge_into` now keeps merged names/aliases). Held when the كنية fits
+  ≥2 distinct men (أبو حمزة), a buried father (أبو أمية ⊂ «… بن أبي أمية»), or crosses the طبقة (صحابي أبو تميمة ≠ تابعي
+  ثقة). Veto relaxed under mix like the prefix-extension; strict still `confirms`. +1 test, **440 green**. **NEEDS a
+  `build_rijal --no-download`** → expect كنية 83 → small residual (held/ambiguous), entries down. **NEXT:** step 7
+  (resolution-on-ingest) · the 2 seed-residual نقص قرينة · the 73 تلوث الاسم long tail · then re-measure `audit_isnad` (A/W/S).
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
