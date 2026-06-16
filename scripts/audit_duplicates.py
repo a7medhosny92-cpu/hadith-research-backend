@@ -66,13 +66,41 @@ def _clusters(pairs: list[tuple[int, int]]) -> list[list[int]]:
     return [sorted(g) for g in groups.values() if len(g) >= 2]
 
 
+def _folded(name: str) -> list[str]:
+    """The name's folded tokens IN ORDER, «بن/ابن» kept (so we can read the nasab structure)."""
+    return [t for t in (normalize_for_search(w) for w in name.split()) if t]
+
+
+def _run_at(sub: list[str], full: list[str]) -> int:
+    """Start index where ``sub`` appears as a CONTIGUOUS run in ``full``, else -1."""
+    if not sub or len(sub) > len(full):
+        return -1
+    for s in range(len(full) - len(sub) + 1):
+        if full[s:s + len(sub)] == sub:
+            return s
+    return -1
+
+
+def _one_man(idxs: list[int], toks: list[set]) -> bool:
+    """Are all of these (already same-ident_key) entries plausibly ONE man — i.e. pairwise nested
+    (one name extends the other)? If two are NOT nested they are distinct namesakes → not one man."""
+    for a in range(len(idxs)):
+        for b in range(a + 1, len(idxs)):
+            ta, tb = toks[idxs[a]], toks[idxs[b]]
+            if not (ta < tb or tb < ta or ta == tb):
+                return False
+    return True
+
+
 def audit(records: list[dict]) -> dict:
-    """Find the same-man clusters the build left split, by class. Returns counts + example clusters."""
+    """Find the same-man clusters the build left split, by class. Returns counts + example clusters.
+    Precision over recall: a merge is proposed only when one name is UNAMBIGUOUSLY the same man."""
     n = len(records)
     names = [r.get("name", "") for r in records]
     cats = [classify(r.get("grade") or "")[0] for r in records]
     toks = [tokens(nm) for nm in names]
     keys = [ident_key(nm) for nm in names]
+    fseq = [_folded(nm) for nm in names]               # ordered tokens (بن kept) for the run check
 
     posting: dict[str, list[int]] = defaultdict(list)   # content token → entry indices
     for i, ts in enumerate(toks):
@@ -82,48 +110,66 @@ def audit(records: list[dict]) -> dict:
     pairs: dict[str, list[tuple[int, int]]] = {"كنية": [], "ابن": [], "نقص قرينة": []}
     ambiguous: dict[str, int] = {"كنية": 0, "ابن": 0}
 
-    # كنية / ابن shadows: a short form whose tokens ⊂ a fuller, DIFFERENT-key name.
+    # كنية / ابن shadows: the short form must appear as a CONTIGUOUS RUN inside the full name, in the
+    # right structural slot — a كنية as the subject's OWN (the run NOT preceded by بن: «… الأنصاري أبو
+    # سعيد الخدري»), an «ابن X» as a nasab ancestor (the X-run preceded by بن: «… بن أبي مليكة»). This
+    # rejects the bio-leak coincidences a plain token-subset accepted (a buried FATHER «… بن أبي أمية»
+    # matching «أبو أمية», or a man's own kunya «أبو عبد الله» lending its «أبو» to a stray «أبو X»).
     for i in range(n):
-        head = normalize_for_search(names[i]).split()
-        if not head:
+        if not fseq[i]:
             continue
-        cls = "كنية" if head[0] in _KUNYA_P else ("ابن" if head[0] in _BIN else None)
-        if cls is None or len(toks[i]) < 2:        # a bare كنية («أبو بكر») identifies no one
+        if fseq[i][0] in _KUNYA_P:
+            cls, sub, want_bin = "كنية", fseq[i], False
+        elif fseq[i][0] in _BIN:
+            cls, sub, want_bin = "ابن", fseq[i][1:], True
+        else:
+            continue
+        if len(toks[i]) < 2:                           # a bare كنية («أبو بكر») identifies no one
             continue
         probe = min(toks[i], key=lambda t: len(posting.get(t, ())))   # rarest token → small scan
-        fulls = [j for j in posting.get(probe, ())
-                 if j != i and toks[i] < toks[j] and keys[j] != keys[i]]
+        fulls = []
+        for j in posting.get(probe, ()):
+            if j == i or keys[j] == keys[i] or not (toks[i] < toks[j]):
+                continue
+            pos = _run_at(sub, fseq[j])
+            if pos < 0:
+                continue
+            after_bin = pos > 0 and fseq[j][pos - 1] in _BIN
+            at_tail = pos + len(sub) == len(fseq[j])
+            if want_bin and not (after_bin or at_tail):     # «ابن X»: X must sit in the nasab
+                continue
+            if not want_bin and after_bin:                  # كنية: must be the subject's own, not a father
+                continue
+            fulls.append(j)
         if not fulls:
             continue
-        if len({keys[j] for j in fulls}) > 1:      # the short form fits SEVERAL men → homonymy
+        if len({keys[j] for j in fulls}) > 1:          # the short form fits SEVERAL men → homonymy
             ambiguous[cls] += 1
             continue
         if _strong_grade_conflict(records[i], records[fulls[0]]):
-            continue                               # a ثقة-vs-متروك clash → not blindly one man
+            continue                                   # a ثقة-vs-متروك clash → not blindly one man
         for j in fulls:
             pairs[cls].append((i, j))
 
-    # نقص قرينة: same ident_key, but same_man() couldn't confirm — yet the lineage agrees, no
-    # generation/grade conflict, and one name extends the other (or they share a category).
+    # نقص قرينة: same ident_key, the SHORT form is a proper subset of LONGER ones whose nasab agrees —
+    # but ONLY when every such longer form is the SAME man (pairwise nested). If the short sits under
+    # two DISTINCT namesakes (محمد بن إبراهيم بن الحارث vs … بن دينار) it is honest homonymy → held.
     groups: dict[tuple, list[int]] = defaultdict(list)
     for i in range(n):
         groups[keys[i]].append(i)
     for idxs in groups.values():
         if len(idxs) < 2:
             continue
-        for a in range(len(idxs)):
-            for b in range(a + 1, len(idxs)):
-                i, j = idxs[a], idxs[b]
-                if same_man(records[i], records[j]):
-                    continue                       # the build already merged these
-                if not lineage_compatible(records[i], records[j]):
-                    continue
-                if (toks[i] & _GEN) != (toks[j] & _GEN):
-                    continue                       # الكبير ≠ الصغير
-                if _strong_grade_conflict(records[i], records[j]):
-                    continue
-                if toks[i] < toks[j] or toks[j] < toks[i] or cats[i] == cats[j]:
-                    pairs["نقص قرينة"].append((i, j))
+        for i in idxs:
+            supersets = [j for j in idxs
+                         if j != i and toks[i] < toks[j]
+                         and lineage_compatible(records[i], records[j])
+                         and (toks[i] & _GEN) == (toks[j] & _GEN)
+                         and not _strong_grade_conflict(records[i], records[j])]
+            if not supersets or not _one_man(supersets, toks):
+                continue                               # no extension, or ≥2 distinct namesakes → hold
+            for j in supersets:
+                pairs["نقص قرينة"].append((i, j))
 
     def render(cluster: list[int]) -> list[dict]:
         return [{"name": names[i], "grade": cats[i], "source": records[i].get("source")}

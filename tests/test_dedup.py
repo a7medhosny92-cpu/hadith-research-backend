@@ -171,3 +171,38 @@ def test_audit_duplicates_classifies_the_missed_same_man_clusters():
     # the two سفيان never appear in any proposed cluster
     flat = [c["name"] for d in bc.values() for cl in d["examples"] for c in cl]
     assert "سفيان بن عيينة" not in flat and "سفيان بن سعيد الثوري" not in flat
+
+
+def test_audit_duplicates_precision_guards_reject_homonyms_and_buried_fathers():
+    """The audit proposes a merge only when one name is UNAMBIGUOUSLY the same man — the guards that
+    keep the measurement honest (they were added after the first real run over-merged): distinct
+    same-ism+father namesakes (محمد بن إبراهيم بن الحارث vs … بن دينار) stay apart; a bare form sitting
+    under TWO distinct men (أنس الأنصاري vs القشيري) is held; a كنية matching a buried FATHER
+    («أبو أمية» inside «… بن أبي أمية») is rejected — while a true prefix-extension and a true own-kunya
+    tail still merge."""
+    from scripts.audit_duplicates import audit
+
+    # distinct namesakes sharing ism+father + grade must NOT fuse (the over-merge the first run showed)
+    r = audit([{"name": "محمد بن إبراهيم بن الحارث التيمي", "grade": "ثقة"},
+               {"name": "محمد بن إبراهيم بن دينار المدني", "grade": "ثقة"},
+               {"name": "محمد بن إبراهيم بن عثمان العبسي", "grade": "ثقة"}])
+    assert r["by_class"]["نقص قرينة"]["clusters"] == 0
+
+    # a bare form under two distinct longer men → ambiguous, held
+    r = audit([{"name": "أنس بن مالك", "grade": "صحابي"},
+               {"name": "أنس بن مالك بن النضر الأنصاري الخزرجي", "grade": "صحابي"},
+               {"name": "أنس بن مالك القشيري الكعبي", "grade": "صحابي"}])
+    assert r["by_class"]["نقص قرينة"]["clusters"] == 0
+
+    # a true prefix-extension DOES merge
+    r = audit([{"name": "هشام بن عروة", "grade": "ثقة"},
+               {"name": "هشام بن عروة بن الزبير الأسدي", "grade": "ثقة"}])
+    assert r["by_class"]["نقص قرينة"]["clusters"] == 1
+
+    # a كنية matching a buried FATHER is rejected; a true own-kunya tail merges
+    r = audit([{"name": "أبو أمية الأزدي", "grade": "صحابي"},
+               {"name": "جنادة بن أبي أمية الأزدي أبو عبد الله الشامي", "grade": "صحابي"}])
+    assert r["by_class"]["كنية"]["clusters"] == 0
+    r = audit([{"name": "أبو سعيد الخدري", "grade": "صحابي"},
+               {"name": "سعد بن مالك بن سنان بن عبيد الأنصاري أبو سعيد الخدري", "grade": "صحابي"}])
+    assert r["by_class"]["كنية"]["clusters"] == 1
