@@ -297,6 +297,19 @@ class RijalIndex:
             return group
         return [e for e in ranked if self._prominence.get(e.name, 0) * self._PROM_RATIO >= top]
 
+    def _keep_trust_over_grave(self, kept: list["RijalEntry"],
+                               original: list["RijalEntry"]) -> list["RijalEntry"]:
+        """The coverage / prominence filters must NEVER leave a grave (كذاب/متروك/متهم) as the SOLE
+        survivor when a non-grave namesake was equally cited — else a bare name confidently sinks a
+        sound chain (the obscure trustworthy man dropped, the prolific متروك kept: «محمد بن الزبير» →
+        the متروك الحنظلي, dropping the ثقة مولى المعيطيين from الثقات). Add the best non-grave back so
+        the match is HELD (ambiguous, grades disagree → يُتوقَّف)."""
+        if kept and all(e.category in _GRAVE for e in kept):
+            trust = [e for e in original if e.category not in _GRAVE]
+            if trust:
+                return kept + trust[:1]
+        return kept
+
     def add(self, entries: Iterable[dict]) -> int:
         n = 0
         for raw in entries:
@@ -395,7 +408,9 @@ class RijalIndex:
         if contained:
             contained.sort(key=lambda pair: -pair[0])
             top = contained[0][0]
-            group = self._prefer_prominent(_prefer_non_coverage([e for s, e in contained if s == top]))
+            tied = [e for s, e in contained if s == top]
+            group = self._keep_trust_over_grave(
+                self._prefer_prominent(_prefer_non_coverage(tied)), tied)
             best_e = group[0]
             extra = [e for e in group if e.name != best_e.name]
             # A SHORT grave exact-match must not confidently stamp a sound chain when a FULLER,
@@ -417,8 +432,9 @@ class RijalIndex:
             # حاتم» → عدي بن حاتم الطائي (the only prefix) is decisive, while «سعيد» → المسيب/جبير
             # (both prefixes) stays مشترك. When the tied readings AGREE on the grade (الليث بن سعد
             # of الكاشف vs تقريب — same man, both ثقة), that grade is still usable.
-            group = self._prefer_prominent(_prefer_non_coverage(
-                [e for cov, pref, ln, e in partial if cov == top_cov and pref == top_pref]))
+            tied = [e for cov, pref, ln, e in partial if cov == top_cov and pref == top_pref]
+            group = self._keep_trust_over_grave(
+                self._prefer_prominent(_prefer_non_coverage(tied)), tied)
             best_e = group[0]
             alternatives = [e.name for e in group if e.name != best_e.name]
             agreed = all(e.category == best_e.category for e in group)

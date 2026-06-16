@@ -256,6 +256,24 @@ name consistency) + the ابن جريج shuhra-by-ancestor matching.
   `audit_isnad` ALONE (live, NO rebuild needed — the graph is already split from this run):** expect **A/S back to ~56182/~479**
   with the «راوٍ» card STILL fixed (narrators.db already de-fused). **WAITING ON THE USER: pull + `audit_isnad`** → confirm A/S
   return to baseline.
+  **★★ MEASURED (gating CONFIRMED) + a NEW DANGEROUS class found & FIXED («controlla tutto» sweep).** The user pulled + re-ran:
+  `audit_isnad` **W 621 · S 489 · A 55694** — the waw regression is GONE and A is even BELOW the pre-waw baseline (56182, cleaner
+  canon company from the de-fused graph), S 489 flat, W 621 better. ✓✓ Then a FULL review sweep (I fetched the Drive `audit.json`/
+  `conflicts.json`/`documented_network.json` via the `Google_Drive` MCP): **W** is a healthy review-queue of GENUINE متروك/كذاب
+  (يحيى بن العلاء/الربيع بن بدر/الحسن بن عمارة) + a lone mis-ID «علي بن موسى الرضا»→«متهم ٢٣٦» (a single corrupt entry); the
+  **documented network** has only ~72 truly-junk nodes (0.7% — الثقات bio/muqaddima leak like «عبد الرحمن أبو بكر الصديق شقيق عائشة
+  تأخر إسلامه…», mostly INERT; my earlier «28%» was WRONG — those >6-token nodes are legit nisba chains). **★★ BUT `audit_conflicts`
+  at rijal 19951 (with الثقات) gave DANGEROUS = 7** (was 0 at 15211) — the WORST class (a متروك confidently grading → sinks a sound
+  chain): «محمد بن الزبير»→[متروك]الحنظلي, «عمر بن هارون»→[متروك]البلخي, «خالد بن عمرو»→[كذاب]الأموي, … **Root cause:** الثقات added a
+  ثقة namesake (e.g. «محمد بن الزبير مولى المعيطيين») but it is a COVERAGE entry, so `_prefer_non_coverage` DROPPED it (the grave is
+  تقريب/non-coverage) — and/or `_prefer_prominent` dropped the obscure ثقة — leaving the prolific grave as the SOLE survivor →
+  confident متروك. The existing grave-hold guarded only the CONTAINED branch; these live in the PARTIAL branch. **FIX
+  (`index._keep_trust_over_grave`, applied after the filters in BOTH `_lookup` branches):** if the coverage/prominence filters leave
+  an ALL-grave survivor but the original tied set had a non-grave namesake, add the best non-grave back → HELD (ambiguous,
+  grade_agreed=False, يُتوقَّف), never a confident متروك. Verified in-container: without the guard «محمد بن الزبير» → confident
+  متروك (DANGEROUS); with it → held. +1 test (lookup held + `audit_conflicts.sweep` dangerous==[]), **417 green**. **Effective on the
+  next `audit_conflicts`/`audit_isnad` ALONE (live matcher, no rebuild).** **WAITING ON THE USER: pull + `audit_conflicts`** → expect
+  **DANGEROUS back to 0** (+ a tiny A tick from the 7 now-held names). The «كذاب في صحيح مسلم» class is closed again.
 
 **★★★ (2026-06-12, THIS SESSION). الإصابة MEASURED → S REGRESSION DIAGNOSED + FIXED · الزهري-أخبره parsing
 bug · the parsing-bug HUNTER (6 leak classes fixed). On main, branch `claude/intelligent-bardeen-HAsrg`. 380 tests green.**

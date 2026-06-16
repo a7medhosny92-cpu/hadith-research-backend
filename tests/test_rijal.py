@@ -449,3 +449,22 @@ def test_candidates_cache_is_invalidated_by_set_prominence():
     assert len(idx.candidates("سفيان")) == 2                     # warm the cache
     idx.set_prominence({"سفيان بن سعيد الثوري": 5000, "سفيان بن عيينة": 100})
     assert [c.name for c in idx.candidates("سفيان")] == ["سفيان بن سعيد الثوري"]   # not the stale 2
+
+
+def test_grave_never_shadows_a_trustworthy_namesake_via_filters():
+    """DANGEROUS class: a bare «محمد بن الزبير» must NOT confidently resolve to the prolific متروك
+    (الحنظلي) when a ثقة namesake (مولى المعيطيين, from الثقات/coverage) was equally cited — the
+    coverage drop AND the prominence prior must not be the reason a sound chain is sunk → HELD."""
+    from app.rijal.index import RijalIndex
+    from scripts.audit_conflicts import sweep
+    idx = RijalIndex([
+        {"name": "محمد بن الزبير الحنظلي البصري", "grade": "متروك",
+         "source": "تقريب التهذيب (رقم 8609)"},
+        {"name": "محمد بن الزبير مولى المعيطيين أبو بشر", "grade": "ثقة",
+         "source": "الثقات لمن لم يقع في الكتب الستة (رقم 96165)"},
+    ])
+    idx.set_prominence({"محمد بن الزبير الحنظلي البصري": 500,
+                        "محمد بن الزبير مولى المعيطيين أبو بشر": 5})
+    m = idx.lookup("محمد بن الزبير")
+    assert m.ambiguous and not m.grade_agreed          # held, NOT graded متروك
+    assert sweep(idx)["dangerous"] == []               # the conflict sweep agrees: not dangerous
