@@ -240,6 +240,22 @@ per man, no doublings, accumulating everything (the «الرواة» browse + th
   of duplicating. (5) **clean bio-leak names** in the extractors («وقيل اسمه…», trailing «الصديق»/«أحد العشرة»). (6)
   **re-measure** (audit_duplicates + audit_isnad A) — doublings↓, A↓, «الرواة» clean. The «الرواة» tab is the
   eyeball instrument throughout.
+- **★★ MEASURED (clean run after #176/#177) → ~323 real removable (NOT 1980): نقص قرينة 245 · كنية ~50-76 · ابن 2 ·
+  تلوث الاسم 371 · ambiguous 331 (held).** And the KEY FINDING (verified: all 7 sampled short forms ARE seed entries):
+  **the dominant doubling is SEED↔BUILT** — `load_entries` overlays the curated 92-entry seed (short famous names) on
+  the built `rijal.jsonl` (which has the same men with the full تقريب nasab) and NEVER reconciles them (`collapse_duplicates`
+  runs at BUILD, without the seed). This also explains the grade bug (عمر بن الخطاب seed=صحابي vs built=ثقة — the seed
+  is authoritative for the 92). **USER CHOSE (AskUserQuestion): first fix = SEED↔BASE reconciliation.**
+- **★ STEP 2 DONE — `dedup.reconcile_seed` BUILT + WIRED (this session).** Folds each seed entry into its UNAMBIGUOUS
+  full built form: the fuller built name survives, carrying the seed's AUTHORITATIVE grade (corrects a mis-extracted
+  built verdict — مجهول→ثقة for الحسن البصري) + both opinions, the seed's short name kept as an alias. Handles BOTH
+  ism-led («هشام بن عروة» → ident_key subset + lineage) and كنية/«ابن»-led («أبو سعيد الخدري» → contiguous-run in the
+  right slot via `_run_at`). A seed fitting SEVERAL distinct built men (عمر بن الخطاب + الراسبي/السجستاني) is HELD
+  (`_all_nested` guard → kept separate, لا نختلق). Wired into `load_entries` (seed+built → reconciled) → effective on
+  the next app load / `audit_isnad` / `audit_duplicates` ALONE (no rebuild — it's at LOAD time). +2 tests, **431 green.**
+  **WAITING ON THE USER: pull + re-run `python -m scripts.audit_duplicates`** → expect نقص قرينة/كنية to fall (the
+  seed↔built folded), and the famous-men grades corrected; send the new `duplicates.json`. **NEXT fixes:** (built↔built
+  prefix-extension in collapse_duplicates) · clean bio-leak names (371) · ident_key كنية/ابن-aware for the cross-key residue.
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should

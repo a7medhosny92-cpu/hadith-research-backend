@@ -278,3 +278,101 @@ def collapse_duplicates(
                     drop.add(i)
 
     return [r for i, r in enumerate(records) if i not in drop], len(drop)
+
+
+# ── seed ↔ built reconciliation (the canonical base: one record per famous man) ───────────────────
+# The curated seed (92 famous narrators, short canonical names) is overlaid on the built رجال base at
+# LOAD time — AFTER the build-time collapse_duplicates — so the seed «هشام بن عروة» doubles the built
+# «هشام بن عروة بن الزبير الأسدي». This folds each seed entry into its unambiguous full built form.
+def folded_seq(name: str) -> list[str]:
+    """Folded name tokens in order, «بن/ابن» kept (so the nasab structure stays readable)."""
+    return [t for t in (normalize_for_search(w) for w in (name or "").split()) if t]
+
+
+def _run_at(sub: list[str], full: list[str]) -> int:
+    """Start index where ``sub`` occurs as a contiguous run in ``full``, else -1."""
+    if not sub or len(sub) > len(full):
+        return -1
+    for s in range(len(full) - len(sub) + 1):
+        if full[s:s + len(sub)] == sub:
+            return s
+    return -1
+
+
+def _all_nested(tsets: list[set]) -> bool:
+    """Are these token-sets pairwise nested (one ⊆ the other) — i.e. plausibly ONE man, not several
+    distinct namesakes? Refuses an AMBIGUOUS seed→built fold (عمر بن الخطاب + obscure namesakes)."""
+    for a in range(len(tsets)):
+        for b in range(a + 1, len(tsets)):
+            if not (tsets[a] <= tsets[b] or tsets[b] <= tsets[a]):
+                return False
+    return True
+
+
+def _fold_seed_into(built: dict, seed: dict) -> None:
+    """One canonical record: the fuller BUILT name survives, carrying the SEED's authoritative grade
+    (the curated 92 are hand-verified — this also corrects a mis-extracted built verdict) and both
+    sources' opinions; the seed's short form is kept as an alias so an exact citation still reaches him."""
+    ops = built.setdefault("opinions", _opinions_of(built)[:])
+    have = {o["source"] for o in ops}
+    for op in _opinions_of(seed):
+        if op["source"] not in have:
+            ops.append(op)
+            have.add(op["source"])
+    if seed.get("grade"):
+        built["grade"] = seed["grade"]                  # curated grade wins (عمر الفاروق صحابي, not ثقة)
+        built["source"] = seed.get("source") or built.get("source")
+    for field in ("death_year", "kunya"):
+        if not built.get(field) and seed.get(field):
+            built[field] = seed[field]
+    aliases = built.setdefault("aliases", [])
+    if seed.get("name") and seed["name"] != built["name"] and seed["name"] not in aliases:
+        aliases.append(seed["name"])
+
+
+def reconcile_seed(seed: list[dict], built: list[dict]) -> list[dict]:
+    """Fold each curated SEED entry into its UNAMBIGUOUS full built form — so the canonical base carries
+    ONE record per famous man, not the seed «هشام بن عروة» beside the built «… بن الزبير الأسدي». The
+    fuller built name survives with the seed's authoritative grade + both opinions. A seed that fits
+    SEVERAL distinct built men (عمر بن الخطاب + obscure namesakes) is HELD — kept as its own record,
+    never fused (لا نختلق). Built entries with no seed match pass through unchanged. Both ism-led
+    («هشام بن عروة») and كنية/«ابن»-led («أبو سعيد الخدري») seed forms are placed, each in the right slot."""
+    result = [dict(b) for b in built]
+    btoks = [tokens(b.get("name", "")) for b in result]
+    bseq = [folded_seq(b.get("name", "")) for b in result]
+    posting: dict[str, list[int]] = defaultdict(list)
+    for i, ts in enumerate(btoks):
+        for t in ts:
+            posting[t].append(i)
+
+    for s in seed:
+        stoks = tokens(s.get("name", ""))
+        if len(stoks) < 2:                              # too generic to place safely
+            result.append(dict(s))
+            continue
+        sseq = folded_seq(s.get("name", ""))
+        ibn_led, kunya_led = sseq[0] in _BIN, sseq[0] in _KUNYA_P
+        probe = min(stoks, key=lambda t: len(posting.get(t, ())))
+        matches: list[int] = []
+        for j in posting.get(probe, ()):
+            if not stoks < btoks[j]:                    # the seed must be a proper subset of the full
+                continue
+            if kunya_led or ibn_led:                    # a كنية/«ابن» form → require the right slot
+                sub = sseq[1:] if ibn_led else sseq
+                pos = _run_at(sub, bseq[j])
+                if pos < 0:
+                    continue
+                after_bin = pos > 0 and bseq[j][pos - 1] in _BIN
+                at_tail = pos + len(sub) == len(bseq[j])
+                if ibn_led and not (after_bin or at_tail):    # «ابن X»: X sits in the nasab
+                    continue
+                if kunya_led and after_bin:                   # كنية: the subject's own, not a father
+                    continue
+            elif not (lineage_compatible(s, result[j]) and (stoks & _GEN) == (btoks[j] & _GEN)):
+                continue
+            matches.append(j)
+        if matches and _all_nested([btoks[j] for j in matches]):
+            _fold_seed_into(result[max(matches, key=lambda j: len(btoks[j]))], s)
+        else:
+            result.append(dict(s))                      # no match, or ambiguous → keep the seed
+    return result
