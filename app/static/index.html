@@ -97,6 +97,14 @@
     border-radius:9px;padding:5px 13px;font-size:.88rem;cursor:pointer;font-family:inherit;line-height:1}
   .tool:hover{border-color:var(--accent);background:#f0f7f3}
   .tool.done{color:var(--accent);border-color:var(--accent);background:#eaf5ef}
+  .tool:disabled{opacity:.32;cursor:default;background:var(--card);border-color:var(--line)}
+  .tool:disabled:hover{border-color:var(--line)}
+  .br-letters .tool{min-width:38px;justify-content:center;text-align:center}
+  .br-search{background:var(--card);border:1px solid var(--line);color:var(--ink);
+    border-radius:9px;padding:7px 13px;font-size:.92rem;font-family:inherit;min-width:240px;flex:1;max-width:420px}
+  .br-search:focus{outline:none;border-color:var(--accent)}
+  #brlist .br-pick{cursor:pointer}
+  #brlist .br-pick:hover{background:#f0f7f3}
   .var-toggle{color:var(--gold2);cursor:pointer;font-size:.9rem;display:inline-block;
     margin-top:12px;font-weight:700;user-select:none}
   .var-toggle:hover{text-decoration:underline;color:var(--accent2)}
@@ -234,6 +242,7 @@
     <button data-mode="ask">سؤال</button>
     <button data-mode="takhrij">تخريج</button>
     <button data-mode="narrator">راوٍ</button>
+    <button data-mode="browse">الرواة</button>
     <button data-mode="network">الشبكة</button>
     <button data-mode="isnad">الإسناد</button>
     <button data-mode="notebook">دفتري</button>
@@ -442,10 +451,10 @@
 </svg>
 <figcaption style="text-align:center;color:#666;font-size:.85rem;margin-top:.4rem;line-height:1.6">المسار: الكتب (المصادر) ← البناء (الغراف ⭐) ← التمييز ← النتيجة. الخيطُ الذهبيّ = شبكةُ الرجال (تهذيب الكمال والجرح والتعديل) التي تَحُلّ «المشترك» بالرفقة.</figcaption></figure></div>
 <script>
-const LABELS = {search:"ابحث", ask:"اسأل", takhrij:"خرّج", narrator:"اعرض",
+const LABELS = {search:"ابحث", ask:"اسأل", takhrij:"خرّج", narrator:"اعرض", browse:"اعرض",
   network:"تنقّل", isnad:"حقّق", notebook:"ابحث", method:"اعرض", arch:"اعرض", tech:"اعرض", audit:"اعرض", conflicts:"اعرض", matn:"اعرض"};
 const PLACEHOLDER = {search:"اكتب الحديث أو السؤال…", ask:"اكتب سؤالك…",
-  takhrij:"اكتب متن الحديث…", narrator:"اكتب اسم الراوي…",
+  takhrij:"اكتب متن الحديث…", narrator:"اكتب اسم الراوي…", browse:"",
   network:"اكتب اسم الراوي للتنقّل في شبكته…",
   isnad:"الصق الإسناد… أو رقم حديثٍ مفهرس", notebook:"ابحث في دفترك… (فارغ = الكل)",
   method:"", arch:"", tech:"", audit:"", conflicts:"", matn:""};
@@ -480,8 +489,9 @@ document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
   go.textContent = LABELS[mode];
   q.placeholder = PLACEHOLDER[mode];
   syncEngineUI();
-  // «المنهجية» / «البنية» / «التقنية» / «التدقيق» are reading pages with no query — hide the box.
-  const info = mode === "method" || mode === "arch" || mode === "tech" || mode === "audit" || mode === "conflicts" || mode === "matn";
+  // «المنهجية» / «البنية» / «التقنية» / «التدقيق» / «الرواة» are self-contained pages with no top
+  // query box — they open immediately and carry their own controls.
+  const info = mode === "method" || mode === "arch" || mode === "tech" || mode === "audit" || mode === "conflicts" || mode === "matn" || mode === "browse";
   q.style.display = info ? "none" : "";
   go.style.display = info ? "none" : "";
   if(mode === "notebook" || info){
@@ -731,6 +741,7 @@ async function run(){
   if(mode === "audit"){ renderAudit(); return; }            // isnad audit — cases to review
   if(mode === "matn"){ renderMatnAudit(); return; }         // matn audit — extraction errors to review
   if(mode === "conflicts"){ renderConflicts(); return; }    // rijal grave↔trustworthy collisions
+  if(mode === "browse"){ renderBrowse(); return; }          // browse every narrator (no search)
   if(!query && mode !== "notebook") return;   // notebook lists everything when empty
   results.innerHTML = `<div class="state">… جارٍ التنفيذ</div>`;
   try{
@@ -959,6 +970,106 @@ function renderNarrator(d){
   }
   results.innerHTML = html;
 }
+
+// Browse (الرواة): a navigable index of EVERY graded narrator — pick a letter or a درجة, or type
+// to filter by name, then click a man to open his راوٍ card. Lets the user explore the رجال
+// without searching. Server-paged (/narrators) since the base is ~20k men; «المزيد» appends.
+const browseState = {letter:null, grade:null, q:"", offset:0, limit:60, total:0};
+const AR_LETTERS = "ابتثجحخدذرزسشصضطظعغفقكلمنهوي".split("");
+let _brTimer = null;
+
+async function renderBrowse(){
+  results.innerHTML = `<div class="state">… جارٍ تحميل فهرس الرواة</div>`;
+  browseState.offset = 0;
+  await browseFetch("shell");
+}
+function browseURL(){
+  const p = new URLSearchParams();
+  if(browseState.letter) p.set("letter", browseState.letter);
+  if(browseState.grade)  p.set("grade", browseState.grade);
+  if(browseState.q)      p.set("q", browseState.q);
+  p.set("offset", browseState.offset);
+  p.set("limit", browseState.limit);
+  return `/narrators?${p.toString()}`;
+}
+// kind: "shell" (rebuild controls + first page) · "list" (replace the list, keep controls/focus —
+// for typing) · "more" (append the next page).
+async function browseFetch(kind){
+  let d;
+  try { d = await getJSON(browseURL()); }
+  catch(e){ results.innerHTML = `<div class="state">${esc(e.message || "تعذّر التحميل")}</div>`; return; }
+  browseState.total = d.total;
+  if(kind === "shell") drawBrowseShell(d);
+  if(kind !== "more"){ const l = document.getElementById("brlist"); if(l) l.innerHTML = ""; }
+  appendBrowseRows(d);
+}
+function drawBrowseShell(d){
+  const lc = {}; (d.letters || []).forEach(x => lc[x.letter] = x.count);
+  const lbtn = (ch, label, n, active) =>
+    `<button class="tool br-letter${active ? " done" : ""}" data-letter="${ch}"${n === 0 ? " disabled" : ""}>`
+    + `${esc(label)}${n ? ` <span class="simbadge">${n}</span>` : ""}</button>`;
+  const letters = lbtn("", "الكل", 1, !browseState.letter)
+    + AR_LETTERS.map(ch => lbtn(ch, ch, lc[ch] || 0, browseState.letter === ch)).join("");
+  const gbtn = (g, n, active) =>
+    `<button class="tool br-grade${active ? " done" : ""}" data-grade="${esc(g)}">`
+    + `<span class="grade ${rijalClass(g)}">${esc(g)}</span> <span class="simbadge">${n}</span></button>`;
+  const grades = `<button class="tool br-grade${!browseState.grade ? " done" : ""}" data-grade="">الكل</button>`
+    + (d.grades || []).map(x => gbtn(x.grade, x.count, browseState.grade === x.grade)).join("");
+  results.innerHTML =
+      `<div class="note">فهرسُ الرواة — <b>${d.grand_total}</b> راويًا مُدرَجًا في القاعدة. اختَر حرفًا أو درجةً، أو اكتب اسمًا للتصفية، ثم انقُر اسمًا لعرض بطاقته.</div>`
+    + `<div class="actions br-letters">${letters}</div>`
+    + `<div class="actions br-grades">${grades}</div>`
+    + `<div class="actions"><input id="brq" class="br-search" placeholder="صفِّ بالاسم…" value="${esc(browseState.q)}"></div>`
+    + `<div class="note" id="brcount"></div>`
+    + `<div id="brlist" class="rawi-col"></div>`
+    + `<div id="brmore"></div>`;
+}
+function appendBrowseRows(d){
+  const list = document.getElementById("brlist");
+  if(!list) return;
+  if(browseState.offset === 0 && !d.items.length){
+    list.innerHTML = `<div class="note">لا رواةَ مطابقين لهذه التصفية.</div>`;
+    const m = document.getElementById("brmore"); if(m) m.innerHTML = "";
+    const c = document.getElementById("brcount"); if(c) c.textContent = "";
+    return;
+  }
+  list.insertAdjacentHTML("beforeend", d.items.map(r => {
+    const dy = r.death_year ? ` <span class="r-era">· ت ${r.death_year}هـ</span>` : "";
+    const ku = r.kunya ? ` <span class="r-era">· ${esc(r.kunya)}</span>` : "";
+    const g  = r.grade ? `<span class="grade ${rijalClass(r.grade)}">${esc(r.grade)}</span>` : "";
+    return `<div class="rawi-item br-pick" data-pick="${esc(r.name)}" role="button" tabindex="0">`
+      + `<span>${esc(r.name)}${ku}${dy}</span>${g}</div>`;
+  }).join(""));
+  const shown = browseState.offset + d.items.length;
+  const c = document.getElementById("brcount");
+  if(c) c.textContent = `عُرض ${shown} من ${d.total}`;
+  const m = document.getElementById("brmore");
+  if(m) m.innerHTML = shown < d.total ? `<button class="tool br-more">المزيد (${d.total - shown})</button>` : "";
+}
+// Browse interactions: letter / درجة chips rebuild the shell; «المزيد» appends; a name opens راوٍ.
+results.addEventListener("click", e => {
+  const lt = e.target.closest(".br-letter");
+  if(lt){ if(lt.disabled) return; browseState.letter = lt.getAttribute("data-letter") || null; browseState.offset = 0; browseFetch("shell"); return; }
+  const gr = e.target.closest(".br-grade");
+  if(gr){ browseState.grade = gr.getAttribute("data-grade") || null; browseState.offset = 0; browseFetch("shell"); return; }
+  const mo = e.target.closest(".br-more");
+  if(mo){ browseState.offset += browseState.limit; browseFetch("more"); return; }
+  const pk = e.target.closest(".br-pick");
+  if(pk){
+    q.value = pk.getAttribute("data-pick");
+    document.querySelector('.modes button[data-mode="narrator"]').click();  // open the راوٍ card
+    run();
+  }
+});
+// Type-to-filter (debounced) — replace the list only, so the input keeps focus.
+results.addEventListener("input", e => {
+  const inp = e.target.closest(".br-search");
+  if(!inp) return;
+  browseState.q = inp.value.trim();
+  browseState.offset = 0;
+  clearTimeout(_brTimer);
+  _brTimer = setTimeout(() => browseFetch("list"), 250);
+});
 
 // Network (الشبكة): an interactive, navigable graph of a narrator's place in the
 // isnad web — his شيوخ above (toward the Prophet ﷺ) and تلاميذ below, each node
@@ -1379,7 +1490,7 @@ const ARCHITECTURE = [
   {h:"٦) المحرّك اللغوي (اختياري)", p:[
     "مفتاحٌ بثلاثة أوضاع: «بدون ذكاء اصطناعي» (استخراجيّ، الأأمن)، أو «محلّي» (Ollama)، أو «سحابيّ» (أيّ مزوّد). وهو مُلزَمٌ بالاستشهاد من المصادر المسترجَعة فقط وعدمِ الاختلاق."]},
   {h:"٧) الواجهة", p:[
-    "خادمُ FastAPI (بحث، سؤال، تخريج، تحقيق إسناد، راوٍ، شبكةٌ بيانيّة، دفتر، وألسنةُ المراجعة الذاتية: التدقيق وتدقيق المتون وتعارض الرجال) ونافذةٌ مكتبية بالعربية مع هذه الألسنة."]},
+    "خادمُ FastAPI (بحث، سؤال، تخريج، تحقيق إسناد، راوٍ، الرواة [فهرسٌ قابلٌ للتصفّح بالحرف والدرجة لكلّ الرواة دون بحث]، شبكةٌ بيانيّة، دفتر، وألسنةُ المراجعة الذاتية: التدقيق وتدقيق المتون وتعارض الرجال) ونافذةٌ مكتبية بالعربية مع هذه الألسنة."]},
   {h:"المبدأ الحاكم", p:[
     "يَسترجع ويُوثّق ولا يَختلق؛ ويُميَّز دائمًا المنقولُ (نصُّ المصدر ونسبتُه = موثوق) عن التحليليّ (الفصلُ والمطابقةُ والحكم = اجتهاديٌّ يُراجَع) — كما تُفصّله صفحة «المنهجية»."]},
   {h:"أين يمكن أن يتحسّن", p:[
@@ -1479,7 +1590,8 @@ const TECH = [
     "litellm as a unified interface. Three modes: off (extractive from the sources, the safest), local (Ollama), remote (any provider); selected with ?engine= and ?model=.",
     "In every mode the engine is constrained to rely only on the retrieved sources, to cite, and not to fabricate; the sources are always returned so the answer stays verifiable."]},
   {h:"API — app/routers/", p:[
-    "GET /search?q=&mode=&field=&group=&collection=&grade= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /verify-isnad?isnad=|hadith_id= · GET /audit (isnad review) · GET /conflicts (rijal grave↔trustworthy collisions) · GET /matn-audit (matn review) · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
+    "GET /search?q=&mode=&field=&group=&collection=&grade= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /narrators?letter=&grade=&q=&offset=&limit= (browse the رجال — the «الرواة» tab) · GET /verify-isnad?isnad=|hadith_id= · GET /audit (isnad review) · GET /conflicts (rijal grave↔trustworthy collisions) · GET /matn-audit (matn review) · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
+    "Browse — the «الرواة» tab (GET /narrators, RijalIndex.browse_rows): a paged, letter-and-درجة-faceted index of every graded narrator (each facet's counts respect the other active filters), so the user can scroll the رجال without searching; a click opens that man's راوٍ card. Names are de-duplicated by exact form.",
     "Notebook: GET/POST /notebook and PATCH/DELETE /notebook/{id}. Maintenance: POST /admin/reload (clears the provider caches). Health: GET /health and /health/ingestion."]},
   {h:"Settings — app/config.py (.env)", p:[
     "pydantic-settings. The main ones: data_dir (=data), rijal_path (a larger rijal base), embedding_model/embedding_dim (768); the data file paths are properties derived from data_dir.",

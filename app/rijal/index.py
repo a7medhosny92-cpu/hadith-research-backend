@@ -262,6 +262,24 @@ def _prefer_non_coverage(group: list[RijalEntry]) -> list[RijalEntry]:
     return real if real else group
 
 
+# The Arabic alphabet, in order — for the «تصفّح الرواة» browse index, where each narrator is
+# filed under his name's first significant letter. Hamza forms fold to ا and a leading «ال»
+# (the definite article) is skipped (see ``_browse_letter``), so «إبراهيم» files under ا and
+# «الزهري» under ز, matching how a reader looks a name up.
+_ALPHABET = "ابتثجحخدذرزسشصضطظعغفقكلمنهوي"
+
+
+def _browse_letter(name: str) -> str:
+    """The alphabet letter a narrator's name is filed under (first letter, folded), or «#»."""
+    folded = normalize_for_search(name).strip()
+    if folded.startswith("ال") and len(folded) > 3:   # skip the definite article «ال…»
+        folded = folded[2:]
+    for ch in folded:
+        if ch in _ALPHABET:
+            return ch
+    return "#"
+
+
 class RijalIndex:
     """In-memory narrator lookup (linear; the corpus of named narrators is small)."""
 
@@ -272,6 +290,7 @@ class RijalIndex:
         self._cache: dict[tuple[str, float], "RijalMatch | None"] = {}  # memoise lookups
         self._cand_cache: dict[tuple[str, int | None, bool], list[RijalEntry]] = {}  # memoise candidates
         self._prominence: dict[str, int] = {}          # name → corpus narration frequency (set externally)
+        self._browse: list[dict] | None = None         # cached «تصفّح الرواة» browse rows
         if entries:
             self.add(entries)
 
@@ -364,10 +383,26 @@ class RijalIndex:
             n += 1
         self._cache.clear()        # entries changed → drop memoised lookups
         self._cand_cache.clear()   # …and memoised candidate sets
+        self._browse = None        # …and the browse index
         return n
 
     def count(self) -> int:
         return len(self._entries)
+
+    def browse_rows(self) -> list[dict]:
+        """All narrators as lightweight, alphabetically-sorted rows for the «تصفّح الرواة» index:
+        ``{name, grade, death_year, kunya, letter}``. De-duplicated by exact name (a same-man
+        dedup gap must not double a row) and cached (rebuilt on ``add``). This is the data behind
+        browsing the رجال *without* a search — pick a letter or a درجة and scroll."""
+        if self._browse is None:
+            seen: dict[str, dict] = {}
+            for e in self._entries:
+                if e.name in seen:
+                    continue
+                seen[e.name] = {"name": e.name, "grade": e.category, "death_year": e.death_year,
+                                "kunya": e.kunya, "letter": _browse_letter(e.name)}
+            self._browse = sorted(seen.values(), key=lambda r: normalize_for_search(r["name"]))
+        return self._browse
 
     def lookup(self, name: str, *, min_overlap: float = 0.6) -> RijalMatch | None:
         """Best narrator match, or ``None`` (memoised — the same name recurs across chains)."""

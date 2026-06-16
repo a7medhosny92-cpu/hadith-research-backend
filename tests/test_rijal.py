@@ -495,3 +495,52 @@ def test_single_token_laqab_captured_only_from_a_strong_cue():
     assert "الأعمش" in _aliases("سليمان بن مهران المشهور بالأعمش")          # an ال-nisba still works
     assert _aliases("نفيع بن الحارث أبو داود الأعمى ويقال نافع") == []      # weak cue → no «نافع» alias
     assert _aliases("محمد بن جعفر البزاز أبو جعفر المدائني") == []          # no cue → no spurious alias
+
+
+# ── browse index (تصفّح الرواة) ───────────────────────────────────────────────
+def test_browse_rows_dedups_sorts_and_files_by_letter():
+    """browse_rows lists every narrator once, alphabetically, filed under his first folded letter:
+    hamza folds to ا, a leading «ال» is skipped (الزهري → ز), and an exact-name duplicate (a same-man
+    dedup gap) is collapsed to one row."""
+    from app.parsing.normalize import normalize_for_search
+    from app.rijal.index import RijalIndex, _browse_letter
+    idx = RijalIndex([
+        {"name": "محمد بن إسماعيل البخاري", "grade": "ثقة"},
+        {"name": "إبراهيم بن سعد الزهري", "grade": "ثقة"},
+        {"name": "محمد بن إسماعيل البخاري", "grade": "ثقة"},   # exact duplicate → one row
+        {"name": "عبد الله بن عمر بن الخطاب", "grade": "صحابي"},
+    ])
+    rows = idx.browse_rows()
+    assert [r["name"] for r in rows].count("محمد بن إسماعيل البخاري") == 1            # deduped
+    assert rows == sorted(rows, key=lambda r: normalize_for_search(r["name"]))        # alphabetical
+    assert _browse_letter("إبراهيم بن سعد") == "ا"        # hamza → ا
+    assert _browse_letter("الزهري") == "ز"                # «ال» skipped
+    assert _browse_letter("عبد الله بن عمر") == "ع"
+
+
+def test_narrators_index_endpoint_facets_and_filters():
+    """/narrators browses every graded man with letter + درجة facets that respect the other filters,
+    and pages via offset/limit. Runs over the bundled seed (no rijal.jsonl needed)."""
+    from app.rijal.index import _browse_letter
+    client = TestClient(app)
+    d = client.get("/narrators").json()
+    assert d["grand_total"] > 0 and d["total"] == d["grand_total"]
+    assert len(d["letters"]) == 28                          # the full Arabic alphabet, always
+    assert any(g["grade"] == "صحابي" for g in d["grades"])  # the seed has Companions
+
+    # filter by درجة — every item carries it, and the total never exceeds the whole
+    s = client.get("/narrators", params={"grade": "صحابي", "limit": 200}).json()
+    assert 0 < s["total"] <= d["grand_total"]
+    assert all(i["grade"] == "صحابي" for i in s["items"])
+
+    # filter by letter — every item files under it
+    a = client.get("/narrators", params={"letter": "ع", "limit": 200}).json()
+    assert a["total"] > 0 and all(_browse_letter(i["name"]) == "ع" for i in a["items"])
+
+    # name substring filter
+    sf = client.get("/narrators", params={"q": "سفيان"}).json()
+    assert sf["total"] >= 1 and all("سفيان" in i["name"] for i in sf["items"])
+
+    # paging: a small page returns ≤ limit but reports the full total
+    p = client.get("/narrators", params={"limit": 3}).json()
+    assert len(p["items"]) == 3 and p["total"] == d["grand_total"]
