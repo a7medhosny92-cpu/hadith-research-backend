@@ -141,6 +141,8 @@ def audit(records: list[dict]) -> dict:
                 continue
             if not want_bin and after_bin:                  # كنية: must be the subject's own, not a father
                 continue
+            if _companion_split(records[i], records[j]):    # a صحابي كنية ≠ a تابعي ثقة of that kunya
+                continue
             fulls.append(j)
         if not fulls:
             continue

@@ -178,7 +178,7 @@ verify every **matn** (the new «تدقيق المتون»). **NEW THREAD (2026-
 per man, no doublings, accumulating everything (the «الرواة» browse + the dedup overhaul below).**
 
 **★★ (2026-06-16, THIS SESSION) THE «الرواة» BROWSE TAB shipped + the CANONICAL-BASE / no-doublings thread STARTED
-(measure-first). On main, branch `claude/intelligent-bardeen-HAsrg`, 434 tests green, node --check clean.**
+(measure-first). On main, branch `claude/intelligent-bardeen-HAsrg`, 436 tests green, node --check clean.**
 - **★ «الرواة» BROWSE TAB (shipped, `912987d`):** the user asked to let the user *navigate/scroll ALL narrators
   without searching*. Built `RijalIndex.browse_rows()` (every narrator as a lightweight row {name·grade·death·kunya·
   letter}, de-duped by exact name, cached, invalidated on add; `_browse_letter` files each name under its first FOLDED
@@ -265,10 +265,27 @@ per man, no doublings, accumulating everything (the «الرواة» browse + th
   this guard is the lever that catches the era). The CorpusCompany veto gates it like `same_man`. Mirrored into
   `scripts.audit_duplicates` (the same طبقة guard) so the measurement matches what the build now merges. **NEEDS a
   `build_rijal` to apply** (collapse runs at BUILD time → re-extracts `rijal.jsonl` with the نقص قرينة folded). +3 tests,
-  **434 green.** **WAITING ON THE USER: `build_rijal --no-download` → re-run `audit_duplicates`** → expect نقص قرينة to
-  drop toward 0 (the built↔built folded), the صحابي↔تابعي pairs HELD; send the new `duplicates.json` + a sanity
-  `audit_isnad` (A should tick down a touch as the bare short forms consolidate, W/S flat). **NEXT fixes:** clean bio-leak
-  names (371 تلوث الاسم) · ident_key كنية/ابن-aware for the cross-key residue (~53) · then resolution-on-ingest.
+  **434 green.**
+  **★ MEASURED (user ran `build_rijal --no-download` + `audit_duplicates`, `duplicates.json` via Drive) → BIG WIN:
+  نقص قرينة 188 → 36 (−81%) · removable 243 → 90 · entries 19832 → 19763.** The طبقة guard works (e.g. «طريف … أبو
+  تميمة البصري [ثقة] ↔ أبو تميمة [صحابي]» NOT in نقص قرينة, held). **Residual 36 DIAGNOSED:** all the SAME man — thin
+  COVERAGE forms (الإصابة [صحابي]: زيد بن سهل=أبو طلحة, قيس بن سعد بن عبادة, صهيب الرومي…; الثقات/الكاشف [ثقة/صدوق]:
+  عبد الله بن دينار العدوي, أبو الجوزاء…) duplicating the full تقريب form — but BLOCKED by the **CorpusCompany veto**
+  (reproduced in-container: WITHOUT company they merge). Root = the dedup-before-graph **circularity**: the graph was
+  built from a rijal that still had them split → two nodes with disjoint company → veto blocks the very merge that would
+  let the next graph unify them (STABLE, not self-healing). Also found the audit's **كنية path lacked the طبقة guard**
+  (counted ~10 صحابي↔ثقة false كنية pairs).
+- **★ STEP 4 FOLLOW-UP DONE — veto relaxed for the name-conclusive fold + كنية طبقة guard (this session).** (A) The
+  prefix-extension one-man fold is name-conclusive (one-man + lineage + طبقة), so under the **mix** policy it is **no
+  longer vetoed** — the veto there only re-stranded the coverage doublings via the stale-graph circularity; **strict**
+  still requires `confirms`. (B) `_companion_split` added to `audit_duplicates`'s كنية/ابن path → the صحابي↔تابعي كنية
+  pairs are held (honest count). **The merge KEEPS BOTH opinions** (verified on the user's grade-differing examples:
+  محمد بن سالم [صدوق+مقبول], عمر بن إسحاق [ثقة+مقبول] → one record, primary = تقريب's verdict, both as أقوال الأئمة —
+  the double-opinion, nothing lost; a slight diff is no `_strong_grade_conflict`, a ثقة-vs-متروك clash still holds apart).
+  +2 tests, **436 green.** **NEEDS `build_rijal --no-download` to apply.** **WAITING ON THE USER: rebuild → re-run
+  `audit_duplicates`** → expect نقص قرينة 36 → ~0 (the coverage doublings folded), كنية ~52 → ~42 (the طبقة pairs
+  dropped); send the new `duplicates.json` + a sanity `audit_isnad` (A flat-to-down). **NEXT fixes:** clean bio-leak
+  names (371 تلوث الاسم) · ident_key كنية/ابن-aware for the cross-key residue (~42) · then resolution-on-ingest.
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should

@@ -244,12 +244,16 @@ def collapse_duplicates(
     (nisba/death/kunya evidence) **and** a prudent built↔built *prefix-extension* — a thin short form
     («عبد الله بن قيس») folded into its single fuller man («… أبو موسى الأشعري») when the discriminators
     :func:`same_man` needs are simply absent, held whenever the short fits ≥2 distinct namesakes or
-    crosses the صحابي/non-صحابي طبقة. A :class:`CorpusCompany`, when supplied, gates each name-proposed
-    merge (both paths) against the chain network:
+    crosses the صحابي/non-صحابي طبقة. A :class:`CorpusCompany`, when supplied, gates the merge against
+    the chain network:
 
-    * **mix** (default, ``require_confirm=False``) — the name proposes, the corpus only **vetoes** a
-      merge it positively contradicts (disjoint company); absent men are trusted to the name.
-    * **strict** (``require_confirm=True``) — merge only what the corpus **confirms** (same company).
+    * **mix** (default, ``require_confirm=False``) — for :func:`same_man` the name proposes and the
+      corpus only **vetoes** a merge it positively contradicts (disjoint company); absent men are
+      trusted to the name. The *prefix-extension* one-man fold is name-conclusive (one-man + lineage +
+      طبقة), so under mix it is **not** vetoed — the veto there only re-strands a coverage doubling
+      (الإصابة/الثقات) that a STALE graph happens to cite as two nodes (the dedup-before-graph circularity).
+    * **strict** (``require_confirm=True``) — merge only what the corpus **confirms** (same company),
+      for both paths.
 
     With no company it is name-only. Order is otherwise preserved."""
     groups: dict[tuple[str, ...], list[int]] = defaultdict(list)
@@ -295,11 +299,9 @@ def collapse_duplicates(
             if not (supersets and _all_nested([gtoks[j] for j in supersets])):
                 continue
             for j in supersets:
-                if company is not None:
-                    na, nb = records[i]["name"], records[j]["name"]
-                    ok = company.confirms(na, nb) if require_confirm else not company.vetoes(na, nb)
-                    if not ok:
-                        continue
+                if require_confirm and company is not None \
+                        and not company.confirms(records[i]["name"], records[j]["name"]):
+                    continue          # strict needs corpus confirmation; mix TRUSTS the one-man fold
                 parent[find(i)] = find(j)
 
         clusters: dict[int, list[int]] = defaultdict(list)

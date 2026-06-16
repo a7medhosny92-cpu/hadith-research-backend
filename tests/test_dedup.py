@@ -176,6 +176,25 @@ def test_collapse_holds_a_thin_form_that_fits_two_distinct_men():
     assert removed == 0 and len(kept) == 3
 
 
+def test_collapse_prefix_extension_trusts_the_name_over_a_stale_graph_veto(tmp_path):
+    # The thin⊂single-fuller fold is name-conclusive (one-man + lineage + طبقة), so under the mix policy
+    # it is NOT vetoed even when the STALE graph cites the two as distinct nodes with disjoint company —
+    # the coverage doubling (الإصابة «زيد بن سهل» + the full تقريب «… أبو طلحة») the dedup-before-graph
+    # circularity re-strands. Strict still requires the corpus to confirm.
+    comp = _graph(
+        tmp_path / "g.db",
+        nodes=[(1, "زيد بن سهل", 30), (2, "زيد بن سهل بن الأسود الأنصاري أبو طلحة", 20),
+               (3, "شيخ أول", 5), (4, "شيخ ثان", 5)],
+        links=[(3, 1), (4, 2)],                       # node1 ↔ {3}; node2 ↔ {4}: disjoint company
+    )
+    a = {"name": "زيد بن سهل", "grade": "صحابي", "source": "الإصابة"}
+    b = {"name": "زيد بن سهل بن الأسود بن حرام الأنصاري النجاري أبو طلحة", "grade": "صحابي", "source": "تقريب"}
+    assert not same_man(a, b)                          # only the prefix-extension can fold them
+    assert comp.vetoes(a["name"], b["name"])           # the stale graph positively contradicts it
+    assert collapse_duplicates([a, b], company=comp)[1] == 1                        # mix: name-conclusive → merged
+    assert collapse_duplicates([a, b], company=comp, require_confirm=True)[1] == 0   # strict: needs confirm
+
+
 # ── the read-only duplicate AUDIT (scripts.audit_duplicates) ──────────────────
 def test_audit_duplicates_classifies_the_missed_same_man_clusters():
     """The audit surfaces same-man records the build leaves split, by cause: a كنية-led shadow of a
@@ -249,6 +268,19 @@ def test_audit_duplicates_precision_guards_reject_homonyms_and_buried_fathers():
                {"name": "أم حبيب بنت سعيد بن يربوع", "grade": "صحابي"},
                {"name": "أم حبيب بنت العاص", "grade": "صحابي"}])
     assert r["by_class"]["كنية"]["clusters"] == 0 and r["ambiguous"]["كنية"] == 1
+
+
+def test_audit_duplicates_kunya_path_holds_the_tabaqa_boundary():
+    """A كنية shadow that crosses the صحابي/non-صحابي طبقة is two DIFFERENT men, not a dup: «أبو تميمة»
+    [صحابي] (a Companion in الإصابة) is NOT the تابعي «طريف بن مجالد … أبو تميمة البصري» [ثقة] — held;
+    a same-طبقة كنية shadow («أبو جحيفة» both صحابي) still merges."""
+    from scripts.audit_duplicates import audit
+    r = audit([{"name": "طريف بن مجالد الهجيمي أبو تميمة البصري", "grade": "ثقة"},
+               {"name": "أبو تميمة", "grade": "صحابي"}])
+    assert r["by_class"]["كنية"]["clusters"] == 0
+    r = audit([{"name": "وهب بن عبد الله السوائي أبو جحيفة", "grade": "صحابي"},
+               {"name": "أبو جحيفة", "grade": "صحابي"}])
+    assert r["by_class"]["كنية"]["clusters"] == 1
 
 
 # ── seed ↔ built reconciliation (the canonical base) ──────────────────────────

@@ -343,6 +343,10 @@ different men**.
   generation + no `_strong_grade_conflict`, **held** when it fits ≥2 distinct namesakes (`_all_nested`)
   or crosses the **طبقة boundary** (`_companion_split`: a صحابي and a definite non-صحابي of the same
   name are different men — صحابي vs ثقة is no grade conflict, so this is the lever that catches the era).
+  This fold is name-conclusive, so under **mix** it is **not** subject to the company veto (the veto
+  there only re-strands a coverage doubling the *stale* graph happens to split — the dedup-before-graph
+  circularity); **strict** still requires `confirms`. The survivor keeps **both** critics' opinions, so
+  a slight grade difference (صدوق↔مقبول) is preserved as the double-opinion, not flattened.
 - **Corpus-company gate `CorpusCompany`** (reads the *previous* run's `narrators.db`): the name
   *proposes* a merge, the chain company can *veto* it. Policies: **mix** (default — merge unless the
   graph proves two distinct men with disjoint company; absent men trust the name), **strict**
