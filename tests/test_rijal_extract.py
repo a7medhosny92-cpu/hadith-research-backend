@@ -350,3 +350,18 @@ def test_dabt_orthography_runs_are_stripped_from_the_name():
     assert _trim_name("أحمد بن خالد الخلال بالمعجمة أبو جعفر") == "أحمد بن خالد الخلال أبو جعفر"
     assert _trim_name("محمد بن يوسف العرعري بمهملات الكوفي") == "محمد بن يوسف العرعري الكوفي"
     assert _trim_name("سعيد بن المسيب بالتصغير المخزومي") == "سعيد بن المسيب المخزومي"
+
+
+def test_trim_name_strips_note_and_alternate_tails():
+    """Step 6 — bio/alternate tails that polluted the رجال name (تلوث الاسم): «اسمه/واسمه» (real-name
+    note), «يكنى» (kunya note), «المتكلم/المنشأ» (a bio descriptor) and «(و)يقال:/(و)قيل:» (an alternate
+    name with a colon) are cut — while a mid-name «ويقال ابن X» alternate nasab, and a clean name, are kept."""
+    assert _trim_name("صهيب بن سنان النمري الرومي المنشأ سبته الروم") == "صهيب بن سنان النمري الرومي"
+    assert _trim_name("زيد بن خارجة الخزرجي المتكلم بعد الموت زمن عثمان") == "زيد بن خارجة الخزرجي"
+    assert _trim_name("أجلح بن عبد الله بن حجية يكنى أبا حجية اسمه يحيى") == "أجلح بن عبد الله بن حجية"
+    assert _trim_name("الأحنف بن قيس السعدي أبو بحر اسمه الضحاك") == "الأحنف بن قيس السعدي أبو بحر"
+    assert _trim_name("قتادة بن ملحان ويقال: قتادة بن منهال أبو المنهال") == "قتادة بن ملحان"
+    assert _trim_name("إبراهيم بن محمد التيمي أبو إسحاق المدني وقيل: الكوفي") == "إبراهيم بن محمد التيمي أبو إسحاق المدني"
+    # NON-regression: a mid-name «ويقال ابن X» alternate nasab is stripped but the name runs on; clean names intact
+    assert _trim_name("عمرو بن عبد الله ويقال ابن علي الهمداني أبو إسحاق السبيعي") == "عمرو بن عبد الله الهمداني أبو إسحاق السبيعي"
+    assert _trim_name("مالك بن أنس الأصبحي") == "مالك بن أنس الأصبحي"
