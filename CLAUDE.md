@@ -174,7 +174,55 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
 
 ## Current work — KEEP UPDATED
 **Focus:** cut wrong isnad verdicts in «التدقيق» by identifying the narrator from the chain — AND now also
-verify every **matn** (the new «تدقيق المتون»).
+verify every **matn** (the new «تدقيق المتون»). **NEW THREAD (2026-06-16): a CANONICAL narrator base — one record
+per man, no doublings, accumulating everything (the «الرواة» browse + the dedup overhaul below).**
+
+**★★ (2026-06-16, THIS SESSION) THE «الرواة» BROWSE TAB shipped + the CANONICAL-BASE / no-doublings thread STARTED
+(measure-first). On main, branch `claude/intelligent-bardeen-HAsrg`, 428 tests green, node --check clean.**
+- **★ «الرواة» BROWSE TAB (shipped, `912987d`):** the user asked to let the user *navigate/scroll ALL narrators
+  without searching*. Built `RijalIndex.browse_rows()` (every narrator as a lightweight row {name·grade·death·kunya·
+  letter}, de-duped by exact name, cached, invalidated on add; `_browse_letter` files each name under its first FOLDED
+  letter — hamza→ا, a leading «ال» skipped → الزهري under ز) + `GET /narrators?letter=&grade=&q=&offset=&limit=`
+  (`app/routers/narrators.py`, paged, with letter + درجة FACETS whose counts respect the other active filters) + the
+  **«الرواة» tab** in index.html (data-mode="browse", an `info` page: letter chips + درجة chips + type-to-filter
+  «brq» + «المزيد» paging; a name → `.br-pick` opens his راوٍ card via the narrator tab). +2 tests, docs (التقنية
+  endpoint+tab, البنية الواجهة list). NB the UI is served at **`/app`** (not `/`).
+- **★★ THE DOUBLINGS / CANONICAL-BASE DIRECTIVE (user, the core of this thread):** «ogni volta che aggiungiamo un
+  libro … dobbiamo subito capire chi sono — se li abbiamo già, se vanno collegati (stesso uomo, più info) — una base
+  solida senza doppioni; sapere tutto sui narratori». = **entity resolution on ingest**: each incoming record links to
+  an existing canonical man (ENRICH) or is genuinely new (ADD), never fuse two / split one; the canonical record
+  accumulates all forms·كنية·نسب/لقب·وفاة·طبقة·a grade PER source (opinions)·أقوال الأئمة·شيوخ/تلاميذ·the sources that
+  cite him. **USER CHOSE (AskUserQuestion): Option A = REBUILD-TIME canonical (NO persistent IDs — identity emerges
+  deterministically from the canonicalization, fits rijal.jsonl-rebuilt-each-update; B = persistent-ID master was the
+  heavier alt, declined) + MEASURE FIRST.**
+- **★ DIAGNOSIS (reproduced in-container) — why doublings survive today.** The dedup engine (`app/rijal/dedup.py`:
+  `ident_key`=ism+father → group; `same_man`=lineage-compat + nisba/death/كنية; `CorpusCompany`=graph oracle;
+  `collapse_duplicates` runs in build_rijal AFTER merge, BEFORE graph) has **3 concrete gaps**: (1) **`ident_key` is
+  كنية/«ابن»-BLIND** — «أبو بكر الصديق» keys `(ابو,بكر,الصديق)` but «عبد الله بن عثمان أبو بكر الصديق» keys
+  `(عبد,الله,عثمان)` → never grouped → never compared (→ the أبو بكر/أبو موسى/ابن X doublings); (2) **`same_man`
+  CAN'T CONFIRM a thin short form** — «عبد الله بن عباس» (تقريب, no nisba) vs «… بن عبد المطلب الهاشمي» (الإصابة, no
+  death) → nisba one-sided, death one-sided, كنية absent → False (→ the تقريب-vs-الإصابة صحابي doubling); (3) the
+  **`CorpusCompany` network only GATES/vetoes a same_man=True proposal — it can't RESCUE** a merge same_man rejected,
+  so our strongest evidence (the شيوخ/تلاميذ company) is underused. Plus the **ADD path** (الإصابة/الثقات/لسان,
+  `merge_source fill_gaps=False`) decides by a containment `lookup` that fails on كنية-led/variant/bio-leak forms →
+  **adds the doubling first**, which (1)/(2) then can't recover.
+- **★ STEP 1 DONE — `scripts.audit_duplicates` BUILT (read-only, `8dfa51f`), the measure-first instrument.** Surfaces
+  the same-man clusters the build leaves split, CLASSIFIED: **كنية** (كنية-led ⊂ a fuller ism-led name, different
+  ident_key) · **ابن** («ابن أبي X» ⊂ the full «… بن أبي X …») · **نقص قرينة** (same ident_key, `same_man`=False yet
+  lineage-compat + no gen/grade conflict + name-extends-or-shares-category) · **تلوث الاسم** (a bio tail in the NAME,
+  reported separately). Guards: a short form fitting SEVERAL distinct men = **ambiguous** (honest homonymy, NEVER a
+  proposed merge); rarest-token probe keeps it fast on 20k; distinct men (سفيان عيينة/الثوري) never cluster. Writes
+  `data/duplicates.json` + a printed per-class summary (clusters · ~removable). +1 test (each class + the guards).
+  **WAITING ON THE USER: `python -m scripts.audit_duplicates`** (on the real rijal.jsonl) → send the printed counts +
+  `data/duplicates.json` → we'll see the size/shape of each class on the real ~20k.
+- **★ THE PLAN (sequenced, one change at a time, after the measure):** (2) **`ident_key` identity-aware** — كنية-led
+  & «ابن X» forms group with their full ism-led name (anchor by كنية+nisba and the curated `companions.py`
+  MAJOR_COMPANIONS). (3) **`same_man` POSITIVE-evidence** — let the **CorpusCompany** (`confirms`) OR a curated-anchor
+  identity CONFIRM a merge the name-discriminators can't see (still prudent: ambiguous → held, «لا نختلق»). (4)
+  **resolution ON INGEST** — a coverage source about to ADD runs the SAME resolution → ENRICH the existing man instead
+  of duplicating. (5) **clean bio-leak names** in the extractors («وقيل اسمه…», trailing «الصديق»/«أحد العشرة»). (6)
+  **re-measure** (audit_duplicates + audit_isnad A) — doublings↓, A↓, «الرواة» clean. The «الرواة» tab is the
+  eyeball instrument throughout.
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
