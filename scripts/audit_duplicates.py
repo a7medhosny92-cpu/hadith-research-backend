@@ -143,8 +143,8 @@ def audit(records: list[dict]) -> dict:
             fulls.append(j)
         if not fulls:
             continue
-        if len({keys[j] for j in fulls}) > 1:          # the short form fits SEVERAL men → homonymy
-            ambiguous[cls] += 1
+        if not _one_man(fulls, toks):                  # the short form fits SEVERAL distinct men…
+            ambiguous[cls] += 1                         # …(أم حبيب بنت ثمامة/سعيد/…) → homonymy, held
             continue
         if _strong_grade_conflict(records[i], records[fulls[0]]):
             continue                                   # a ثقة-vs-متروك clash → not blindly one man

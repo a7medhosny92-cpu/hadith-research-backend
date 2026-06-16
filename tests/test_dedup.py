@@ -206,3 +206,11 @@ def test_audit_duplicates_precision_guards_reject_homonyms_and_buried_fathers():
     r = audit([{"name": "أبو سعيد الخدري", "grade": "صحابي"},
                {"name": "سعد بن مالك بن سنان بن عبيد الأنصاري أبو سعيد الخدري", "grade": "صحابي"}])
     assert r["by_class"]["كنية"]["clusters"] == 1
+
+    # a bare كنية fitting MANY distinct «بنت X» women is held — the ident_key fallback truncates to 3
+    # tokens and would collapse them, so the guard compares the full forms (_one_man), not the key
+    r = audit([{"name": "أم حبيب", "grade": "صحابي"},
+               {"name": "أم حبيب بنت ثمامة", "grade": "صحابي"},
+               {"name": "أم حبيب بنت سعيد بن يربوع", "grade": "صحابي"},
+               {"name": "أم حبيب بنت العاص", "grade": "صحابي"}])
+    assert r["by_class"]["كنية"]["clusters"] == 0 and r["ambiguous"]["كنية"] == 1
