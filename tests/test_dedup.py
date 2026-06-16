@@ -214,3 +214,43 @@ def test_audit_duplicates_precision_guards_reject_homonyms_and_buried_fathers():
                {"name": "أم حبيب بنت سعيد بن يربوع", "grade": "صحابي"},
                {"name": "أم حبيب بنت العاص", "grade": "صحابي"}])
     assert r["by_class"]["كنية"]["clusters"] == 0 and r["ambiguous"]["كنية"] == 1
+
+
+# ── seed ↔ built reconciliation (the canonical base) ──────────────────────────
+def test_reconcile_seed_folds_unique_match_holds_ambiguous_and_grade_wins():
+    """The curated seed is overlaid on the built base at load → seed «هشام بن عروة» doubles the built
+    «هشام بن عروة بن الزبير الأسدي». reconcile_seed folds each seed entry into its UNAMBIGUOUS full
+    built form (the fuller name survives, the seed's authoritative grade wins, the short name becomes
+    an alias); a كنية-led seed («أبو سعيد الخدري») is placed too; a seed fitting SEVERAL distinct men
+    (عمر بن الخطاب + obscure namesakes) is HELD, never fused."""
+    from app.rijal.dedup import reconcile_seed
+    seed = [
+        {"name": "هشام بن عروة", "grade": "ثقة", "source": "seed"},
+        {"name": "عمر بن الخطاب", "grade": "صحابي", "source": "seed"},
+        {"name": "أبو سعيد الخدري", "grade": "صحابي", "source": "seed"},
+        {"name": "الحسن البصري", "grade": "ثقة", "source": "seed"},
+    ]
+    built = [
+        {"name": "هشام بن عروة بن الزبير بن العوام الأسدي", "grade": "ثقة", "source": "تقريب"},
+        {"name": "عمر بن الخطاب بن نفيل العدوي", "grade": "ثقة", "source": "تقريب"},     # the Caliph
+        {"name": "عمر بن الخطاب الراسبي البصري", "grade": "مقبول", "source": "تقريب"},   # a namesake
+        {"name": "سعد بن مالك بن سنان الأنصاري أبو سعيد الخدري", "grade": "صحابي", "source": "تقريب"},
+        {"name": "الحسن بن أبي الحسن يسار البصري", "grade": "مجهول", "source": "تقريب"},  # mis-graded
+    ]
+    out = reconcile_seed(seed, built)
+    names = [r["name"] for r in out]
+    assert len(out) == 6                                   # 5 built + the held عمر seed
+    assert "هشام بن عروة" not in names                     # unique → folded into the full form
+    hisham = next(r for r in out if r["name"].startswith("هشام بن عروة بن الزبير"))
+    assert "هشام بن عروة" in (hisham.get("aliases") or [])
+    assert "أبو سعيد الخدري" not in names                  # كنية-led → folded into the ism-led full
+    assert "عمر بن الخطاب" in names                        # two distinct namesakes → HELD
+    hasan = next(r for r in out if r["name"].startswith("الحسن بن أبي الحسن"))
+    assert hasan["grade"] == "ثقة"                         # the seed's grade corrected the built مجهول
+
+
+def test_reconcile_seed_passes_through_when_no_built_base():
+    """No built file → the seed is returned unchanged (each entry kept, no spurious fold)."""
+    from app.rijal.dedup import reconcile_seed
+    seed = [{"name": "مالك بن أنس الأصبحي", "grade": "ثقة"}, {"name": "نافع مولى ابن عمر", "grade": "ثقة"}]
+    assert [r["name"] for r in reconcile_seed(seed, [])] == [s["name"] for s in seed]

@@ -565,10 +565,13 @@ def load_seed() -> list[dict]:
 
 
 def load_entries(extra_path: str | None = None) -> list[dict]:
-    """Seed entries, plus a full رجال JSONL when ``extra_path`` is given."""
-    entries = load_seed()
+    """Seed entries, plus a full رجال JSONL when ``extra_path`` is given — with the seed RECONCILED
+    into the built base (one canonical record per famous man, not the seed «هشام بن عروة» beside the
+    built «هشام بن عروة بن الزبير الأسدي»; see :func:`app.rijal.dedup.reconcile_seed`)."""
+    from app.rijal.dedup import reconcile_seed
+    seed = load_seed()
     if extra_path:
         path = Path(extra_path)
         if path.exists():
-            entries.extend(_read_jsonl(path))
-    return entries
+            return reconcile_seed(seed, list(_read_jsonl(path)))
+    return seed
