@@ -484,12 +484,14 @@ def test_candidates_display_shows_all_homonyms_not_the_prolific_few():
     assert len(idx.candidates("عبد الله", apply_prominence=False)) == 2    # display: all of them
 
 
-def test_single_token_laqab_captured_as_alias():
-    """A famous one-word laqab «غندر/مسدد/عارم» (from «المعروف بـ» / «يقال له») is captured as an
-    alias so a chain or a تهذيب tarjama that names the man by it links to one person — the lever for
-    غندر (= محمد بن جعفر صاحب شعبة), whose narrations were mis-attributed for want of this unification."""
+def test_single_token_laqab_captured_only_from_a_strong_cue():
+    """A famous one-word laqab «غندر/بندار» from a STRONG cue («المعروف/الملقب بـ») is captured as an
+    alias (the lever for غندر = محمد بن جعفر صاحب شعبة, mis-attributed for want of this unification). But
+    a WEAK alternate-name cue («ويقال/يقال له») must NOT yield a one-word alias — «ويقال نافع» for the
+    متروك نفيع بن الحارث would shadow the famous نافع مولى ابن عمر."""
     from app.parsing.rijal_extract import _aliases
     assert "غندر" in _aliases("محمد بن جعفر الهذلي البصري المعروف بغندر سمع شعبة")
-    assert "مسدد" in _aliases("مسدد بن مسرهد الأسدي يقال له مسدد")
-    assert "الأعمش" in _aliases("سليمان بن مهران المشهور بالأعمش")   # an ال-nisba still works
-    assert _aliases("محمد بن جعفر البزاز أبو جعفر المدائني") == []    # no cue → no spurious alias
+    assert "بندار" in _aliases("محمد بن بشار الملقب ببندار حافظ")
+    assert "الأعمش" in _aliases("سليمان بن مهران المشهور بالأعمش")          # an ال-nisba still works
+    assert _aliases("نفيع بن الحارث أبو داود الأعمى ويقال نافع") == []      # weak cue → no «نافع» alias
+    assert _aliases("محمد بن جعفر البزاز أبو جعفر المدائني") == []          # no cue → no spurious alias

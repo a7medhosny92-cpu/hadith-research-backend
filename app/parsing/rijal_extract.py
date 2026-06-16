@@ -290,6 +290,10 @@ def _aliases(body: str) -> list[str]:
     so we never invent a spurious alias (e.g. «المشهور بشر» yields nothing)."""
     out: list[str] = []
     for cue in _ALIAS_CUE.finditer(body):
+        # a STRONG laqab cue («المعروف/المشهور/يعرف/الملقب/يلقب/لقبه بـ») licenses a one-word alias
+        # «غندر/بندار/مسدد»; a WEAK alternate-name cue («يقال له / ويقال») does NOT — it gives a spelling
+        # variant of a common ism («ويقال نافع» for نفيع بن الحارث) that would shadow a famous narrator.
+        strong = not cue.group(0).lstrip().startswith(("يقال", "ويقال"))
         words: list[str] = []
         for raw in body[cue.end():].split():
             tok = raw.strip("،.؛:؟»«()[]\"'")
@@ -300,9 +304,10 @@ def _aliases(body: str) -> list[str]:
             if len(words) >= 3:
                 break
         alias = _WS.sub(" ", " ".join(words)).strip(" -،")
-        # a single-token laqab is kept when distinctive (≥4 chars) — «غندر»، «بندار»، «عارم»، «مسدد» —
-        # not only a nisba «الأعمش»; the explicit cue + the generic-name filter below keep out noise.
-        name_like = len(alias.split()) >= 2 or len(alias) >= 4
+        # a single-token laqab is kept when distinctive (≥4 chars) AND from a STRONG cue — «غندر»، «مسدد»
+        # — not only a nisba «الأعمش»; a one-word alternate name from a weak «يقال» cue is dropped.
+        name_like = (len(alias.split()) >= 2 or (alias.startswith("ال") and len(alias) >= 4)
+                     or (strong and len(alias) >= 4))
         generic = {normalize_for_search(t) for t in alias.split()} - {"بن", "ابن", ""} <= _GENERIC_NAME
         if name_like and not generic and 3 <= len(alias) <= 40 and not any(c.isdigit() for c in alias):
             out.append(alias)

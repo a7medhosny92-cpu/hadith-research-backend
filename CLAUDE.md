@@ -297,6 +297,19 @@ name consistency) + the ابن جريج shuhra-by-ancestor matching.
   network attaches → غندر enters شعبة's company → canon/prominence resolve «محمد بن جعفر عن شعبة» → غندر, his freq consolidates).
   **WAITING ON THE USER:** rebuild → re-check `frequencies()` for غندر (should jump) + `audit_isnad` (محمد بن جعفر A should fall).
   Caveat: البزاز may still compete in شعبة's company → if so, a prominence/طبقة tie-break is the follow-up.
+  **★★ MEASURED (user ran build_rijal+build_graph at the laqab fix) → THE LAQAB WORKED for غندر BUT #172 caused a نافع
+  REGRESSION → FIXED (#174, strong/weak cue).** From the Drive `audit.json`/`documented_network.json`/`frequencies`: ✅
+  **البزاز crashed 2415 → 490** (mis-attribution gone — غندر's chains no longer dumped on البزاز, the «راوٍ»/canon fix) and
+  **محمد بن جعفر A 2161 → 1887 (−274)** (the laqab resolved ~274 to غندر via the canon company; the documented network STILL
+  lacks غندر in شعبة's 161 تلاميذ — the win came from canon, not the resolver). **BUT overall A 55694 → 57155 (+1461)** because
+  **نافع jumped <600 → 2113** and **ابن عمر 2143 → 2765**. ROOT (نافع): my #172 single-token alias relaxation captured a SPURIOUS
+  «نافع» alias for the متروك «نفيع بن الحارث» (from «ويقال نافع» — a spelling variant), shadowing the famous «نافع مولى ابن عمر»
+  → نافع held «مشترك». The regression OUTWEIGHED the غندر win. **FIX (`rijal_extract._aliases`):** a one-word alias is licensed
+  ONLY by a STRONG laqab cue («المعروف/المشهور/يعرف/الملقب/يلقب/لقبه بـ»), NOT a WEAK alternate-name cue («يقال له/ويقال») — the
+  latter gives common-ism variants. Verified: غندر/بندار/الأعمش kept, «ويقال نافع» dropped. +test updated, **425 green**. **NEEDS
+  `build_rijal --no-download` (re-extract aliases — NO build_graph, the audit lookup is live) → `audit_isnad`**: expect نافع to
+  fall back, محمد بن جعفر to stay ~1887 (the غندر win KEPT, its cue is the strong «المعروف بغندر»), A back toward/below 55694.
+  (ابن عمر +622 = the separate «ابن X» eponym/سالم class, a دedup/rebuild side-effect, not #172 — a later look.)
 - **★ لسان الميزان EXTRACTOR (`app/parsing/lisan_extract.py`) — the «B» coverage source (the user sampled the format via Drive).**
   لسان الميزان (ابن حجر, ت أبي غدة, **36357**) = the WEAK/criticised men OUTSIDE the Six Books → a COVERAGE source for their
   **network** (the resolver lever) + verdicts. Format = thiqat (name from the «N - رمز - Name» HEADING; the body «N - [مصادر المحقق]
