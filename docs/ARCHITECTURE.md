@@ -337,6 +337,12 @@ different men**.
   ancestor) → no generation-marker conflict (الكبير/حفيد) → not disjoint nisba → **shared nisba ⇒
   same man unless `_strong_grade_conflict`** (one trusted, one weak — refuse) → else confirm by
   death-year (±20) or identical kunya, else **False**.
+- **Prefix-extension «نقص قرينة» (built↔built, step 4):** the thin short form a chain cites carries
+  none of the discriminators `same_man` needs (no nisba/death/kunya), so it stays split. `collapse`
+  also folds such a short form into its **single** fuller man when lineage-compatible + same
+  generation + no `_strong_grade_conflict`, **held** when it fits ≥2 distinct namesakes (`_all_nested`)
+  or crosses the **طبقة boundary** (`_companion_split`: a صحابي and a definite non-صحابي of the same
+  name are different men — صحابي vs ثقة is no grade conflict, so this is the lever that catches the era).
 - **Corpus-company gate `CorpusCompany`** (reads the *previous* run's `narrators.db`): the name
   *proposes* a merge, the chain company can *veto* it. Policies: **mix** (default — merge unless the
   graph proves two distinct men with disjoint company; absent men trust the name), **strict**

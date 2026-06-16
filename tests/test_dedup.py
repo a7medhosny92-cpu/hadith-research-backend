@@ -141,6 +141,41 @@ def test_corpus_company_absent_man_is_trusted_to_the_name(tmp_path):
     assert collapse_duplicates([a, b], company=comp, require_confirm=True)[1] == 0  # strict: not
 
 
+# ── built↔built prefix-extension («نقص قرينة», step 4) ────────────────────────
+def test_collapse_merges_thin_prefix_extension_when_same_man_cannot_confirm():
+    """A thin short form with NO nisba/death/kunya — the discriminators :func:`same_man` needs — is
+    folded into its SINGLE fuller built man. same_man returns False (can't confirm); collapse now does."""
+    a = {"name": "عبد الله بن قيس", "grade": "صحابي", "source": "الإصابة"}                # thin
+    b = {"name": "عبد الله بن قيس بن سليم أبو موسى الأشعري", "grade": "صحابي", "source": "تقريب"}
+    assert not same_man(a, b)                                      # no shared nisba/death/kunya
+    kept, removed = collapse_duplicates([a, b])
+    assert removed == 1 and len(kept) == 1
+    assert kept[0]["name"] == b["name"]                            # the fuller name survives
+    assert {o["source"] for o in kept[0]["opinions"]} == {"الإصابة", "تقريب"}
+
+
+def test_collapse_holds_a_companion_across_the_tabaqa_boundary():
+    """The طبقة guard: a صحابي thin form is NOT folded into a graded non-صحابي fuller namesake — a
+    Companion and a later تابعي of the same name are different men (صحابي vs ثقة is no grade conflict,
+    so only the طبقة guard catches it)."""
+    a = {"name": "محمد بن عبد الله", "grade": "صحابي", "source": "الإصابة"}
+    b = {"name": "محمد بن عبد الله بن عمرو الأنصاري الكوفي", "grade": "ثقة", "source": "تقريب"}
+    kept, removed = collapse_duplicates([a, b])
+    assert removed == 0 and len(kept) == 2
+
+
+def test_collapse_holds_a_thin_form_that_fits_two_distinct_men():
+    """A thin form sitting under TWO distinct fuller namesakes (disjoint grandfather/nisba) is honest
+    homonymy → held, never fused (fusing would wrongly link the two distinct men)."""
+    records = [
+        {"name": "محمد بن عبد الله", "grade": "ثقة"},
+        {"name": "محمد بن عبد الله بن نمير الهمداني الكوفي", "grade": "ثقة"},
+        {"name": "محمد بن عبد الله بن المثنى الأنصاري البصري", "grade": "ثقة"},
+    ]
+    kept, removed = collapse_duplicates(records)
+    assert removed == 0 and len(kept) == 3
+
+
 # ── the read-only duplicate AUDIT (scripts.audit_duplicates) ──────────────────
 def test_audit_duplicates_classifies_the_missed_same_man_clusters():
     """The audit surfaces same-man records the build leaves split, by cause: a كنية-led shadow of a
