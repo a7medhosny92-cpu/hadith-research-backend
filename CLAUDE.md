@@ -320,6 +320,11 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
   free-text bios — the long tail.
   **★ MEASURED (user pulled + rebuilt) → تلوث الاسم 371 → 73 (−80%)** ✓. Also نقص قرينة held at 2 (the seed edge),
   كنية 83 (step-5 target). The residual 73 = the long tail above (measure after step 5's rebuild too).
+  **★ STEP 6 PART 2 (this session) — the 73 long tail:** added `_NAME_CUT` += «أو» (alternate كنية/nasab «… أو
+  أبو حفص») · «مختلف» (في صحبته) · «وقد» (ينسب إلى جده) · «هي» (امرأة), and a «وال»-prefixed ضبط form to `_DABT`
+  («والمهملة»). Verified the cuts + NON-regression: a name that merely STARTS with «أو» (أوس بن عبد الله) is kept
+  whole (word-boundary). +1 test, **441 green**. **NEEDS a `build_rijal`** → تلوث 73 should fall further (residual =
+  free-text bios / single-token women names — the genuine floor).
 - **★ STEP 5 DONE — كنية/«ابن» SHADOW fold wired into `collapse_duplicates` (this session).** The ~83 «كنية» are
   COVERAGE Companions «أبو X» (أبو أسيد الساعدي, أبو حميد, أبو جحيفة… from الإصابة) whose كنية-led form has a DIFFERENT
   `ident_key` from the full ism-led تقريب name «مالك بن ربيعة … أبو أسيد الساعدي», so the ident_key-grouped passes never

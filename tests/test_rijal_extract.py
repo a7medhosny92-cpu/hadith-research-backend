@@ -365,3 +365,16 @@ def test_trim_name_strips_note_and_alternate_tails():
     # NON-regression: a mid-name «ويقال ابن X» alternate nasab is stripped but the name runs on; clean names intact
     assert _trim_name("عمرو بن عبد الله ويقال ابن علي الهمداني أبو إسحاق السبيعي") == "عمرو بن عبد الله الهمداني أبو إسحاق السبيعي"
     assert _trim_name("مالك بن أنس الأصبحي") == "مالك بن أنس الأصبحي"
+
+
+def test_trim_name_strips_alternate_disputed_and_dabt_tails():
+    """Step 6 (cont.) — the long-tail تلوث: «أو» (an alternate kunya/nasab «… أو أبو حفص»), «مختلف في
+    صحبته», «وقد ينسب إلى جده», «هي امرأة», and a «وال»-prefixed ضبط «والمهملة» are cut — while a name that
+    merely STARTS with «أو» (أوس) is untouched."""
+    assert _trim_name("حبيش بن شريح الحبشي أبو حفصة أو أبو حفص الشامي") == "حبيش بن شريح الحبشي أبو حفصة"
+    assert _trim_name("سبرة بن معبد أو ابن عوسجة أبو الربيع") == "سبرة بن معبد"
+    assert _trim_name("مخارق بن سليم الشيباني أبو قابوس مختلف في صحبته") == "مخارق بن سليم الشيباني أبو قابوس"
+    assert _trim_name("كعب بن عمرو الأنصاري أبو اليسر والمهملة") == "كعب بن عمرو الأنصاري أبو اليسر"
+    assert _trim_name("مجيبة ثم أبو مجيبة الباهلي هي امرأة") == "مجيبة ثم أبو مجيبة الباهلي"
+    # non-regression: a name that merely STARTS with «أو» (أوس) is kept whole
+    assert _trim_name("أوس بن عبد الله الربعي أبو الجوزاء") == "أوس بن عبد الله الربعي أبو الجوزاء"
