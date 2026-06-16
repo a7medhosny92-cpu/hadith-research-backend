@@ -255,7 +255,23 @@ def collapse_duplicates(
     * **strict** (``require_confirm=True``) — merge only what the corpus **confirms** (same company),
       for both paths.
 
-    With no company it is name-only. Order is otherwise preserved."""
+    With no company it is name-only. Iterated to a FIXPOINT: a :func:`same_man` merge can remove a
+    namesake that was making a thin form's supersets non-nested, freeing a prefix-extension fold the
+    first pass had to hold — so we re-run until a pass removes nothing. Order is otherwise preserved."""
+    total = 0
+    while True:
+        records, removed = _collapse_once(records, window=window, company=company,
+                                          require_confirm=require_confirm)
+        total += removed
+        if not removed:
+            return records, total
+
+
+def _collapse_once(
+    records: list[dict], *, window: int,
+    company: "CorpusCompany | None", require_confirm: bool,
+) -> tuple[list[dict], int]:
+    """One pass of :func:`collapse_duplicates` (which iterates this to a fixpoint)."""
     groups: dict[tuple[str, ...], list[int]] = defaultdict(list)
     for i, rec in enumerate(records):
         groups[ident_key(rec.get("name", ""))].append(i)
