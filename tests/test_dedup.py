@@ -139,3 +139,35 @@ def test_corpus_company_absent_man_is_trusted_to_the_name(tmp_path):
     assert not comp.vetoes(a["name"], b["name"])
     assert collapse_duplicates([a, b], company=comp)[1] == 1                       # mix: merged
     assert collapse_duplicates([a, b], company=comp, require_confirm=True)[1] == 0  # strict: not
+
+
+# ── the read-only duplicate AUDIT (scripts.audit_duplicates) ──────────────────
+def test_audit_duplicates_classifies_the_missed_same_man_clusters():
+    """The audit surfaces same-man records the build leaves split, by cause: a كنية-led shadow of a
+    full name, an «ابن أبي X» shadow, and a thin-discriminator pair sharing an ident_key — while a
+    كنية shared by TWO different men is «ambiguous» (homonymy, not a dup) and distinct men never
+    merge. (The measurement instrument for the canonical-base work; it proposes, never edits.)"""
+    from scripts.audit_duplicates import audit
+    res = audit([
+        {"name": "أبو بكر الصديق", "grade": "صحابي"},                         # كنية shadow…
+        {"name": "عبد الله بن عثمان أبو بكر الصديق", "grade": "صحابي"},        # …of this full name
+        {"name": "ابن أبي مليكة", "grade": "ثقة"},                            # ابن shadow…
+        {"name": "عبد الله بن عبيد الله بن أبي مليكة", "grade": "ثقة"},        # …of this
+        {"name": "عبد الله بن قيس", "grade": "صحابي"},                        # نقص قرينة (short)…
+        {"name": "عبد الله بن قيس أبو موسى الأشعري", "grade": "صحابي"},        # …same ident_key, longer
+        {"name": "نصر بن عمران أبو حمزة الضبعي", "grade": "ثقة"},              # a shared كنية across…
+        {"name": "محمد بن ميمون أبو حمزة الضبعي", "grade": "صدوق"},           # …two men → ambiguous
+        {"name": "أبو حمزة الضبعي", "grade": "ثقة"},                          # the bare shared كنية
+        {"name": "سفيان بن عيينة", "grade": "ثقة"},                           # distinct men —
+        {"name": "سفيان بن سعيد الثوري", "grade": "ثقة"},                     # must NOT merge
+        {"name": "عبد الرحمن بن عوف أحد العشرة المبشرين", "grade": "صحابي"},   # bio leaked into name
+    ])
+    bc = res["by_class"]
+    assert bc["كنية"]["clusters"] == 1 and bc["كنية"]["removable"] == 1
+    assert bc["ابن"]["clusters"] == 1
+    assert bc["نقص قرينة"]["clusters"] == 1
+    assert res["ambiguous"]["كنية"] == 1                 # «أبو حمزة الضبعي» fits two men → not a dup
+    assert res["name_pollution"]["count"] == 1           # the bio-tail name
+    # the two سفيان never appear in any proposed cluster
+    flat = [c["name"] for d in bc.values() for cl in d["examples"] for c in cl]
+    assert "سفيان بن عيينة" not in flat and "سفيان بن سعيد الثوري" not in flat
