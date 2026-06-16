@@ -297,6 +297,19 @@ name consistency) + the ابن جريج shuhra-by-ancestor matching.
   network attaches → غندر enters شعبة's company → canon/prominence resolve «محمد بن جعفر عن شعبة» → غندر, his freq consolidates).
   **WAITING ON THE USER:** rebuild → re-check `frequencies()` for غندر (should jump) + `audit_isnad` (محمد بن جعفر A should fall).
   Caveat: البزاز may still compete in شعبة's company → if so, a prominence/طبقة tie-break is the follow-up.
+- **★ لسان الميزان EXTRACTOR (`app/parsing/lisan_extract.py`) — the «B» coverage source (the user sampled the format via Drive).**
+  لسان الميزان (ابن حجر, ت أبي غدة, **36357**) = the WEAK/criticised men OUTSIDE the Six Books → a COVERAGE source for their
+  **network** (the resolver lever) + verdicts. Format = thiqat (name from the «N - رمز - Name» HEADING; the body «N - [مصادر المحقق]
+  … روى عن … وعنه …» has no ism+father) + jarh (network/verdicts). Two لسان specifics: the heading رمز «ز»(=زيادات ابن حجر)/«ذ»
+  between number and name is STRIPPED (`_HEAD` optional `[ء-ي] -`); تلاميذ are the abbreviated «**وعنه** …» not jarh's «روى عنه»
+  (`_TAL = رو[ىي] عنه|وعنه`); and it does NOT grade by inclusion (لسان = الضعفاء, keeps men ابن حجر DEFENDS too) → grade = the cited
+  جرح else **«غير معروف»** (added for the network, not a guessed grade). Reuses thiqat's `_clean_name`/`_SIGNAL` + jarh's
+  `_SHU`/`_block_between`/`_names`/`_verdicts` + `extract_appraisals`. Wired ADD-ONLY (`merge_source fill_gaps=False`) in `build_rijal`
+  + the `merge_appraisals` `_PROSE` loop + `_ensure_downloaded`; network into `build_graph._NETWORK_SOURCES`; already in
+  `RIJAL_PROSE_BOOKS` (parse skips it). +4 tests, **425 green**, node --check clean. Docs: المنهجية «أين يتحسّن» (لسان integrated) +
+  التقنية build_rijal/build_graph. **WAITING ON THE USER:** `build_rijal --no-download` → «merged لسان الميزان: +N men» + an
+  `audit_isnad` (watch A/W — more network should resolve more, more weak-men coverage). **CAVEAT:** the heading→body map is by NUMBER,
+  so the «ذ -» (no-number) رمز-only entries are skipped (minor); grade «غير معروف» fills the network but not «مجهول» counts.
 
 **★★★ (2026-06-12, THIS SESSION). الإصابة MEASURED → S REGRESSION DIAGNOSED + FIXED · الزهري-أخبره parsing
 bug · the parsing-bug HUNTER (6 leak classes fixed). On main, branch `claude/intelligent-bardeen-HAsrg`. 380 tests green.**
