@@ -213,8 +213,25 @@ per man, no doublings, accumulating everything (the «الرواة» browse + th
   reported separately). Guards: a short form fitting SEVERAL distinct men = **ambiguous** (honest homonymy, NEVER a
   proposed merge); rarest-token probe keeps it fast on 20k; distinct men (سفيان عيينة/الثوري) never cluster. Writes
   `data/duplicates.json` + a printed per-class summary (clusters · ~removable). +1 test (each class + the guards).
-  **WAITING ON THE USER: `python -m scripts.audit_duplicates`** (on the real rijal.jsonl) → send the printed counts +
-  `data/duplicates.json` → we'll see the size/shape of each class on the real ~20k.
+  **★ MEASURED (user ran it, 19,891 رجال, `duplicates.json` via Drive) → the detector OVER-MERGED → PRECISION FIX
+  (#176, `2ec4f49`).** Raw headline was «~1980 removable» but DECOMPOSING `data/duplicates.json` showed it INFLATED:
+  «نقص قرينة» (980 cl / 1849) fused ~18 DISTINCT «محمد بن إبراهيم بن X» into one cluster (and إسحاق بن إبراهيم incl.
+  ابن راهويه, محمد بن إسماعيل incl. البخاري, الحسن البصري+الكوفي+القردوسي, عمر بن الخطاب the Caliph+الراسبي+السجستاني)
+  — my `cats[i]==cats[j]` (same درجة) branch merged every same-ism+father man sharing a grade; and «كنية» (109 cl)
+  matched BURIED FATHERS via a bare token-subset (جنادة + أبو أمية + أبو كبير fused: «أبو X» ⊂ «… بن أبي X …» because
+  the full also carried its OWN kunya «أبو عبد الله»). **FIXED:** نقص قرينة drops the same-grade branch + merges a short
+  form only into LONGER forms that are all ONE man (pairwise nested → `_one_man`); a bare form under two distinct
+  namesakes (أنس الأنصاري vs القشيري) is HELD. كنية/ابن now require a CONTIGUOUS RUN in the right slot (a كنية NOT
+  after بن = the subject's own; an «ابن X» after بن = a nasab ancestor) via `_run_at`. +1 precision test (the
+  false-positives rejected, true prefix-extension/own-kunya tail kept), **429 green.** The raw ~1980 is NOT the real
+  number → **WAITING ON THE USER: re-pull + re-run `python -m scripts.audit_duplicates`** → send the new
+  `duplicates.json` for the HONEST per-class counts.
+  **★ DATA-QUALITY classes the run also surfaced (real, to attack at fix-time):** (a) **SEED↔BUILT doublings** — the
+  curated seed «أبو سعيد الخدري»/«الحسن البصري»/«عمر بن الخطاب» duplicates the built full entry (a high-value, safe merge
+  class once unambiguous); (b) **grade disagreements inside one man** — عمر بن الخطاب seed=صحابي but the تقريب full
+  =ثقة(!), سعيد بن المسيب ثقة vs غير معروف → a grade-EXTRACTION bug (a bio-leaked entry losing its verdict), not just a
+  dedup gap; (c) **تلوث الاسم = 371** entries with a bio tail in the name (the cleanup target, and the thing that was
+  feeding the كنية false positives).
 - **★ THE PLAN (sequenced, one change at a time, after the measure):** (2) **`ident_key` identity-aware** — كنية-led
   & «ابن X» forms group with their full ism-led name (anchor by كنية+nisba and the curated `companions.py`
   MAJOR_COMPANIONS). (3) **`same_man` POSITIVE-evidence** — let the **CorpusCompany** (`confirms`) OR a curated-anchor
