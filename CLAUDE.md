@@ -155,7 +155,7 @@ Depth docs (NOT auto-loaded — open when relevant):
   +endpoints /conflicts·/matn-audit, +build_rijal_llm/audit_matn/audit_conflicts, +the new split strategies).
 - **No model id / assistant identity** in commits, PRs, code, or any pushed artifact.
 - Commit/PR trailer: use the CURRENT session's trailer (the harness supplies it); latest was
-  `https://claude.ai/code/session_01Q4Em93bJfdgE2TVT3yeeXr`.
+  `https://claude.ai/code/session_01XwBKkzgwN6aE2z3dBUJpcC`.
 - Don't open PRs unless asked — except the approved merge-to-main of our own fixes.
 
 ## The rijal matching model (so I don't re-derive it)
@@ -173,12 +173,24 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
-**Focus:** cut wrong isnad verdicts in «التدقيق» by identifying the narrator from the chain — AND now also
-verify every **matn** (the new «تدقيق المتون»). **NEW THREAD (2026-06-16): a CANONICAL narrator base — one record
-per man, no doublings, accumulating everything (the «الرواة» browse + the dedup overhaul below).**
+**Focus (CURRENT, 2026-06-16): a CANONICAL narrator base — one record per man, NO doublings, accumulating
+EVERYTHING (the user's «base solida senza doppioni; sapere tutto sui narratori»).** Steps 1-4 DONE (الرواة browse ·
+audit_duplicates · reconcile_seed · built↔built prefix-extension, نقص قرينة 188→36) + أقوال الأئمة now carry the BOOK
+and combine across all prose books. **NEXT: step 6 (clean 371 تلوث الاسم) → step 5 (ident_key كنية/ابن-aware) → step 7
+(resolution-on-ingest); details in the dated session entry below.** Prior focus (still standing): cut wrong isnad
+verdicts in «التدقيق» by identifying the narrator from the chain, and verify every **matn** («تدقيق المتون»).
 
-**★★ (2026-06-16, THIS SESSION) THE «الرواة» BROWSE TAB shipped + the CANONICAL-BASE / no-doublings thread STARTED
-(measure-first). On main, branch `claude/intelligent-bardeen-HAsrg`, 436 tests green, node --check clean.**
+**★★ (2026-06-16, THIS SESSION) THE «الرواة» BROWSE TAB + the CANONICAL-BASE / no-doublings thread (steps 1-4 DONE)
++ أقوال الأئمة enriched (book tag, combined across books). On main, branch `claude/intelligent-bardeen-HAsrg`, 437 tests
+green, node --check clean. SESSION ARC (consolidated): (1) shipped the «الرواة» browse tab; (2) the user's CANONICAL-BASE
+directive «base solida senza doppioni; sapere tutto sui narratori»; (3) `audit_duplicates` measure-first instrument
+(+precision fixes); (4) `reconcile_seed` (seed↔built); (5) STEP 4 built↔built prefix-extension + the `_companion_split`
+طبقة guard + veto relaxed for the name-conclusive fold → MEASURED نقص قرينة 188→36, removable 243→90; (6) أقوال الأئمة:
+each verdict now tagged with the reporting BOOK and the dossier COMBINED across all prose books (deduped by critic). PRs
+#175-#182 squash-merged. **WAITING ON THE USER: `build_rijal --no-download` → نقص قرينة 36→~0 + the «راوٍ» cards fill with
+the book-tagged combined أقوال الأئمة; send `duplicates.json` + a card. NEXT CODE: step 6 (clean 371 تلوث الاسم) → step 5
+(ident_key كنية/ابن-aware, ~42) → step 7 (resolution-on-ingest).** Also produced an all-Arabic RTL explainer diagram (the
+PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp/make_diagram_ar.py`, not committed).**
 - **★ «الرواة» BROWSE TAB (shipped, `912987d`):** the user asked to let the user *navigate/scroll ALL narrators
   without searching*. Built `RijalIndex.browse_rows()` (every narrator as a lightweight row {name·grade·death·kunya·
   letter}, de-duped by exact name, cached, invalidated on add; `_browse_letter` files each name under its first FOLDED
