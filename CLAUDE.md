@@ -524,6 +524,21 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
   +2 tests, **460 green**. **WAITING ON THE USER: `build_rijal --no-download` (for علي الرضا) then `audit_isnad`** → expect
   W→~679 (علي الرضا) + S a touch lower (الحسن بن الحسن, if his صحابي was anchor-derived). Still pending: the غندر probe + the
   find_book for A.3 (the user hasn't pasted those yet).
+  **★ MEASURED + A.1/A.3 PROBED (2026-06-17, user rebuilt + ran `audit_isnad` + `probe_name` + `find_book`).** audit:
+  **W 680→674 (−6, علي الرضا relational-strip worked ✓), A 45118→44939, S 413→425 (+12)** — the +12 S is the POSITIONAL
+  anchor (#205) being stricter on the تابعي→ثقة override than the old set-subset (a few تابعون whose entry structure
+  doesn't match ism+father-leading lost their correction); net session S 458→425 still better. **Worth a re-decompose if it
+  matters; minor.** **★ A.1 غندر VERDICT = MOSTLY FLOOR.** Probe: `غندر` (laqab) → resolves UNIQUE to غندر ثقة ✓ (the laqab
+  fix's recoverable win); `محمد بن جعفر` (bare) → **7 real men** (غندر ثقة · البزاز لين · الوركاني/ابن الزبير/ابن أبي كثير
+  ثقة · الفيدي مقبول · السمناني ثقة) = genuine homonymy («محمد بن جعفر عن شعبة = غندر» is a CONTEXT rule the documented
+  network can't supply — it stores شعبة's student as bare «محمد بن جعفر»). **NOT chased** (②b like سفيان). The probe also
+  re-surfaced the **bare-«صحابي»-SHADOW class** (`lookup("محمد بن جعفر")`/`("عبد الملك")`/`("قيس بن أبي حازم")` each hit a
+  bare-ism صحابي entry NOT in `candidates` — a lookup-vs-candidates discrepancy: inert in chains (candidates resolves the
+  real men), but junk + likely part of the +12 S). **★ A.3 SOURCE CHOSEN: سير أعلام النبلاء (id 10906, ط الرسالة)** — the
+  comprehensive late-narrator source (covers الأصم & the post-Six-Books شيوخ, with «روى عن … وعنه …» network); lighter
+  alt = تذكرة الحفاظ (id 1583, حفاظ-only). **WAITING ON THE USER: list `data/raw/turath/books` (what's already downloaded)
+  → pick the A.3 source (already-present if possible) → I sample its format + write the extractor.** find_book ids also
+  found: تاريخ بغداد ت بشار 736 · تاريخ الإسلام ت بشار 35100 · تذكرة الحفاظ للذهبي 1583.
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
