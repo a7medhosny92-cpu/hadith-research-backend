@@ -463,7 +463,11 @@ implicit ones («رواه البخاري» → that imam graded it صحيح, bas
 الشيخين», basis `شرط`), each tied to a scholar + death-year and sorted by طبقة. **"Double opinion"**
 has two realisations: text-level **divergence** (`collect_rulings` keeps conflicting verdicts;
 `has_divergence` flags it) and narrator-level `RijalEntry.opinions` (`[{source, grade}]`, e.g. ابن
-حجر vs الذهبي) — populated and displayed, not yet adjudicated (ROADMAP item 2). `extract_illal`
+حجر vs الذهبي) — populated, displayed, **and now ADJUDICATED in the isnad verdict (ROADMAP item 2):**
+`isnad._effective_rank` grades a مختلف فيه narrator by his **weakest opinion** (أنزل القولين), so a man
+called ثقة by one critic and ضعيف by another drags the chain down, not up; `_chain_assessment` returns
+the `disputed` list and `analyze_isnad` adds a «اختُلف فيه … أُخذ بأنزل القولين» note, while `RijalMatch.to_dict`
+carries a `disputed` flag and the card shows «⚠ اختلفوا». `extract_illal`
 pulls stated defects (إرسال/وقف/تفرّد/شذوذ…).
 
 ### The rest

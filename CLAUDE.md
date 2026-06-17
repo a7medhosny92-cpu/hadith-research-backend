@@ -188,6 +188,15 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★ (2026-06-17) ROADMAP #2 «الرأي الثاني» (double-opinion) ADJUDICATED — DONE.** The critics' opinions
+(`RijalEntry.opinions`, تقريب/الكاشف…) were already kept + shown (the «⚠ اختلفوا» badge); now the isnad VERDICT
+adjudicates: `isnad._effective_rank` grades a مختلف فيه narrator by his **weakest opinion** (أنزل القولين عند
+الاختلاف) so he drags the chain DOWN not up; `_chain_assessment` returns a `disputed` list; `analyze_isnad` adds a
+«اختُلف فيه … أُخذ بأنزل القولين» note; `RijalMatch.to_dict` carries a `disputed` flag. A man with one opinion (the
+common case) is unchanged → existing tests unaffected. +1 test (`test_double_opinion.py`), **463 green** (5 PRE-EXISTING
+`test_turath_client` failures are the container's httpx version — `InvalidURL` on a mock port — NOT our code; CI's pinned
+httpx passes). Docs: ROADMAP #2→DONE, ARCHITECTURE §6, التقنية. **NEXT in the user's «1+2+3»: #7 (علّة/شذوذ structural) → الطبقات.**
+
 **★ (2026-06-17) NEW «الكتب» LIBRARY-NAVIGATOR TAB (user: «navigare tra i libri e vedere gli argomenti»).** A
 structural browser over the corpus — collections → their كتب/أبواب → the hadiths under each — beside «الرواة»
 (which browses narrators). Backend: `HadithIndex.collections()/chapters(book_id)/chapter_hadiths(book_id, chapter,

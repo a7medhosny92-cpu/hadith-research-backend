@@ -301,6 +301,9 @@ class RijalMatch:
             "alternatives": self.alternatives,
             "opinions": self.entry.opinions,
             "appraisals": self.entry.appraisals,
+            # مختلف فيه: the critics' opinions (تقريب/الكاشف…) span ≥2 distinct grades — surfaced on the
+            # card and counted conservatively in the isnad verdict (the weakest opinion).
+            "disputed": len({o.get("grade") for o in (self.entry.opinions or []) if o.get("grade")}) >= 2,
         }
 
 

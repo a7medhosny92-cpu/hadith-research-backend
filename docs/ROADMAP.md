@@ -68,12 +68,11 @@ Nothing else is trustworthy without these. Small, fast, no models.
 ## Phase 1 — Quick wins (high value, data already in hand)
 1. **Order-aware name matching (RIJ).** *Status: **DONE** (`_order_ok` + leading-run containment).*
    «يزيد بن جابر» ≠ «جابر بن يزيد»; shared tokens must appear in the same relative order.
-2. **«Double opinion» rijal (الرأي الثاني).** We already extract Ibn Ḥajar (تقريب) **and**
-   al-Dhahabī (الكاشف). Instead of merging to one verdict, **keep both** and, when they
-   differ, show «ثقة عند ابن حجر · صدوق عند الذهبي» in the narrator & isnad cards. Needs a
-   per-narrator *list* of (source, verdict) rather than a single grade; the isnad verdict
-   takes the *weakest among the agreed*, and flags divergence. *Effort: medium.*
-   *Validate:* spot-check known mukhtalaf-fīhi narrators.
+2. **«Double opinion» rijal (الرأي الثاني).** *Status: **DONE**.* Both critics' verdicts are kept
+   (`RijalEntry.opinions`) and shown («ثقة عند ابن حجر · صدوق عند الذهبي», the «⚠ اختلفوا» badge),
+   and the isnad verdict now **adjudicates**: `isnad._effective_rank` grades a مختلف فيه narrator by
+   his **weakest opinion** (أنزل القولين), `_chain_assessment` returns the `disputed` list, and
+   `analyze_isnad` adds a «اختُلف فيه … أُخذ بأنزل القولين» note. (`test_double_opinion.py`.)
 3. **علل extraction (الحكم بالعلّة).** Treat the علل literature (cat-9: علل الدارقطني, علل
    ابن أبي حاتم — already in scope) like the أحكام: extract *stated* defects for a report
    (وقفه فلان، أعلّه فلان، الصواب إرساله…) and surface them on the hadith. This is the
@@ -115,7 +114,7 @@ Nothing else is trustworthy without these. Small, fast, no models.
 | # | Improvement | Value | Effort | Phase |
 |---|---|---|---|---|
 | 1 | Order-aware name matching | med | **low** | 1 |
-| 2 | Double-opinion rijal | **high** | med | 1 |
+| 2 | Double-opinion rijal **(DONE)** | **high** | med | 1 |
 | 3 | علل extraction (stated) | **high** | med | 1 |
 | 4 | Fine-tuned embedding (التخريج pairs) | **high** | med | 2 |
 | 5 | Reranker | med | med | 2 |
