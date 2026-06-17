@@ -546,18 +546,20 @@ def test_narrators_index_endpoint_facets_and_filters():
     assert len(p["items"]) == 3 and p["total"] == d["grand_total"]
 
 
-def test_lookup_folds_the_definite_article_but_not_the_divine_names():
-    """A chain cites a name with or without «ال» — «ليث»/«الليث», «أسود»/«الأسود» — so the matcher folds a
-    leading definite article (query AND entry alike, recovering the «الـ»-variant coverage misses). The
-    divine names «الله»/«الرحمن» are NEVER folded, so «عبد الله»/«عبد الرحمن» don't collapse to a bare «عبد»
-    that would match every عبد."""
+def test_lookup_definite_article_variant_is_recovered_but_not_broadened():
+    """An entry «الليث» gets an «ال»-stripped matching FORM so a chain citing «ليث» finds it (the «الـ»
+    coverage miss) — but the query is NOT folded, so a citation that KEEPS the article stays the specific
+    man: «الحسن» resolves to الحسن البصري ALONE, it does NOT collapse into the «حسن» pool (which had a
+    grave «حسن بن عمارة» and was inflating «مشترك»/W). A bare «حسن» is still honestly ambiguous. The divine
+    names are never touched, so «عبد الله» doesn't collapse to a bare «عبد»."""
     idx = RijalIndex([
         {"name": "الليث بن سعد بن عبد الرحمن الفهمي", "grade": "ثقة"},
-        {"name": "الأسود بن عامر شاذان", "grade": "ثقة"},
+        {"name": "الحسن البصري", "grade": "ثقة"},
+        {"name": "حسن بن عمارة", "grade": "متروك"},                # a DIFFERENT, grave حسن
         {"name": "عبد الله بن المبارك", "grade": "ثقة"},
-        {"name": "عبد الرحمن بن مهدي", "grade": "ثقة"},
     ])
-    assert idx.lookup("ليث بن سعد").entry.name.startswith("الليث بن سعد")       # «ال» folded → match
-    assert idx.lookup("أسود بن عامر").entry.name.startswith("الأسود")
+    assert idx.lookup("ليث بن سعد").entry.name.startswith("الليث بن سعد")   # «ليث» recovers «الليث»
+    h = idx.lookup("الحسن")
+    assert h.entry.name == "الحسن البصري" and not h.ambiguous              # «الحسن» stays SPECIFIC, not broadened
+    assert idx.lookup("حسن").ambiguous                                     # bare «حسن» honestly ambiguous
     assert idx.lookup("عبد الله بن المبارك").entry.name == "عبد الله بن المبارك"   # الله kept whole
-    assert idx.lookup("عبد الرحمن بن مهدي").entry.name == "عبد الرحمن بن مهدي"     # الرحمن kept whole

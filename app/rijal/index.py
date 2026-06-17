@@ -47,14 +47,20 @@ _NON_IDENTIFYING = {normalize_for_search(w) for w in (
 ).split()}
 
 # A chain cites a name with or without its definite article — «ليث»/«الليث», «حسن»/«الحسن», «أسود»/
-# «الأسود». Fold a leading «ال» so they match, but NEVER the divine names («عبد الله»/«عبد الرحمن» —
-# stripping «الله»→«له» would collapse «عبد الله» to a bare «عبد» that matches every عبد), and only when
-# a real ≥3-char stem survives (so a short «الـ» form isn't mangled). Applied to query AND entry alike.
+# «الأسود». We recover this WITHOUT broadening: an entry «الليث …» also gets an «ال»-stripped matching
+# FORM «ليث …» (so a bare «ليث» finds it), but the query is NOT folded — a citation that KEEPS the
+# article («الحسن») stays the specific man and does not collapse into the «حسن» pool (which is what
+# inflated «مشترك»). Never the divine names («عبد الله»/«عبد الرحمن»), and only a ≥3-char stem.
 _AL_KEEP = {normalize_for_search(w) for w in ("الله", "الرحمن", "الرحيم", "اللهم", "الإله")}
 
 
-def _strip_al(t: str) -> str:
-    return t[2:] if t.startswith("ال") and len(t) >= 5 and t not in _AL_KEEP else t
+def _al_variant(seq: list[str]) -> list[str] | None:
+    """The token sequence with «ال» stripped from the LEADING ism (an extra matching form so «ليث» finds
+    «الليث»), or ``None`` when the lead carries no foldable article. Only the leading token — a citation
+    drops the article on the ism, nisbas keep theirs — never a divine name, ≥3-char stem."""
+    if seq and seq[0].startswith("ال") and len(seq[0]) >= 5 and seq[0] not in _AL_KEEP:
+        return [seq[0][2:], *seq[1:]]
+    return None
 
 
 def _clean_seq(name: str) -> list[str]:
@@ -64,13 +70,12 @@ def _clean_seq(name: str) -> list[str]:
     every معاذ بن فلان and make a famous narrator «مشترك» among twenty men.
 
     Kunya cases are unified (أبو/أبا/أبي → أبو) before «بن» is dropped, so «أبي موسى»
-    matches «أبو موسى»; «أبي بن …» stays أُبَيّ (a name, not a kunya). A leading «ال» is folded
-    (`_strip_al`) so «ليث» matches «الليث»."""
+    matches «أبو موسى»; «أبي بن …» stays أُبَيّ (a name, not a kunya). (The «ال» variant is a separate
+    per-entry matching form, see `_al_variant`, not a fold here.)"""
     text = _HONORIFIC_PHRASE.sub(" ", _HONORIFIC_CH.sub(" ", name or ""))
     seen: set[str] = set()
     out: list[str] = []
     for t in fold_kunya(normalize_for_search(text).split()):
-        t = _strip_al(t)
         if t and t not in _STOP and (t not in seen or out[-1] == t):
             seen.add(t)
             out.append(t)
@@ -382,6 +387,7 @@ class RijalIndex:
             name_ism = next(iter(_clean_seq(entry.name)), None)
             aliases = [a for a in entry.aliases if not _is_flipped_alias(a, name_ism)]
             forms = [s for s in (_clean_seq(f) for f in (entry.name, *aliases)) if s]
+            forms += [av for s in list(forms) if (av := _al_variant(s))]   # «الليث» also matchable as «ليث»
             kunya_field = _clean_seq(entry.kunya) if entry.kunya else None
             reverse_only: list[list[str]] = []
             seen_ro: set[tuple[str, ...]] = set()
