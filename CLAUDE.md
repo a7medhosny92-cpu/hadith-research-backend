@@ -186,8 +186,13 @@ EVERYTHING (the user's «base solida senza doppioni; sapere tutto sui narratori�
 shadow + step ① DEEP-LINEAGE نسب merge, تقريب↔الكاشف doublings). أقوال الأئمة carry the BOOK and combine across all
 books. **★ MEASURED 2026-06-17 → DIRECTIVE CLOSED: removable ~243 → ~1, entries ≈19,619 → 19,566 (~53 collapsed),
 نسب/كنية/ابن all 0. Step 7 (resolution-on-ingest) ASSESSED = REDUNDANT (Option A's rebuild-time collapse already does
-it; coverage confident-matches are correctly dropped — see the dated entry). NEXT = GAIN levers (غندر · ابن جريج ·
-late-narrator source · dirty-node cleanup) + a graph rebuild → audit_isnad/audit_conflicts to confirm no wrong fusion.**
+it; coverage confident-matches are correctly dropped). ★★ FULL `update.bat` REBUILD MEASURED 2026-06-17 (graph rebuilt
+from the clean rijal): A 55694→46839 (−16%, −8855) · S 489→458 (better) · W 621→681 (+60, benign) · DANGEROUS 0 (the
+deep-lineage merge fused NO distinct men — the safety check we wanted) · matn settled (V475·I372·G269·Q138·empty295).
+The A drop = dedup collapse + deep-lineage + the dirty-node `analyze_isnad` fix (which needed build_graph) + a fresh
+graph, all landing together. NEXT = GAIN levers (غندر · ابن جريج · late-narrator source); verify the W +60 (likely the
+benign A→W reclassification — cleaner ID resolving a few ambiguous positions onto a specific full-named متروك; DANGEROUS
+0 rules out the grave-shadow class) by decomposing the new audit.json.**
 Prior focus (still standing):
 cut wrong isnad verdicts in «التدقيق» by identifying the narrator from the chain, and verify every **matn** («تدقيق المتون»).
 
@@ -435,9 +440,19 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
   «scarta intatto» is correct; building step 7 would INTRODUCE errors, not remove doublings. **The canonical base is
   architecturally complete.** **NEXT levers are GAIN, not dedup:** غندر/محمد بن جعفر name-granularity shadow · ابن جريج
   shuhra-by-ancestor · a late-narrators source (post-Six-Books شيوخ, الأصم 1242×) · the `عبد`/`اللفظ له` dirty-node
-  cleanup (needs build_graph) · تلوث الاسم 72 (step-6 long tail). Pick AFTER the update.bat numbers (measure first).
-  Also a graph rebuild + `audit_isnad`/`audit_conflicts` to confirm the deep-lineage merge fused no distinct men
-  (DANGEROUS should stay 0).
+  cleanup (needs build_graph) · تلوث الاسم 72 (step-6 long tail).
+  **★★ FULL `update.bat` MEASURED (user ran it 2026-06-17, 84,783 chains · rijal 19,597 · مهمل 26,423 · شبكة موثّقة yes)
+  → THE DEDUP ARC PAID OFF BIG + DANGEROUS 0.** vs the last `audit_isnad` (A 55694 · S 489 · W 621): **A 55694 → 46839
+  (−8855, −16%) · S 489 → 458 (better) · W 621 → 681 (+60) · `audit_conflicts` DANGEROUS 0 (held 82 · ok 12) · matn
+  `audit_matn` IDENTICAL (V475·I372·G269·Q138·empty295).** The big A drop is the whole batch of rebuild-gated fixes
+  landing at once: the `collapse_duplicates` doubling-collapse (every fused doubling removes a «مشترك»), the deep-lineage
+  نسب merge, **and** the `analyze_isnad` dirty-node fix (`عبد`/`اللفظ له`/truncation/editorial, which «NEEDS build_graph»)
+  — plus the graph rebuilt from the CLEAN rijal → cleaner `canon._pick` company. **DANGEROUS 0 is the key safety
+  confirmation** (the deep-lineage merge fused no distinct men into a grade conflict — `_strong_grade_conflict`/
+  `_companion_split` held). **The W +60 is to verify** (likely the benign A→W reclassification: cleaner identification
+  resolves some ambiguous positions onto a specific full-named متروك → W is a review queue, not errors; DANGEROUS 0 already
+  rules out the grave-shadow class). **WAITING ON THE USER: send `audit.json`** → I decompose the new W (vs the old list,
+  confirm benign) + the residual-A top (is سفيان/محمد بن جعفر/ابن جريج still the floor?) → then pick the next GAIN lever.
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
