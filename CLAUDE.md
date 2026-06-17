@@ -180,12 +180,13 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
-**Focus (CURRENT, 2026-06-16): a CANONICAL narrator base — one record per man, NO doublings, accumulating
-EVERYTHING (the user's «base solida senza doppioni; sapere tutto sui narratori»).** Steps 1-4 DONE (الرواة browse ·
-audit_duplicates · reconcile_seed · built↔built prefix-extension, نقص قرينة 188→36) + أقوال الأئمة now carry the BOOK
-and combine across all prose books. **NEXT: step 6 (clean 371 تلوث الاسم) → step 5 (ident_key كنية/ابن-aware) → step 7
-(resolution-on-ingest); details in the dated session entry below.** Prior focus (still standing): cut wrong isnad
-verdicts in «التدقيق» by identifying the narrator from the chain, and verify every **matn** («تدقيق المتون»).
+**Focus (CURRENT, 2026-06-17): a CANONICAL narrator base — one record per man, NO doublings, accumulating
+EVERYTHING (the user's «base solida senza doppioni; sapere tutto sui narratori»).** Steps 1-6 DONE + step 5 DONE
+(الرواة browse · audit_duplicates · reconcile_seed · built↔built prefix-extension · step 6 تلوث الاسم · step 5 كنية
+shadow + step ① DEEP-LINEAGE نسب merge, تقريب↔الكاشف doublings). أقوال الأئمة carry the BOOK and combine across all
+books. **WAITING ON THE USER: `build_rijal --no-download` → `audit_duplicates` → send `duplicates.json` (expect
+«نسب» class ~40 clusters, removable → ~42). NEXT: step 7 (resolution-on-ingest).** Prior focus (still standing):
+cut wrong isnad verdicts in «التدقيق» by identifying the narrator from the chain, and verify every **matn** («تدقيق المتون»).
 
 **★★ (2026-06-16, THIS SESSION) THE «الرواة» BROWSE TAB + the CANONICAL-BASE / no-doublings thread (steps 1-4 DONE)
 + أقوال الأئمة enriched (book tag, combined across books). On main, branch `claude/intelligent-bardeen-HAsrg`, 437 tests
@@ -228,8 +229,9 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
 - **★ STEP 1 DONE — `scripts.audit_duplicates` BUILT (read-only, `8dfa51f`), the measure-first instrument.** Surfaces
   the same-man clusters the build leaves split, CLASSIFIED: **كنية** (كنية-led ⊂ a fuller ism-led name, different
   ident_key) · **ابن** («ابن أبي X» ⊂ the full «… بن أبي X …») · **نقص قرينة** (same ident_key, `same_man`=False yet
-  lineage-compat + no gen/grade conflict + name-extends-or-shares-category) · **تلوث الاسم** (a bio tail in the NAME,
-  reported separately). Guards: a short form fitting SEVERAL distinct men = **ambiguous** (honest homonymy, NEVER a
+  lineage-compat + no gen/grade conflict + name-extends-or-shares-category) · **نسب** (same ident_key, NEITHER a subset,
+  but an agreeing GRANDFATHER folds them — the تقريب↔الكاشف class, mirrors `dedup._deep_lineage_same_man`) · **تلوث
+  الاسم** (a bio tail in the NAME, reported separately). Guards: a short form fitting SEVERAL distinct men = **ambiguous** (honest homonymy, NEVER a
   proposed merge); rarest-token probe keeps it fast on 20k; distinct men (سفيان عيينة/الثوري) never cluster. Writes
   `data/duplicates.json` + a printed per-class summary (clusters · ~removable). +1 test (each class + the guards).
   **★ MEASURED (user ran it, 19,891 رجال, `duplicates.json` via Drive) → the detector OVER-MERGED → PRECISION FIX
@@ -393,6 +395,23 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
   Companion صحابي + al-Ḥumaydī ثقة ت219), `_all_nested`=False → held. FIX: `reconcile_seed`'s match filter drops a `_companion_split`
   rival (صحابي≠تابعي طبقة) → the seed folds into its Companion, al-Ḥumaydī kept distinct. (NOT a grade guard — the curated seed grade
   is authoritative, it CORRECTS the built مجهول→ثقة; only the طبقة splits men.) +2 tests, **453 green.** **NEEDS `build_rijal`/load to apply.**
+  **★★ STEP ① DONE — DEEP-LINEAGE «نسب» MERGE (2026-06-17, this session): تقريب↔الكاشف 40 doublings resolved.**
+  The browse-doubling analysis (session #194) showed ~49 genuine same-man doublings; 40/49 = تقريب↔الكاشف
+  where ONE side has a deeper ancestor the other omits («يحيى بن سعيد بن قيس الأنصاري»[تقريب] vs «بن قيس بن
+  عمرو»[كاشف]) — neither the shared ancestors are enough for `same_man` (no shared nisba/death/kunya on the THIN
+  sides) nor for prefix-extension (neither is nested in the other at the ident_key level). The fix: 3 AGREEING
+  GENERATIONS = conclusive identity. **`_deep_lineage_same_man(a, b)`** (new function, `dedup.py`): both entries
+  must have lineage depth ≥3 AND agree on ≥3 consecutive generations (from the top). Guards: disjoint nisba (two
+  distinct family branches → held); طبقة (`_companion_split`); `_strong_grade_conflict`. **Veto relaxed under mix**
+  like prefix-extension (3 agreeing generations is name-conclusive; the stale-graph circularity would re-strand
+  coverage forms the same way as the نقص قرينة case). Wired into `_collapse_once` beside `same_man` with a
+  separate veto path (under mix: veto only the `same_man` path, not the `deep` path; under strict: `confirms`
+  required for both). **`audit_duplicates` «نسب» class** mirrors it, so the measurement shows what the build merges.
+  Also **`_ALT_OR` in `isaba_extract`**: strips the «أو ‹particle› ‹token›» alternate-kunya run from الإصابة headings
+  (incl. 3-token «أو ابن أبي فلان») keeping the trailing nisba → «أبو الأزهر أو أبو زهير الأنماري» → «أبو الأزهر
+  الأنماري»; word-boundary guard so «أوس بن …» stays whole. +3 tests (deep-lineage merges + theophoric guard already
+  in #194 + alternate-kunya), **454 green**, node --check clean. **NEEDS `build_rijal --no-download`** → expect
+  «نسب» class ~40 clusters in `audit_duplicates`, removable →~42, entries down slightly. **WAITING ON THE USER.**
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
