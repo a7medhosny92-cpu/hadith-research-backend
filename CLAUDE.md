@@ -374,6 +374,25 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
   guarded so «أوس …» (starts with أو) and clean names (دحية بن خليفة الكلبي) are kept whole. **NEEDS `build_rijal` to re-extract.**
   Also fixed `audit_nodes._TRUNCATION`: a bare kunya particle (أبو/أبي/أم) is NOT a truncation — «أبي» is the relational «حدثني أبي»
   the graph resolves (was ~4274 false positives); only «عبد»/«عبيد»/«ابن»/«بن»/«ذو»/«ذي» stay. +2 tests, **451 green.**
+  **★★ BROWSE-DOUBLING ANALYSIS on the REAL base (#194, this session) — the user pressed: «nell'elenco trovi più persone che
+  cominciano con lo stesso nome → probabilmente uno è uno sdoppiamento». The Drive `rijal.jsonl` (7 MB) won't pass the MCP, so the
+  user GZIPPED it (`rijal.jsonl.gz`, 673 KB) → a subagent downloaded + reconstructed the EXACT browse (`load_entries`→`reconcile_seed`
+  →`browse_rows`, 19,619 entries / 19,462 rows) and grouped every leading-run with ≥2 distinct names (2,140 groups). VERDICT: the base
+  is overwhelmingly clean — **~49 genuine same-man doublings**, dominant pattern **تقريب↔الكاشف (40/49): the SAME man graded in BOTH
+  books, never merged** (different `source`, differing tails → `merge_source` containment misses, `collapse_duplicates` can't catch —
+  often a different ident_key once one side adds a nasab the other omits, e.g. «يحيى بن سعيد بن قيس الأنصاري المدني»[تقريب] = «… بن
+  قيس بن عمرو»[كاشف]; al-Bukhārī himself is two rows). Secondary: seed/coverage↔تقريب thin forms held by `_all_nested` (عبد الله بن
+  الزبير). The «أبو X» the user sees = the 83 HELD-AMBIGUOUS (أبو بكر 52 rows, أبو سعيد 14… — distinct fathers/nisbas, correct). **The
+  تقريب↔كاشف 40 are the floor that NEEDS graph confirmation** (CorpusCompany.confirms / richer metadata) — a name-only merge is
+  UNSAFE (a كاشف-bare «يحيى بن سعيد» could be القطان OR الأنصاري) → NOT attempted; that's the next lever to measure after a rebuild.
+  **★ TWO BUGS FOUND + FIXED (`dedup.py`):** (1) **THEOPHORIC «عبد الـ…ـي» FUSES DISTINCT MEN (correctness, worse than a doubling)** —
+  `lineage` read the divine-name tail «الأعلى»→`الاعلي` as a NISBA (الـ…ـي-shaped), so «عبد الأعلى بن القاسم» & «عبد الأعلى بن حماد»
+  both collapsed to ident_key «(عبد,)» and `same_man`=True FUSED them (same for عبد الغني/القوي/المتعالي/العلي). FIX: the token after
+  «عبد» completes the ism, never a nisba (`cur != [_ABD]` guard) → ident_key «(عبد,الاعلي,القاسم)» ≠ «(…,حماد)», not fused; a real
+  same «عبد الأعلى بن عبد الأعلى» still merges. (2) **عبد الله بن الزبير held** — the صحابي seed nested in TWO built forms (the
+  Companion صحابي + al-Ḥumaydī ثقة ت219), `_all_nested`=False → held. FIX: `reconcile_seed`'s match filter drops a `_companion_split`
+  rival (صحابي≠تابعي طبقة) → the seed folds into its Companion, al-Ḥumaydī kept distinct. (NOT a grade guard — the curated seed grade
+  is authoritative, it CORRECTS the built مجهول→ثقة; only the طبقة splits men.) +2 tests, **453 green.** **NEEDS `build_rijal`/load to apply.**
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
