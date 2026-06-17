@@ -365,6 +365,15 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
   +3 tests, **448 green.** **NEEDS the next `build_graph`** to apply the analyze_isnad cut. **WAITING ON THE USER: pull + re-run
   `audit_nodes`** (read-only, FAST, no rebuild) → it now surfaces `عبد`/`اللفظ له` with hadith ids → send `node_audit.json` + a
   sample `عبد` chain so I can diagnose the truncation. **NEXT:** the `عبد` root cause · step 7 (resolution-on-ingest) · a late-شيوخ source.
+  **★ «NARRATORI GONFIATI» PROBED (#192, this session) — the user eyeballed the «الرواة» browse «أبو X» rows («ابو الاسود anche
+  ابو الازور e molti altri») and saw doublings. VERDICT: most «أبو X» are NOT doublings — they are DISTINCT Companions (different
+  nisbas: أبو الأسود الدؤلي ≠ الجذامي ≠ …) or honestly HELD-ambiguous bare كنية (collapse keeps them apart, لا نختلق) → correct.
+  The ONE real fixable class: الإصابة headings that carry a SECOND كنية INSIDE the name «أبو الأزهر أو أبو زهير الأنماري» →
+  `isaba_extract` emitted a polluted name that never folded with تقريب → a doubled entry. FIXED `_clean_name` with `_ALT_OR`: strip
+  the «أو <particle> <token>» alternate-kunya/nasab (also the 3-token «أو ابن أبي فلان») KEEPING the nisba → «أبو الأزهر الأنماري»;
+  guarded so «أوس …» (starts with أو) and clean names (دحية بن خليفة الكلبي) are kept whole. **NEEDS `build_rijal` to re-extract.**
+  Also fixed `audit_nodes._TRUNCATION`: a bare kunya particle (أبو/أبي/أم) is NOT a truncation — «أبي» is the relational «حدثني أبي»
+  the graph resolves (was ~4274 false positives); only «عبد»/«عبيد»/«ابن»/«بن»/«ذو»/«ذي» stay. +2 tests, **451 green.**
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
