@@ -43,6 +43,12 @@ _QISM_WORD = re.compile(r"(الأول|الثاني|الثالث|الرابع)")
 _HEAD = re.compile(r"^\s*[\d٠-٩۰-۹]+\s*(?:ز)?\s*[-–—]\s*(.+)$")
 _BRACKETS = re.compile(r"\[[^\]]*\]|\([^)]*\)|«[^»]*»")
 _ANOTHER = re.compile(r"[،,]?\s*آخر\.?$")            # «مقسم، آخر» — the disambiguating tag, not a name
+# An alternate-kunya/nasab run «… أو أبو زهير …» / «… أو ابن فلان …»: الإصابة often gives a second
+# كنية for the same man inside the heading. Strip the «أو <particle> <token>» so the canonical name
+# (and any trailing nisba) stays clean and folds with تقريب, instead of becoming a doubled entry.
+_ALT_OR = re.compile(
+    r"\s+[أا]و\s+(?:ابن|بن|[أا]ب[ويا]|[أا]م)(?:\s+(?:ابن|بن|[أا]ب[ويا]|[أا]م))?\s+\S+"
+)
 # Relational/unnamed heads (the مبهمات style) — not matchable names; the famous «ابن فلان»
 # designations are already in تقريب under their real names.
 _MUBHAM_LEAD = {
@@ -56,7 +62,8 @@ def _clean_name(raw: str) -> str | None:
     name = _BRACKETS.sub(" ", raw)
     name = _WS.sub(" ", name).strip(" :.،-—_")
     name = _ANOTHER.sub("", name).strip(" :.،-—_")
-    tokens = name.split()
+    name = _WS.sub(" ", _ALT_OR.sub(" ", name)).strip(" :.،-—_")  # «أبو الأزهر أو أبو زهير الأنماري»
+    tokens = name.split()                                          #   → «أبو الأزهر الأنماري» (the «أو …» dropped)
     if len(tokens) < 2:                      # a one-word entry would over-match every namesake
         return None
     if tokens[0] in _MUBHAM_LEAD:

@@ -65,6 +65,17 @@ def test_a_combined_qism_heading_takes_the_most_restrictive():
     assert _names(data) == ["دحية بن خليفة الكلبي"]
 
 
+def test_alternate_kunya_run_is_stripped_keeping_the_nisba():
+    data = _book([
+        _h("حرف الألف", 152, 2),
+        _h("القسم الأول", 152),
+        _h("١- أبو الأزهر أو أبو زهير الأنماري", 152, 5),    # second كنية «أو أبو زهير» dropped
+        _h("٢- أبو الأسود الجذامي", 153, 5),                 # clean كنية+nisba — kept whole
+        _h("٣- دحية بن خليفة الكلبي", 154, 5),               # «خليفة» is a real name here — not cut
+    ])
+    assert _names(data) == ["أبو الأزهر الأنماري", "أبو الأسود الجذامي", "دحية بن خليفة الكلبي"]
+
+
 def test_unusable_heads_are_dropped():
     data = _book([
         _h("حرف الميم", 2899, 2),

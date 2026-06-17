@@ -35,10 +35,14 @@ def test_corrupted_nodes_are_classified(name, token, cls):
 
 @pytest.mark.parametrize("name, token, cls", [
     ("عبد", "عبد", "truncation"),                 # a bare «servant-of» — truncation of «عبد الله/الرحمن»
-    ("أبو", "ابو", "truncation"),
     ("اللفظ له", "اللفظ", "editorial"),            # «واللفظ له» — an editorial interjection, not a name
     ("الشيخ أبو بكر بن إسحاق", "الشيخ", "editorial"),  # a leading title
     ("عبد الله بن المبارك وبهذا", "وبهذا", "backref"),  # the «وبهذا الإسناد» back-ref leak
 ])
 def test_truncation_editorial_and_backref_nodes_are_flagged(name, token, cls):
     assert (token, cls) in junk_in_node(name)
+
+
+@pytest.mark.parametrize("name", ["أبي", "أبو", "أم"])    # the relational «حدثني أبي» — the graph resolves it
+def test_bare_kunya_particle_is_not_a_truncation(name):
+    assert junk_in_node(name) == []

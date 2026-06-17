@@ -1529,7 +1529,7 @@ const TECH = [
     "app/rijal — narrators: index (RijalIndex: matching), graph (NarratorGraph: the network), canon (Canonicalizer: unification), grades (classify + RANKS), and a curated seed.jsonl.",
     "app/qa — hadith sciences: isnad, rulings (verdicts and ʿilal), takhrij, answer (grounded answering), dossier (aggregated cards), intent, llm.",
     "app/search — retrieval: index (HadithIndex/SharhIndex over FTS5), vectors (VectorIndex), embeddings (Embedder), hybrid (HybridSearcher: RRF fusion), grouping (report clustering).",
-    "app/routers — endpoints; app/main + app/config (settings); scripts/ — build tools; tests/ — ~425 tests."]},
+    "app/routers — endpoints; app/main + app/config (settings); scripts/ — build tools; tests/ — ~450 tests."]},
   {h:"Processing pipeline — scripts", p:[
     "scripts.ingest: download books from turath.io (rate limit, retry, resume via manifest.json) → data/raw/turath/{id}.json.",
     "scripts.parse: parse pages into structured JSONL (matn/isnad/grade/bab + sharh linking) → data/processed/*.jsonl and sharh/.",

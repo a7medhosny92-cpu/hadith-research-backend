@@ -76,11 +76,12 @@ def _classify_token(folded: str) -> str | None:
     return None
 
 
-# A whole node that is ONLY a name-joiner («عبد»/«ابن»/«أبو»…) is a TRUNCATION, not a narrator — «عبد»
-# alone is the «servant-of» half of «عبد الله/الرحمن». And «اللفظ»/«الشيخ» are EDITORIAL words (the
-# interjection «واللفظ له», the title «الشيخ فلان»), not name tokens. Neither is a stray-fragment in a
-# real name (they pass `_classify_token`), so they need a node-level check.
-_TRUNCATION = {normalize_for_search(w) for w in ("عبد", "عبيد", "ابن", "بن", "ابو", "ابا", "ابي", "ام", "ذو", "ذي")}
+# A whole node that is ONLY a name-joiner («عبد»/«ابن»…) is a TRUNCATION, not a narrator — «عبد»
+# alone is the «servant-of» half of «عبد الله/الرحمن». NB the kunya particles (أبو/أبي/أم) are NOT
+# here: a bare «أبي» is the relational «حدثني أبي» (my father), which the graph RESOLVES to the real
+# father — not a truncation. And «اللفظ»/«الشيخ» are EDITORIAL words (the interjection «واللفظ له», the
+# title «الشيخ فلان»), not name tokens. Neither is a stray fragment, so they need a node-level check.
+_TRUNCATION = {normalize_for_search(w) for w in ("عبد", "عبيد", "ابن", "بن", "ذو", "ذي")}
 _EDITORIAL = {normalize_for_search(w) for w in ("اللفظ", "الشيخ")}
 
 
