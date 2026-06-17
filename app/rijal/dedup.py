@@ -153,6 +153,27 @@ def same_man(a: dict, b: dict, *, window: int = 20) -> bool:
     return False                                          # can't confirm → keep apart (prudent)
 
 
+def _deep_lineage_same_man(a: dict, b: dict) -> bool:
+    """Same ism+father (one ident_key) AND an agreeing grandfather (both lineage depth ≥3, fully
+    lineage-compatible) → the same man even when :func:`same_man` can't confirm. تقريب and الكاشف each
+    record a DIFFERENT قرينة for one narrator (one a nisba «الأنصاري المدني», the other a deeper ancestor
+    «بن عمرو»), so neither's metadata is shared and :func:`same_man` returns False — but three agreeing
+    generations «يحيى بن سعيد بن قيس» are conclusive. Held on a disjoint nisba (two branches of one
+    family), a generation marker, a strong grade clash, or a طبقة split. A homonym with NO shared
+    grandfather (التنيسي vs التستري — depth 2) never reaches here, so the corpus veto still guards that
+    class; and a thin bare form («يحيى بن سعيد», depth 2) is left to the prefix-extension + `_all_nested`."""
+    la, lb = lineage(a["name"]), lineage(b["name"])
+    if len(la) < 3 or len(lb) < 3 or not lineage_compatible(a, b):
+        return False
+    A, B = tokens(a["name"]), tokens(b["name"])
+    if (A & _GEN) != (B & _GEN):
+        return False
+    na, nb = nisbas(A), nisbas(B)
+    if na and nb and na.isdisjoint(nb):
+        return False                                      # two family branches → different men
+    return not _strong_grade_conflict(a, b) and not _companion_split(a, b)
+
+
 def _opinions_of(rec: dict) -> list[dict]:
     ops = rec.get("opinions")
     if ops:
@@ -301,13 +322,18 @@ def _collapse_once(
         for p in range(len(idxs)):
             for q in range(p + 1, len(idxs)):
                 i, j = idxs[p], idxs[q]
-                if not same_man(records[i], records[j], window=window):
+                sm = same_man(records[i], records[j], window=window)
+                deep = _deep_lineage_same_man(records[i], records[j])
+                if not (sm or deep):
                     continue
                 if company is not None:
                     na, nb = records[i]["name"], records[j]["name"]
-                    ok = company.confirms(na, nb) if require_confirm else not company.vetoes(na, nb)
-                    if not ok:
-                        continue
+                    if require_confirm:
+                        if not company.confirms(na, nb):
+                            continue
+                    elif not deep and company.vetoes(na, nb):
+                        continue          # mix vetoes only the name-discriminator (same_man) path; the
+                        #                   deep-lineage fold (3 agreeing generations) is name-conclusive
                 parent[find(i)] = find(j)
 
         # «نقص قرينة» (built↔built prefix-extension): a thin short form — no nisba/death/kunya, so

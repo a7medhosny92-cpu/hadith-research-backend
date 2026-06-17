@@ -35,8 +35,8 @@ from app.config import get_settings
 from app.parsing.normalize import normalize_for_search
 from app.rijal import RijalIndex, load_entries
 from app.rijal.dedup import (
-    _BIN, _GEN, _KUNYA_P, _companion_split, _strong_grade_conflict, ident_key, lineage_compatible,
-    same_man, tokens,
+    _BIN, _GEN, _KUNYA_P, _companion_split, _deep_lineage_same_man, _strong_grade_conflict,
+    ident_key, lineage_compatible, same_man, tokens,
 )
 from app.rijal.grades import classify
 
@@ -108,7 +108,7 @@ def audit(records: list[dict]) -> dict:
         for t in ts:
             posting[t].append(i)
 
-    pairs: dict[str, list[tuple[int, int]]] = {"كنية": [], "ابن": [], "نقص قرينة": []}
+    pairs: dict[str, list[tuple[int, int]]] = {"كنية": [], "ابن": [], "نقص قرينة": [], "نسب": []}
     ambiguous: dict[str, int] = {"كنية": 0, "ابن": 0}
 
     # كنية / ابن shadows: the short form must appear as a CONTIGUOUS RUN inside the full name, in the
@@ -174,6 +174,18 @@ def audit(records: list[dict]) -> dict:
                 continue                               # no extension, ≥2 namesakes, or طبقة split → hold
             for j in supersets:
                 pairs["نقص قرينة"].append((i, j))
+
+    # نسب (the تقريب↔الكاشف doubling): same ident_key, NEITHER a subset of the other (so not نقص قرينة),
+    # but an agreeing grandfather makes them one man — what `collapse_duplicates._deep_lineage_same_man`
+    # now folds («يحيى بن سعيد بن قيس الأنصاري» = «… بن قيس بن عمرو»).
+    for idxs in groups.values():
+        for a in range(len(idxs)):
+            for b in range(a + 1, len(idxs)):
+                i, j = idxs[a], idxs[b]
+                if toks[i] < toks[j] or toks[j] < toks[i]:
+                    continue                           # a subset pair is نقص قرينة, counted above
+                if _deep_lineage_same_man(records[i], records[j]):
+                    pairs["نسب"].append((i, j))
 
     def render(cluster: list[int]) -> list[dict]:
         return [{"name": names[i], "grade": cats[i], "source": records[i].get("source")}

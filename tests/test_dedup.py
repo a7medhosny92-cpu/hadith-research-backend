@@ -370,6 +370,25 @@ def test_theophoric_abd_name_is_not_truncated_to_a_nisba():
     assert ident_key(c["name"]) == ident_key(d["name"]) and same_man(c, d)
 
 
+def test_deep_lineage_merges_taqrib_kashif_sharing_a_grandfather():
+    """The تقريب↔الكاشف doubling: one narrator graded in both books, each naming a DIFFERENT قرينة
+    (تقريب a nisba, الكاشف a deeper ancestor), so same_man can't confirm — but three agreeing
+    generations «يحيى بن سعيد بن قيس» are conclusive → merged. Held on a disjoint nisba (two family
+    branches), a strong grade clash, or a bare form with no grandfather (those stay for _all_nested)."""
+    taqrib = {"name": "يحيى بن سعيد بن قيس الأنصاري المدني أبو سعيد", "grade": "ثقة"}
+    kashif = {"name": "يحيى بن سعيد بن قيس بن عمرو", "grade": "حجة"}
+    assert not same_man(taqrib, kashif)                              # complementary metadata, no shared قرينة
+    assert collapse_duplicates([taqrib, kashif])[1] == 1            # …but the shared grandfather قيس folds them
+    # disjoint nisba + shared grandfather → two branches of one family → HELD
+    a = {"name": "محمد بن عبد الله بن نمير الهمداني", "grade": "ثقة"}
+    b = {"name": "محمد بن عبد الله بن نمير البصري", "grade": "ثقة"}
+    assert collapse_duplicates([a, b])[1] == 0
+    # no grandfather (depth 2, the التنيسي/التستري homonym shape) → the deep rule never fires
+    from app.rijal.dedup import _deep_lineage_same_man
+    assert not _deep_lineage_same_man({"name": "أحمد بن عيسى التنيسي", "grade": "ثقة"},
+                                      {"name": "أحمد بن عيسى التستري", "grade": "صدوق"})
+
+
 def test_reconcile_seed_folds_a_companion_excluding_a_same_name_tabaqa_rival():
     """The seed «عبد الله بن الزبير الأسدي» (صحابي) nests in TWO built forms — the Companion (صحابي) and
     al-Ḥumaydī (ثقة, a different man, ت219). Without the طبقة guard `_all_nested` sees both, isn't nested,
