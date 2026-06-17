@@ -449,10 +449,21 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
   نسب merge, **and** the `analyze_isnad` dirty-node fix (`عبد`/`اللفظ له`/truncation/editorial, which «NEEDS build_graph»)
   — plus the graph rebuilt from the CLEAN rijal → cleaner `canon._pick` company. **DANGEROUS 0 is the key safety
   confirmation** (the deep-lineage merge fused no distinct men into a grade conflict — `_strong_grade_conflict`/
-  `_companion_split` held). **The W +60 is to verify** (likely the benign A→W reclassification: cleaner identification
-  resolves some ambiguous positions onto a specific full-named متروك → W is a review queue, not errors; DANGEROUS 0 already
-  rules out the grave-shadow class). **WAITING ON THE USER: send `audit.json`** → I decompose the new W (vs the old list,
-  confirm benign) + the residual-A top (is سفيان/محمد بن جعفر/ابن جريج still the floor?) → then pick the next GAIN lever.
+  `_companion_split` held).
+  **★ audit.json DECOMPOSED (2026-06-17, via the `Google_Drive` MCP — a subagent downloaded+parsed the 733 KB file;
+  `cases.W`/`cases.A` are 500-sample caps, `a_ranked` is the full 400-name A ranking).** ✓✓ **W +60 CONFIRMED BENIGN:**
+  500/500 sampled W carry a GENUINE متروك/كذاب verdict (زيد بن واقد 19 · ابن أبي هلال 19 كذاب · يحيى بن العلاء 12 · محمد
+  بن الزبير 10 · الحسن بن عمارة 7 · أبي هارون العبدي 7 …) — no famous ثقة mis-graded; the **only real mis-ID is the lone
+  known singleton «علي بن موسى الرضا» → «متهم ٢٣٦»** (1×, a single corrupt entry). So W is a clean review-queue; the +60 is
+  the A→W reclassification, not new errors. **A floor (a_ranked top): سفيان 3597 · ابن عمر 2186 · محمد بن جعفر 1937 · ابن
+  جريج 1543 · يحيى 1527 · ابن وهب 1404 …** — the dedup SHRANK the known floor (سفيان 4097→3597, محمد بن جعفر 2161→1937 via
+  the غندر laqab fix) but the levers are unchanged: ②a/②b (سفيان=الثوري/عيينة), غندر granularity (محمد بن جعفر), shuhra-by-
+  ancestor (ابن جريج), the «ابن X»/sons class (ابن عمر). **S (458): ~116 LEGIT صحابيٌّ-عن-صحابيّ + a real ~30-case ERROR
+  class = later تابعون mis-graded صحابي mid-chain — الشعبي 10(+عامر الشعبي 4) · قيس بن أبي حازم 8 · عبيد الله بن عبد الله بن
+  عتبة 8(+4) · نافع بن أبي نافع 4** (a bare leading-run collapsing onto a Companion namesake). **NEXT LEVER (per the project
+  philosophy «the wins are W/S wrong verdicts; A's floor is not chased»): the S تابعي→صحابي mis-grades are the correctness
+  target; the A levels (ابن جريج/غندر) are GAIN but A is the honest floor. Also a 1-line safe fix available: the corrupt
+  «علي بن موسى الرضا»→متهم entry. ASK the user which to take next.**
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
