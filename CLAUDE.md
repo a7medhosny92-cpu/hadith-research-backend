@@ -196,6 +196,14 @@ no راجح), **اختلاف الرفع والوقف** (routes split on `reaches
 (`illal` field) + the «تخريج» tab (`renderTakhrij` → an `.illal-box`). +4 tests (`tests/test_illal.py`), node --check clean.
 Docs: ROADMAP #7→started, التقنية takhrij card. **NEXT (the user's «1+2+3», step 3): الطبقات** (extract ابن سعد 9351 —
 طبقة + وفاة, already on disk). Remaining #7: وصل/إرسال, grade-weighted lone-ثقة شذوذ.
+  **★ الطبقات (ابن سعد 9351) FORMAT ASSESSED (2026-06-17, user ran `sample_source` + a headings dump): the HARD
+  body-parse kind — NOT a heading-state-machine like الإصابة.** Its `indexes.headings` (4956) are TOPICAL سيرة
+  sections («ذكر [event/person]»), not one-per-tarjama; the body is dense report-isnads «أخبرنا [isnad] قال:
+  [report]» with the network buried in the isnads ABOUT each man, طبقة as a section, وفاة inside a «مات … سنة»
+  report. So a robust طبقة/وفاة extractor needs body-level tarjama-boundary parsing (substantial), for the
+  LOWEST-value «1+2+3» item (طبقة/وفاة of men mostly already covered). **RECOMMENDED: defer الطبقات** (the high-value
+  #2/#7 shipped); a cheaper future cut = a targeted «مات [name] سنة [year]» death-year scan (feeds dedup's ~350
+  unconfirmable dups) without full tarjama parsing. Awaiting the user's call (defer · death-years-only · full extractor).
 
 **★ (2026-06-17) ROADMAP #2 «الرأي الثاني» (double-opinion) ADJUDICATED — DONE.** The critics' opinions
 (`RijalEntry.opinions`, تقريب/الكاشف…) were already kept + shown (the «⚠ اختلفوا» badge); now the isnad VERDICT
