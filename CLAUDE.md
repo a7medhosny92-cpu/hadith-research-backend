@@ -496,6 +496,20 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
   بن عبد الله بن أبي مليكة» (mis-resolves to a ضعيف descendant); SKIP ابن جدعان (ضعيف + a doubling) and ابن أبي ليلى (genuinely
   ambiguous — محمد الفقيه صدوق vs عبد الرحمن التابعي ثقة); ابن المسيب already resolves (سعيد, father المسيب = direct).**
   **WAITING ON THE USER: re-run `audit_isnad`** after the next pull → S↓ (the تابعي override) + A↓ further (the new shuhras).
+  **★★ «controlla tutti gli errori» FULL SWEEP (2026-06-17, via the `Google_Drive` MCP — a subagent decomposed the
+  POST-ابن جريج `audit.json` (gen 16:27, P0·W681·S458·A45301) + `conflicts.json`, scanning the FULL W/A/S lists, not just
+  the top).** ✓✓ **THE SYSTEM IS CLEAN.** **P 0.** **W (681): all 177 distinct names carry a GENUINE متروك/كذاب verdict —
+  0 non-jarh, NO famous/trusted/Imam mis-graded;** the name-overlap suspects (إبراهيم بن عثمان←عثمان, أبو مالك النخعي←مالك,
+  سيف بن محمد «ابن أخت سفيان الثوري»←ثوري…) are all FALSE positives (distinct genuinely-متروك men). The lone real mis-ID is
+  still **«علي بن موسى الرضا» → «متهم مع صلاحه توفي ٢٣٦ ق»** (ابن ماجه 65, 1×) — a متهم «علي بن موسى» (d.236) shadowing the
+  Imam (d.203); needs a probe of his entry to fix (curated anchor / bare-grave hold). **A (45301): honest floor — سفيان 3609 ·
+  ابن عمر 2186 · محمد بن جعفر 1937 · يحيى · ابن وهب …, no famous name wrongly مشترك; ✓✓ «ابن جريج» ABSENT (the redirect
+  worked, was ~1543), and «ابن أبي ذئب»/«ابن أبي مليكة» also absent (they were محسوم-to-the-wrong-man, so #203 is a CORRECTNESS
+  fix not an A drop).** **conflicts DANGEROUS 0** (held 82·ok 12 — grave-shadow class stays closed). **S (458): the تابعي→صحابي
+  class is الشعبي 14 · قيس 8 · عبيد الله بن عبد الله بن عتبة 12 · نافع بن أبي نافع 4 (all addressed by #203 except نافع) + ONE
+  newcomer «الحسن بن الحسن» 2× (الحسن بن علي's تابعي grandson, same class, minor); the rest are LEGIT صحابيٌّ-عن-صحابيّ.**
+  **VERDICT: no new dangerous bug; the only open items are the KNOWN minor ones** — (1) علي بن موسى الرضا (1×, needs a probe),
+  (2) the S residual نافع/الحسن بن الحسن (the bare/truncated-صحابي extraction root, the general cure). matn settled, duplicates ~1.
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
