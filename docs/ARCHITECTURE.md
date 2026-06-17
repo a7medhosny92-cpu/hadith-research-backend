@@ -4,11 +4,20 @@ A consolidated, code-accurate map of the whole system: what each subsystem does,
 flows end-to-end, and the load-bearing design decisions. Written to be the durable reference
 so a reader (or a future session) does not re-derive the system or work from stale memory.
 
-> **Scope & freshness.** Reflects the tree at PR #110 (`تمييز المهمل`). Line references
-> (`file:line`) are anchors that drift across edits — trust the function/symbol name over the
-> number. For *forward* plans see `docs/ROADMAP.md`; for the one-time code audit see
-> `docs/AUDIT.md`; for the تهذيب الكمال extractor study see `docs/TAHDHIB.md`; for live worklog
-> and conventions see `CLAUDE.md`. This file documents the system **as it is**.
+![System overview — the build pipeline, the canonical رجال base (dedup engine + what one record
+accumulates), the verdict-time resolution ladder سُلّم التمييز, and the API/UI surface](architecture.png)
+
+> *Figure: the four bands of the system. Regenerate after a structural change with
+> `python docs/architecture_diagram.py` (the figure is its committed output — keep them in step).*
+
+> **Scope & freshness.** Reflects the tree as of the **canonical-base** work (June 2026): one رجال
+> record per man (`collapse_duplicates`: `same_man` + prefix-extension + deep-lineage نسب +
+> kunya/ibn shadow → ~19.6k narrators, removable ~1), the الإصابة/الثقات/لسان coverage sources, the
+> named أقوال الأئمة, and the joint resolver. Line references (`file:line`) are anchors that drift
+> across edits — trust the function/symbol name over the number. For *forward* plans see
+> `docs/ROADMAP.md`; for the one-time code audit see `docs/AUDIT.md`; for the تهذيب الكمال extractor
+> study see `docs/TAHDHIB.md`; for live worklog and conventions see `CLAUDE.md`. This file documents
+> the system **as it is**.
 
 ## Table of contents
 1. [Overview & guarantees](#1-overview--guarantees)
