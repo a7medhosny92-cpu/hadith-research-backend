@@ -184,8 +184,9 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
 EVERYTHING (the user's «base solida senza doppioni; sapere tutto sui narratori»).** Steps 1-6 DONE + step 5 DONE
 (الرواة browse · audit_duplicates · reconcile_seed · built↔built prefix-extension · step 6 تلوث الاسم · step 5 كنية
 shadow + step ① DEEP-LINEAGE نسب merge, تقريب↔الكاشف doublings). أقوال الأئمة carry the BOOK and combine across all
-books. **WAITING ON THE USER: `build_rijal --no-download` → `audit_duplicates` → send `duplicates.json` (expect
-«نسب» class ~40 clusters, removable → ~42). NEXT: step 7 (resolution-on-ingest).** Prior focus (still standing):
+books. **★ MEASURED 2026-06-17 → DIRECTIVE CLOSED: removable ~243 → ~1, entries ≈19,619 → 19,566 (~53 collapsed),
+نسب/كنية/ابن all 0. NEXT: step 7 (resolution-on-ingest); a graph rebuild + audit_isnad/audit_conflicts to confirm
+no wrong fusion.** Prior focus (still standing):
 cut wrong isnad verdicts in «التدقيق» by identifying the narrator from the chain, and verify every **matn** («تدقيق المتون»).
 
 **★★ (2026-06-16, THIS SESSION) THE «الرواة» BROWSE TAB + the CANONICAL-BASE / no-doublings thread (steps 1-4 DONE)
@@ -410,8 +411,16 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
   Also **`_ALT_OR` in `isaba_extract`**: strips the «أو ‹particle› ‹token›» alternate-kunya run from الإصابة headings
   (incl. 3-token «أو ابن أبي فلان») keeping the trailing nisba → «أبو الأزهر أو أبو زهير الأنماري» → «أبو الأزهر
   الأنماري»; word-boundary guard so «أوس بن …» stays whole. +3 tests (deep-lineage merges + theophoric guard already
-  in #194 + alternate-kunya), **454 green**, node --check clean. **NEEDS `build_rijal --no-download`** → expect
-  «نسب» class ~40 clusters in `audit_duplicates`, removable →~42, entries down slightly. **WAITING ON THE USER.**
+  in #194 + alternate-kunya), **454 green**, node --check clean.
+  **★★ MEASURED (user ran `build_rijal --no-download` + `audit_duplicates`, 2026-06-17) → THE «senza doppioni»
+  DIRECTIVE IS CLOSED: entries ≈19,619 → 19,566 (~53 collapsed) · removable ~243 → ~1.** The audit re-measures what
+  the build leaves SPLIT, and since `collapse_duplicates` now MERGES the deep-lineage class, the audit finds them
+  already united → **نسب 0 · كنية 0 · ابن 0 · نقص قرينة 1** (the ~53-entry drop is the proof the merge fired; 0-left
+  is the success, not a miss — my PR's «expect ~40 clusters» mis-stated the measurement timing). The lone نقص قرينة
+  residual = «عبد الله بن دينار العدوي … ↔ عبد الله بن دينار» (both ثقة) — a likely-CORRECT hold (a second عبد الله بن
+  دينار makes the thin form ambiguous → `_all_nested`=False → held, لا نختلق). تلوث الاسم 72 (step-6 long tail, flat).
+  **NEXT: step 7 (resolution-on-ingest); a graph rebuild + `audit_isnad`/`audit_conflicts` to confirm no wrong fusion
+  (DANGEROUS should stay 0).**
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
