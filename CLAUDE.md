@@ -542,6 +542,17 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
   alt = تذكرة الحفاظ (id 1583, حفاظ-only). **WAITING ON THE USER: list `data/raw/turath/books` (what's already downloaded)
   → pick the A.3 source (already-present if possible) → I sample its format + write the extractor.** find_book ids also
   found: تاريخ بغداد ت بشار 736 · تاريخ الإسلام ت بشار 35100 · تذكرة الحفاظ للذهبي 1583.
+  **★ BOOKS-ON-DISK INVENTORY (user ran `scripts.list_books`, 2026-06-17): 46 books · 792 MB.** ✅ ALL core رجال
+  extractors' sources present (تقريب 8609 · الكاشف 2171 · تهذيب 3722 · الجرح 2170 · الإصابة 9767 · الثقات-nonSix 96165 ·
+  لسان 36357) → the base is COMPLETE. ⚠️ **INERT downloaded رجال sources (no extractor yet → not fed in):** الطبقات الكبرى
+  9351 (ابن سعد — طبقة+وفاة, but its network is buried in report-isnads ABOUT the man, hard) · معرفة الصحابة 10490 ·
+  الاستيعاب 12288 · أسد الغابة 1110 (Companions — redundant with الإصابة) · ميزان 1692 · الثقات ابن حبان 5816 · الثقات
+  العجلي 5825 (redundant with لسان/الثقات 96165). ❌ **NO late-narrator source on disk** (سير/تاريخ الإسلام/تاريخ بغداد/
+  تذكرة absent) → A.3 (the post-Six-Books شيوخ gap, الأصم) NEEDS a download; the inert sources don't fill it (Companions/
+  weak/early). **VERDICT: the narrator track is at diminishing returns — base complete, errors clean, A.1 floor; A.3 is a
+  big download (سير) + a substantial extractor for a moderate gain. Offered the user a fork: download سير for A.3 · extract
+  الطبقات (free-ish, طبقة) · or PIVOT to a new capability (#7 علّة/شذوذ structural — uses the تخريج we already gather · #2
+  double-opinion adjudication).**
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
