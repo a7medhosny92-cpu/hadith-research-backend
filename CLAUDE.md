@@ -119,6 +119,11 @@ Depth docs (NOT auto-loaded — open when relevant):
 - **`python -m scripts.find_book [title…]`** → read-only: find a turath book **id by title** from the cached
   catalog (`data/raw/turath/catalog.json`), printing ready «--books <id>» lines for `scripts.ingest` — so we pick
   a new رجال source without dumping the ~2 MB catalog into chat. Default args = the رجال/صحابة shortlist.
+- **`python -m scripts.probe_name [name…]`** → read-only: shows how the LIVE matcher resolves a cited name —
+  `lookup` (entry · grade · محسوم/مشترك · alternatives) + the FULL `candidates` homonym set (grade · death ·
+  [coverage]). For (a) confirming the exact canonical name behind a shuhra before adding it to `index._SHUHRA`,
+  and (b) diagnosing a mis-resolution (why a bare «الشعبي» grades صحابي mid-chain — which صحابي/coverage entry
+  shadows him). Default args = the shuhra-by-ancestor candidates + the S-class تابعون.
 - The user runs everything on their PC with `.venv\Scripts\python.exe`.
 
 ## Environment & data
