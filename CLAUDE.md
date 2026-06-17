@@ -342,8 +342,29 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
   as an ALIAS (so a كنية citation still matches — `_merge_into` now keeps merged names/aliases). Held when the كنية fits
   ≥2 distinct men (أبو حمزة), a buried father (أبو أمية ⊂ «… بن أبي أمية»), or crosses the طبقة (صحابي أبو تميمة ≠ تابعي
   ثقة). Veto relaxed under mix like the prefix-extension; strict still `confirms`. +1 test, **440 green**. **NEEDS a
-  `build_rijal --no-download`** → expect كنية 83 → small residual (held/ambiguous), entries down. **NEXT:** step 7
-  (resolution-on-ingest) · the 2 seed-residual نقص قرينة · the 73 تلوث الاسم long tail · then re-measure `audit_isnad` (A/W/S).
+  `build_rijal --no-download`** → expect كنية 83 → small residual (held/ambiguous), entries down.
+  **★ MEASURED (user rebuilt everything) → THE «senza doppioni» DIRECTIVE IS DONE: removable ~243 → 2 (seed edge).**
+  نقص قرينة 188→2 · كنية 89→0 · ابن 2→0 · تلوث الاسم 371→73. Then the user asked «copre tutte le catene?» → built
+  **`scripts.audit_coverage`** (chain nodes vs base): **the base covers 91.0% of chain POSITIONS** (84.7% identified +
+  6.2% ambiguous), 34% of distinct narrators (the 66% uncovered are rare). Top uncovered = (a) **post-Six-Books شيوخ**
+  (al-Ḥākim/al-Bayhaqī's teachers, الأصم 1242×… — a real gap, needs a late-narrator source), (b) **«الـ»-variant misses**
+  (ليث 211×→الليث…), (c) **dirty nodes** (عبد 804×, اللفظ له 331×).
+  **★ THE «ال»-FOLD ARC (matcher, the big A lever this session).** First a SYMMETRIC fold in `_clean_seq` (#189: «الليث»≡«ليث»
+  on query AND entry) — recovered the (b) coverage misses but INFLATED A: it merged the candidate pools, so «الحسن» collapsed
+  into the «حسن» pool (incl. a grave «حسن بن عمارة») → audit_isnad A 55694→59711, W→677. **FIXED — made it ASYMMETRIC (#190,
+  `_al_variant`):** an entry «الليث» gets an extra «ال»-stripped FORM (so a bare «ليث» finds it), but the QUERY is NOT folded
+  («الحسن» stays the specific man, never the «حسن» pool); divine names untouched. **★★ MEASURED → A 59711 → 49916 (−9795!),
+  BELOW the pre-dedup baseline 55694; W 677→659; S 453→479.** So the WHOLE arc (dedup + asymmetric «ال» + fresh graph from the
+  clean rijal) vs baseline: **A 55694→49916 (−10%) · S 489→479 (better) · W 621→659 (+38, BENIGN — `audit_conflicts` DANGEROUS=0)**,
+  coverage ~91%. The «ال» symmetric-vs-asymmetric was the biggest A lever of the session.
+  **★ STEP (c) STARTED — dirty-node cleanup.** `audit_nodes` is CLEAN (only **41** corrupted nodes, 12 distinct: backref «وبهذا
+  الإسناد»×22/«وباسناده»×10/«ورفعه»×5 + dual «وقالا»×3) — the parsing is in good shape. FIXED in `analyze_isnad`: `_MATN_HARD` +=
+  «بهذا/بهذه» and a **«و»-strip for _MATN_HARD** (so «وبهذا/ورفعه/وباسناده» cut, not glue); `_MATN_SOFT` += «قالا/قالوا». **The
+  coverage's `عبد` 804× / `اللفظ له` 331× are a DIFFERENT class** (single-token TRUNCATION / EDITORIAL phrase) `audit_nodes` didn't
+  detect → extended `junk_in_node` with **truncation** (a node that is only «عبد»/«ابن»/«أبو») + **editorial** («اللفظ»/«الشيخ»).
+  +3 tests, **448 green.** **NEEDS the next `build_graph`** to apply the analyze_isnad cut. **WAITING ON THE USER: pull + re-run
+  `audit_nodes`** (read-only, FAST, no rebuild) → it now surfaces `عبد`/`اللفظ له` with hadith ids → send `node_audit.json` + a
+  sample `عبد` chain so I can diagnose the truncation. **NEXT:** the `عبد` root cause · step 7 (resolution-on-ingest) · a late-شيوخ source.
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should

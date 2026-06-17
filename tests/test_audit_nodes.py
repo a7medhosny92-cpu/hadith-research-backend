@@ -31,3 +31,14 @@ def test_clean_nodes_are_not_flagged(name):
 ])
 def test_corrupted_nodes_are_classified(name, token, cls):
     assert (token, cls) in junk_in_node(name)
+
+
+@pytest.mark.parametrize("name, token, cls", [
+    ("عبد", "عبد", "truncation"),                 # a bare «servant-of» — truncation of «عبد الله/الرحمن»
+    ("أبو", "ابو", "truncation"),
+    ("اللفظ له", "اللفظ", "editorial"),            # «واللفظ له» — an editorial interjection, not a name
+    ("الشيخ أبو بكر بن إسحاق", "الشيخ", "editorial"),  # a leading title
+    ("عبد الله بن المبارك وبهذا", "وبهذا", "backref"),  # the «وبهذا الإسناد» back-ref leak
+])
+def test_truncation_editorial_and_backref_nodes_are_flagged(name, token, cls):
+    assert (token, cls) in junk_in_node(name)

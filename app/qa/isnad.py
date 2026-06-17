@@ -64,11 +64,11 @@ _SKIP = {"قال", "قالا", "قالوا", "يعني", "قالت", "ح", "به
 _MATN_HARD = {"مرفوعا", "رفعه", "يرفعه", "نحوه", "مثله", "بنحوه", "بمثله", "بمعناه", "بمعنى",
               # back-reference to a previously-given chain («… بهذا الإسناد / بإسناده / بسنده»), or an
               # abbreviated matn «… فذكر الحديث / فذكره»: the report follows — stop the chain.
-              "الاسناد", "اسناده", "باسناده", "بسنده", "باسناد", "فذكر", "فذكره"}
+              "الاسناد", "اسناده", "باسناده", "بسنده", "باسناد", "بهذا", "بهذه", "فذكر", "فذكره"}
 # «قال/يقول/فقال…» are *soft*: a boundary only when NOT followed by a transmission verb. «X يقول:
 # سمعت Y», «سألت X فقال: حدثني Y» CONTINUE the chain (X reports hearing the next narrator) — making
 # يقول/فقال hard truncated «علقمة … يقول: سمعت عمر» and «… فقال: حدثني عبد الله», dropping the صحابي.
-_MATN_SOFT = {"قال", "قالت", "يقول", "تقول", "فقال", "فقالت", "فقالوا", "يقولون"}
+_MATN_SOFT = {"قال", "قالت", "قالا", "قالوا", "يقول", "تقول", "فقال", "فقالت", "فقالوا", "يقولون"}
 # Action verbs that open a narrated scene («كان رسول الله ﷺ يخطب / يصلّي / يدعو …», «سمعته
 # يحدّث …»): treated like a soft boundary — the matn begins UNLESS a transmission verb
 # follows (… يحدّث عن أبيه … keeps the chain), so a real «سمعته يحدّث عن فلان» is never truncated.
@@ -240,7 +240,8 @@ def analyze_isnad(
         soft = (folded in _MATN_SOFT or folded in _MATN_VERB
                 or (folded[:1] == "و" and folded[1:] in _MATN_SOFT)
                 or (folded[:1] == "و" and folded[1:] in _MATN_VERB))
-        if folded in _MATN_HARD or (soft and not nxt_is_via):
+        hard = folded in _MATN_HARD or (folded[:1] == "و" and folded[1:] in _MATN_HARD)  # «وبهذا»/«ورفعه»
+        if hard or (soft and not nxt_is_via):
             flush()
             break
         if soft:   # «قال حدثنا …» / «سمعته يحدّث عن …» — connective, not the matn; drop it

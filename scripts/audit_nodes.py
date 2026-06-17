@@ -11,6 +11,8 @@ whose tokens still carry a non-name fragment that a transmission term should hav
   anna     «أنّ/أنّه …» (the report opener) glued onto the previous narrator
   backref  «مثله/نحوه/بهذا الإسناد/مرفوعًا …» — a back-reference, not a name
   number   a digit / hadith-number fragment inside the node
+  truncation  the WHOLE node is a bare name-joiner («عبد»/«ابن»/«أبو») — «عبد» without «الله/الرحمن»
+  editorial   an editorial word «اللفظ» (the «واللفظ له» interjection) / a title «الشيخ», not a name
 
 It groups the hits by class, ranks the offending tokens, and keeps sample node names + hadith ids
 so each leak is traceable to a rule. Writes ``{DATA_DIR}/node_audit.json`` and prints a summary::
@@ -74,6 +76,14 @@ def _classify_token(folded: str) -> str | None:
     return None
 
 
+# A whole node that is ONLY a name-joiner («عبد»/«ابن»/«أبو»…) is a TRUNCATION, not a narrator — «عبد»
+# alone is the «servant-of» half of «عبد الله/الرحمن». And «اللفظ»/«الشيخ» are EDITORIAL words (the
+# interjection «واللفظ له», the title «الشيخ فلان»), not name tokens. Neither is a stray-fragment in a
+# real name (they pass `_classify_token`), so they need a node-level check.
+_TRUNCATION = {normalize_for_search(w) for w in ("عبد", "عبيد", "ابن", "بن", "ابو", "ابا", "ابي", "ام", "ذو", "ذي")}
+_EDITORIAL = {normalize_for_search(w) for w in ("اللفظ", "الشيخ")}
+
+
 def junk_in_node(name: str) -> list[tuple[str, str]]:
     """(token, class) for every non-name fragment glued into a finalised node — empty when clean.
     The Prophet's terminal node (his name + eulogy) is exempt: «صلّى/عليه/وسلّم» are not narrator
@@ -81,11 +91,16 @@ def junk_in_node(name: str) -> list[tuple[str, str]]:
     if is_prophet(name):
         return []
     hits: list[tuple[str, str]] = []
-    for tok in name.split():
-        folded = normalize_for_search(tok)
-        cls = _classify_token(folded)
+    folded = [normalize_for_search(tok) for tok in name.split()]
+    real = [f for f in folded if f]
+    if len(real) == 1 and real[0] in _TRUNCATION:            # the WHOLE node is a bare joiner → truncation
+        hits.append((real[0], "truncation"))
+    for f in folded:
+        if f in _EDITORIAL:
+            hits.append((f, "editorial"))
+        cls = _classify_token(f)
         if cls:
-            hits.append((folded, cls))
+            hits.append((f, cls))
     return hits
 
 
