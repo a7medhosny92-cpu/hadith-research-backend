@@ -124,6 +124,9 @@ Depth docs (NOT auto-loaded — open when relevant):
   [coverage]). For (a) confirming the exact canonical name behind a shuhra before adding it to `index._SHUHRA`,
   and (b) diagnosing a mis-resolution (why a bare «الشعبي» grades صحابي mid-chain — which صحابي/coverage entry
   shadows him). Default args = the shuhra-by-ancestor candidates + the S-class تابعون.
+- **`python -m scripts.list_books [title…]`** → read-only: lists the turath books currently DOWNLOADED
+  (`raw_dir/books/*.json`) with id · size · cat · title (titles from the cached catalog). To see what's on
+  disk before ingesting a new source, so we REUSE an already-downloaded book instead of re-fetching.
 - The user runs everything on their PC with `.venv\Scripts\python.exe`.
 
 ## Environment & data
