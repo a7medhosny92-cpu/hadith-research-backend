@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 
 from app.parsing.normalize import normalize_for_search, strip_diacritics
 from app.rijal.graph import is_prophet
+from app.rijal.grades import RANKS
 from app.rijal.index import _clean_tokens, from_companion_dictionary
 
 if TYPE_CHECKING:
@@ -139,9 +140,31 @@ def _is_mubham(name: str) -> bool:
     return toks[0] in _MUBHAM_BARE or bool(_MUBHAM_PHRASE.search(" ".join(toks)))
 
 
+def _opinion_grades(match: "RijalMatch") -> set[str]:
+    """The DISTINCT grade categories the critics gave this man (تقريب/الكاشف/…), from his opinions."""
+    return {o.get("grade") for o in (match.entry.opinions or []) if o.get("grade")}
+
+
+def _is_disputed(match: "RijalMatch") -> bool:
+    """مختلف فيه — the critics disagree (≥2 distinct grades among his opinions)."""
+    return len(_opinion_grades(match)) >= 2
+
+
+def _effective_rank(match: "RijalMatch") -> int | None:
+    """The rank used for the chain verdict — CONSERVATIVE on a مختلف فيه narrator: the WEAKEST opinion
+    («يُؤخذ بأنزل القولين عند الاختلاف»), so a man called ثقة by one critic and ضعيف by another drags the
+    chain down, not up. With one opinion (or none) it is just his primary rank, so the common case is
+    unchanged."""
+    ranks = [RANKS[g] for g in _opinion_grades(match) if g in RANKS]
+    if match.entry.rank is not None:
+        ranks.append(match.entry.rank)
+    return min(ranks) if ranks else match.entry.rank
+
+
 def _chain_assessment(matches: list["RijalMatch | None"], total: int, mubham: int = 0) -> dict:
-    """Summarise the chain from its narrator gradings — verdict by the weakest link."""
-    ranks = [m.entry.rank for m in matches if m and m.entry.rank is not None]
+    """Summarise the chain from its narrator gradings — verdict by the weakest link (and, for a
+    مختلف فيه narrator, by his weakest opinion — see :func:`_effective_rank`)."""
+    ranks = [r for m in matches if m and (r := _effective_rank(m)) is not None]
     known = sum(1 for m in matches if m)
     unknown = total - known
     weakest = min(ranks) if ranks else None
@@ -162,8 +185,12 @@ def _chain_assessment(matches: list["RijalMatch | None"], total: int, mubham: in
         verdict = f"مَن عُرف منهم ثقات؛ وبقي {unknown} راوٍ لم يُعرفوا في القاعدة."
     if mubham:
         verdict = f"{verdict} وفيه {mubham} راوٍ مبهمٌ لم يُسمَّ (جهالة)."
+    # المختلف فيهم — narrators the critics graded differently (تقريب vs الكاشف…), grades worst-first.
+    disputed = [{"name": m.entry.name,
+                 "grades": sorted(_opinion_grades(m), key=lambda g: -RANKS.get(g, 99))}
+                for m in matches if m and _is_disputed(m)]
     return {"weakest_rank": weakest, "known": known, "unknown": unknown,
-            "mubham": mubham, "verdict": verdict}
+            "mubham": mubham, "verdict": verdict, "disputed": disputed}
 
 
 def analyze_isnad(
@@ -421,6 +448,9 @@ def analyze_isnad(
     else:
         # total counts only the gradable narrators (the Prophet and المبهمون are excluded above)
         assessment = _chain_assessment(matches, len(matches), mubham=mubham_count)
+        if assessment["disputed"]:
+            who = "، ".join(f"{d['name']} ({'/'.join(d['grades'])})" for d in assessment["disputed"])
+            notes.append(f"في الإسناد مَن اختُلف فيه: {who} — أُخذ بأنزلِ القولين في الحكم (الرأي الثاني).")
         notes.append("هذا حكمٌ على الرجال فقط؛ وصحّة الحديث تقتضي أيضًا اتصال السند وانتفاء العلّة والشذوذ.")
 
     return IsnadAnalysis(
