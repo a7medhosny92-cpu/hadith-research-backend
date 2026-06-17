@@ -139,6 +139,39 @@ def test_probe_name_describes_lookup_and_candidates():
     assert "لا مطابقة" in "\n".join(describe(rij, "فلان بن فلان العجمي"))
 
 
+def test_known_tabii_misgraded_sahabi_is_corrected_to_thiqa():
+    # عامر الشعبي / عبيد الله بن عبد الله بن عتبة / قيس بن أبي حازم are تابعون ثقات; a leaked
+    # Companion-description mis-grades a (truncated) entry «صحابي», which then shadows the real man
+    # and reads «صحابي» mid-chain (an S flag). The curated تابعي anchor corrects صحابي → ثقة.
+    rij = RijalIndex([
+        {"name": "عامر بن شراحيل أبو عمرو الشعبي أحد", "grade": "صحابي"},
+        {"name": "عبيد الله بن عبد الله بن عتبة", "grade": "صحابي"},
+        {"name": "قيس بن أبي حازم", "grade": "صحابي"},
+    ])
+    assert rij.lookup("الشعبي").entry.category == "ثقة"
+    assert rij.lookup("عبيد الله بن عبد الله بن عتبة").entry.category == "ثقة"
+    assert rij.lookup("قيس بن أبي حازم").entry.category == "ثقة"
+    # a REAL Companion (matches a Companion form, no تابعي form) keeps صحابي — never demoted
+    rij2 = RijalIndex([{"name": "أنس بن مالك الأنصاري", "grade": "صحابي"}])
+    assert rij2.lookup("أنس بن مالك").entry.category == "صحابي"
+
+
+def test_shuhra_extends_to_ibn_abi_dhib_and_ibn_abi_mulayka():
+    # ابن أبي ذئب IS محمد بن عبد الرحمن … بن أبي ذئب (ثقة) — the bare shuhra otherwise lands on his
+    # maternal uncle whose name carries «خال ابن أبي ذئب»; ابن أبي مليكة IS the قاضي عبد الله بن عبيد
+    # الله … (ثقة), not a weak descendant بن أبي مليكة. Both redirect to the right man.
+    rij = RijalIndex([
+        {"name": "محمد بن عبد الرحمن بن المغيرة بن الحارث بن أبي ذئب القرشي المدني", "grade": "ثقة"},
+        {"name": "الحارث بن عبد الرحمن القرشي العامري خال ابن أبي ذئب", "grade": "صدوق"},
+        {"name": "عبد الله بن عبيد الله بن عبد الله بن أبي مليكة التيمي المدني", "grade": "ثقة"},
+        {"name": "عبد الرحمن بن أبي بكر بن عبيد الله بن أبي مليكة التيمي", "grade": "ضعيف"},
+    ])
+    d = rij.lookup("ابن أبي ذئب")
+    assert d is not None and d.entry.name.startswith("محمد بن عبد الرحمن") and d.entry.category == "ثقة"
+    k = rij.lookup("ابن أبي مليكة")
+    assert k is not None and k.entry.name.startswith("عبد الله بن عبيد الله") and k.entry.category == "ثقة"
+
+
 def test_a_bare_grave_namesake_does_not_sink_a_fuller_trustworthy_one():
     # «إسحاق بن عمر» [متروك] (a bare, truncated entry) must NOT confidently grade a chain «ضعيف جدًا»
     # when a fuller, trustworthy «إسحاق بن عمر بن سليط الهذلي» also fits the bare citation — hold instead.

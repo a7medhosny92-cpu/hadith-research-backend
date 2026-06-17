@@ -140,7 +140,9 @@ def _is_nasab_ref(name: str) -> bool:
 _SHUHRA: dict[tuple[str, ...], str] = {
     tuple(t for t in (normalize_for_search(w) for w in form.split()) if t): canonical
     for form, canonical in {
-        "ابن جريج": "عبد الملك بن عبد العزيز بن جريج",   # جدّه جُرَيج · ثقة فقيه · مكّي
+        "ابن جريج": "عبد الملك بن عبد العزيز بن جريج",                        # جدّه جُرَيج · ثقة فقيه · مكّي
+        "ابن أبي ذئب": "محمد بن عبد الرحمن بن المغيرة بن الحارث بن أبي ذئب",   # ثقة · المدني (لا خالُه «الحارث»)
+        "ابن أبي مليكة": "عبد الله بن عبيد الله بن عبد الله بن أبي مليكة",      # القاضي · ثقة (لا ذرّيّةٌ ضعيفة)
     }.items()
 }
 
@@ -373,6 +375,16 @@ class RijalIndex:
         n = 0
         for raw in entries:
             category, rank = classify(raw.get("grade") or "")
+            # A KNOWN major تابعي can NEVER be a «صحابي». When his grade is mis-extracted as صحابي — a
+            # Companion-description/طبقة phrase leaking, often onto a truncated entry «عامر … الشعبي أحد»
+            # — correct it to ثقة, else that bad entry shadows the real man and reads «صحابي» mid-chain
+            # (an S flag: الشعبي/عبيد الله بن عبد الله بن عتبة/قيس بن أبي حازم). The curated _TABII_FORMS
+            # are تابعون by consensus, so this is documentary; a name that ALSO matches a Companion form
+            # (anchor → صحابي) is left untouched, so a real Companion keeps his grade.
+            if category == "صحابي":
+                anchor = _anchor_grade(_clean_tokens(raw["name"]))
+                if anchor and anchor[0] == "ثقة":
+                    category, rank = anchor
             # A Companion's bio («أحد العشرة أسلم قديمًا …») sometimes leaks into his NAME, not the grade,
             # so a major صحابي (عبد الرحمن بن عوف) is mis-graded «مجهول» → a chain through him reads «راوٍ
             # مجهول». Recover صحابي from his own name when the grade is silent (only ever PROMOTES).

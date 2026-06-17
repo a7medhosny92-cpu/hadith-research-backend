@@ -477,7 +477,25 @@ PIL+libraqm bidi fix: pass RAW logical strings, no manual reshape/bidi — `/tmp
   (ابن سيرين = محمد بن سيرين, father سيرين) already resolves by the literal-son partial → NOT in the map. +1 test, **455 green**.
   **Effective on the next `audit_isnad` ALONE (live matcher, no rebuild)** — expect A to drop by ~1500 (the «ابن جريج» positions
   resolve to one ثقة), W/S flat (ثقة, trusted). The map is extensible (ابن أبي ذئب/ابن أبي مليكة/ابن جدعان next, once their exact
-  تقريب nasab is confirmed). **WAITING ON THE USER: re-run `audit_isnad`** → send A (expect ~45,300) + confirm ابن جريج gone from `a_ranked`.
+  تقريب nasab is confirmed).
+  **★ MEASURED + PROBE-DIAGNOSED (user re-ran `audit_isnad` + the new `scripts.probe_name`, 2026-06-17).** ✓ **ابن جريج
+  CONFIRMED: A 46839 → 45301 (−1538), W 681 · S 458 (both flat)** — the redirect resolved the «ابن جريج» positions to one
+  ثقة, no new wrong verdicts. ★★ The probe also DIAGNOSED THE S CLASS (the root is ONE bug): each S تابعي has a
+  **mis-graded «صحابي» entry (truncated/bio-leak) shadowing the correct ثقة** — «عامر بن شراحيل … الشعبي أحد» graded صحابي
+  (should be ثقة); a truncated «عبيد الله بن عبد الله بن عتبة» صحابي beside «… بن مسعود الهذلي» ثقة; a bare «قيس بن أبي حازم»
+  صحابي beside «… البجلي» ثقة. **FIXED (`index.add`): a KNOWN major تابعي (`_TABII_FORMS`) can never be a صحابي → the anchor
+  now CORRECTS a mis-extracted صحابي→ثقة** (only when the name matches a تابعي form and NOT a Companion form, so a real
+  Companion keeps صحابي); **+قيس بن أبي حازم added to `MAJOR_TABIIN`**. Fixes الشعبي(10+4)/عبيد الله بن عبد الله بن عتبة(8+4)/
+  قيس(8) — the bulk of the ~30-case S error class; نافع بن أبي نافع(4) is a non-curated truncation residual. +1 test, **457
+  green**. **Effective on the next `audit_isnad` ALONE (live `add`, no rebuild)** → expect S to fall ~458→~430. NB the probe
+  also surfaced a recurring **bare/truncated «صحابي» SHADOW class** (a bare «عبد الملك» صحابي shadows the ابن جريج redirect
+  target in a context-free `lookup`; bare «نافع أبو» صحابي) — inert in chains (context resolves, S didn't rise) but the
+  extraction root (a Companion-description leaking «صحابي» onto a truncated تابعي/ism) is the general cure if S persists.
+  **★ NEXT (this session, continuing): extend `_SHUHRA` with ابن أبي ذئب → «محمد بن عبد الرحمن بن المغيرة بن الحارث بن أبي
+  ذئب» (probe showed it mis-resolves to the خال «الحارث … خال ابن أبي ذئب» صدوق) and ابن أبي مليكة → «عبد الله بن عبيد الله
+  بن عبد الله بن أبي مليكة» (mis-resolves to a ضعيف descendant); SKIP ابن جدعان (ضعيف + a doubling) and ابن أبي ليلى (genuinely
+  ambiguous — محمد الفقيه صدوق vs عبد الرحمن التابعي ثقة); ابن المسيب already resolves (سعيد, father المسيب = direct).**
+  **WAITING ON THE USER: re-run `audit_isnad`** after the next pull → S↓ (the تابعي override) + A↓ further (the new shuhras).
 
 **★★ (2026-06-15, THIS SESSION cont.) THE JOINT-RESOLVER DIRECTION — `app/rijal/resolve.py` core BUILT (gated,
 unwired). The user's insight + the next architecture.** The user pushed a deep point: «the company that should
