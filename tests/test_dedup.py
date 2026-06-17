@@ -354,3 +354,37 @@ def test_reconcile_seed_passes_through_when_no_built_base():
     from app.rijal.dedup import reconcile_seed
     seed = [{"name": "مالك بن أنس الأصبحي", "grade": "ثقة"}, {"name": "نافع مولى ابن عمر", "grade": "ثقة"}]
     assert [r["name"] for r in reconcile_seed(seed, [])] == [s["name"] for s in seed]
+
+
+def test_theophoric_abd_name_is_not_truncated_to_a_nisba():
+    """«عبد الأعلى» (and «عبد الغني/القوي» — any divine name ending «الـ…ـي») must NOT be read as a
+    nisba: otherwise lineage stops at «(عبد,)», ident_key collapses, and same_man FUSES distinct men."""
+    a = {"name": "عبد الأعلى بن القاسم الكوفي", "grade": "ثقة"}
+    b = {"name": "عبد الأعلى بن حماد النرسي", "grade": "صدوق"}
+    assert ident_key(a["name"]) == ("عبد", "الاعلي", "القاسم")   # the ism keeps its theophoric tail
+    assert ident_key(a["name"]) != ident_key(b["name"])         # different fathers → different men
+    assert not same_man(a, b)                                   # …so they are NOT fused
+    # a real same man (two spellings of عبد الأعلى بن عبد الأعلى) still collapses
+    c = {"name": "عبد الأعلى بن عبد الأعلى السامي البصري", "grade": "ثقة"}
+    d = {"name": "عبد الأعلى بن عبد الأعلى البصري أبو محمد", "grade": "ثقة"}
+    assert ident_key(c["name"]) == ident_key(d["name"]) and same_man(c, d)
+
+
+def test_reconcile_seed_folds_a_companion_excluding_a_same_name_tabaqa_rival():
+    """The seed «عبد الله بن الزبير الأسدي» (صحابي) nests in TWO built forms — the Companion (صحابي) and
+    al-Ḥumaydī (ثقة, a different man, ت219). Without the طبقة guard `_all_nested` sees both, isn't nested,
+    and HOLDS the seed (a surviving doubling). The guard drops the grade/طبقة-distinct rival so the seed
+    folds into its Companion, al-Ḥumaydī kept distinct."""
+    from app.rijal.dedup import reconcile_seed
+    built = [
+        {"name": "عبد الله بن الزبير بن العوام القرشي الأسدي أبو بكر وأبو خبيب", "grade": "صحابي", "source": "تقريب"},
+        {"name": "عبد الله بن الزبير بن عيسى القرشي الأسدي الحميدي المكي أبو بكر", "grade": "ثقة حافظ", "source": "تقريب"},
+    ]
+    seed = [{"name": "عبد الله بن الزبير الأسدي", "kunya": "أبو بكر", "grade": "صحابي", "source": "إجماع"}]
+    out = reconcile_seed(seed, built)
+    names = [r["name"] for r in out]
+    assert len(out) == 2                                        # the seed folded, not held
+    assert "عبد الله بن الزبير الأسدي" not in names             # folded into the Companion full form
+    companion = next(r for r in out if "العوام" in r["name"])
+    assert "عبد الله بن الزبير الأسدي" in (companion.get("aliases") or [])
+    assert any("الحميدي" in n for n in names)                   # al-Ḥumaydī kept distinct

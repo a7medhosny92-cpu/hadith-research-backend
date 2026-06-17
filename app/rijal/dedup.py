@@ -31,6 +31,7 @@ _BIN = {normalize_for_search(w) for w in ("بن", "ابن")}                 # p
 _GEN = {normalize_for_search(w) for w in                                # «… الكبير» ≠ «… حفيده»
         ("الكبير", "الأكبر", "الحفيد", "حفيد", "الأصغر", "الصغير", "الابن", "الأب", "الجد")}
 _KUNYA_P = {normalize_for_search(w) for w in ("أبو", "أبا", "أم")}      # the subject's kunya onset
+_ABD = normalize_for_search("عبد")     # the theophoric servant-prefix: «عبد الـX» is a 2-token ISM, never a nisba
 _TRUSTED_RANK = 5     # rank ≥ this is a "trusted" verdict (ثقة/صدوق/مقبول/صحابي); below it is weak
 
 
@@ -62,7 +63,10 @@ def lineage(name: str) -> list[tuple[str, ...]]:
                 cur = []
             after_bin = True
             continue
-        if not after_bin and (tok in _KUNYA_P or tok in _GEN or _is_nisba(tok)):
+        # a nisba ends the chain — UNLESS it follows «عبد», where the «الـ…ـي» completes the
+        # theophoric ism (عبد الأعلى/الغني/القوي), so it is kept (else ident_key collapses to «عبد»).
+        if not after_bin and (tok in _KUNYA_P or tok in _GEN
+                              or (_is_nisba(tok) and cur != [_ABD])):
             break                                          # the subject's descriptors begin
         cur.append(tok)
         after_bin = False
@@ -513,7 +517,10 @@ def reconcile_seed(seed: list[dict], built: list[dict]) -> list[dict]:
                     continue
             elif not (lineage_compatible(s, result[j]) and (stoks & _GEN) == (btoks[j] & _GEN)):
                 continue
-            matches.append(j)
+            if _companion_split(s, result[j]):
+                continue          # a different طبقة namesake (al-Ḥumaydī ثقة ≠ the صحابي seed «عبد الله
+            matches.append(j)     # بن الزبير») — excluded so it can't block the fold via _all_nested. (NOT
+            #                       a grade guard: the curated seed grade is authoritative, it CORRECTS the built.)
         if matches and _all_nested([btoks[j] for j in matches]):
             _fold_seed_into(result[max(matches, key=lambda j: len(btoks[j]))], s)
         else:
