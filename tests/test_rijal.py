@@ -126,6 +126,19 @@ def test_ibn_jurayj_shuhra_resolves_to_the_man_known_by_his_grandfather():
     assert son is not None and son.entry.name.startswith("عيسى")
 
 
+def test_probe_name_describes_lookup_and_candidates():
+    from scripts.probe_name import describe
+    rij = RijalIndex([
+        {"name": "عبد الملك بن عبد العزيز بن جريج المكي", "grade": "ثقة"},
+        {"name": "عيسى بن جريج البصري", "grade": "مقبول"},
+    ])
+    report = "\n".join(describe(rij, "ابن جريج"))
+    assert "عبد الملك بن عبد العزيز بن جريج" in report   # the shuhra redirect resolved him
+    assert "ثقة" in report and "محسوم" in report          # unambiguous, graded
+    # a name with no match prints cleanly (no crash)
+    assert "لا مطابقة" in "\n".join(describe(rij, "فلان بن فلان العجمي"))
+
+
 def test_a_bare_grave_namesake_does_not_sink_a_fuller_trustworthy_one():
     # «إسحاق بن عمر» [متروك] (a bare, truncated entry) must NOT confidently grade a chain «ضعيف جدًا»
     # when a fuller, trustworthy «إسحاق بن عمر بن سليط الهذلي» also fits the bare citation — hold instead.
