@@ -108,28 +108,48 @@ def iter_hadith(
     *,
     default_grade: str | None = None,
     start_page_id: int | None = None,
+    headings: list | None = None,
 ) -> Iterator[ParsedHadith]:
     """Yield :class:`ParsedHadith` for every hadith marker in the book.
 
     ``start_page_id`` skips front matter (the editor's muqaddima, which quotes hadith
     out of sequence): pass the page id where the real numbered text begins.
+
+    ``headings`` (``indexes.headings`` — each a page-positioned {level, title}) builds a HIERARCHICAL
+    chapter «كتاب ← باب», unique even when the باب title is just «بَابٌ» (untitled أبواب otherwise
+    collide and fuse in the «الكتب» tab). Without it the chapter falls back to the page text.
     """
     pages = list(pages)
     marker = _detect_marker(pages, start_page_id)
     current: dict | None = None
     chapter: str | None = None
+    # page → [(level, title)] in array order, for the hierarchical chapter; `active` tracks the open path.
+    hbp: dict[int, list[tuple[int, str]]] = {}
+    for h in (headings or []):
+        p, t = h.get("page"), (h.get("title") or "").strip()
+        if p is not None and t:
+            hbp.setdefault(int(p), []).append((int(h.get("level") or 99), t))
+    active: dict[int, str] = {}
 
     for page in sorted(pages, key=lambda p: p.get("pg", 0)):
         pg = page.get("pg", 0)
         if start_page_id is not None and pg < start_page_id:
             continue
+        for lvl, title in hbp.get(pg, []):           # open the hierarchical headings on this page
+            for d in [l for l in list(active) if l > lvl]:
+                del active[d]                        # a higher level closes the deeper ones
+            active[lvl] = title
+        if hbp:
+            chapter = " ← ".join(active[l] for l in sorted(active)) or chapter
+
         meta = page.get("meta") or {}
         raw = page.get("text") or ""
 
         body, footnotes = split_footnotes(raw)
-        titles = extract_titles(body) or (meta.get("headings") or [])
-        if titles:
-            chapter = remove_footnote_refs(titles[-1]).strip()
+        if not hbp:                                  # fallback (no headings index): chapter from text
+            titles = extract_titles(body) or (meta.get("headings") or [])
+            if titles:
+                chapter = remove_footnote_refs(titles[-1]).strip()
         page_grades = extract_s0_grades(footnotes) or extract_s0_grades(raw)
         block = clean_block(body)
 
@@ -151,7 +171,8 @@ def iter_hadith(
             segment = _LEADING_SUBNUM.sub("", block[match.end():end], count=1)
             head = normalize_for_search(segment[:40]).split()
             if head and head[0] in _HEADING_WORDS:   # a numbered «باب/كتاب …» heading, not a hadith
-                chapter = remove_footnote_refs(segment.strip().split("\n", 1)[0]).strip() or chapter
+                if not hbp:   # with the headings index the hierarchical chapter already covers it
+                    chapter = remove_footnote_refs(segment.strip().split("\n", 1)[0]).strip() or chapter
                 current = None
                 continue
             current = {
@@ -208,6 +229,7 @@ def parse_book_file(path: str | Path, *, default_grade: str | None = None,
             data.get("pages", []),
             default_grade=default_grade,
             start_page_id=_first_text_page(data),
+            headings=(data.get("indexes") or {}).get("headings"),
         )
     )
     _inherit_rimandi(hadiths)   # reference entries inherit the matn they point back to

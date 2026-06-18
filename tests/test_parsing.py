@@ -206,3 +206,28 @@ def test_iter_hadith_dash_style_with_s0_grades():
     h2 = hadiths[1]
     assert h2.matn_confidence == "phrase"
     assert h2.grade == "ضعيف"  # second <s0> → second hadith
+
+
+def test_hierarchical_chapter_from_headings_index():
+    """With indexes.headings, the chapter is «كتاب ← باب» — unique even when the باب title is just
+    «بَابٌ»: two untitled أبواب in different كتب stay distinct (the library-tab fusion fix)."""
+    pages = [
+        {"pg": 10, "meta": {"vol": "1", "page": 1, "headings": []},
+         "text": "• [١] حدثنا الحميدي عن عمر قال سمعت النبي ﷺ يقول إنما الأعمال بالنيات."},
+        {"pg": 12, "meta": {"vol": "1", "page": 3, "headings": []},
+         "text": "• [٢] حدثنا قتيبة عن أنس أن النبي ﷺ صلى ركعتين."},
+        {"pg": 20, "meta": {"vol": "1", "page": 10, "headings": []},
+         "text": "• [٣] حدثنا مالك عن نافع عن ابن عمر أن النبي ﷺ قال خذوا."},
+    ]
+    headings = [
+        {"page": 10, "level": 1, "title": "كتاب الإيمان"},
+        {"page": 10, "level": 2, "title": "باب أمور الإيمان"},
+        {"page": 12, "level": 2, "title": "بَابٌ"},
+        {"page": 20, "level": 1, "title": "كتاب العلم"},
+        {"page": 20, "level": 2, "title": "بَابٌ"},
+    ]
+    by_num = {h.number: h.chapter for h in iter_hadith(1284, pages, headings=headings)}
+    assert by_num[1] == "كتاب الإيمان ← باب أمور الإيمان"
+    assert by_num[2] == "كتاب الإيمان ← بَابٌ"
+    assert by_num[3] == "كتاب العلم ← بَابٌ"
+    assert by_num[2] != by_num[3]            # untitled «بَابٌ» in different كتب are distinct
