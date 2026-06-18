@@ -58,6 +58,10 @@
   .r-num{display:inline-block;background:#f0ece0;color:var(--gold2);font-weight:700;font-size:.9rem;border-radius:8px;padding:1px 9px;margin-bottom:8px}
   .card.taliq{background:#fbf9f3;border-style:dashed}
   .taliq-badge{background:#efe7d6;color:var(--gold2);padding:4px 13px;border-radius:999px;font-size:.85rem;font-weight:700}
+  .card.sharh{background:#f7faf8}
+  .sharh-badge{background:#eef6f1;color:var(--accent2);padding:4px 13px;border-radius:999px;font-size:.85rem;font-weight:700}
+  .sharh-on{color:var(--muted);font-size:.85rem;font-weight:400}
+  .sharh-text{line-height:2;white-space:pre-wrap;margin-top:6px}
   .g-sahih{background:#dcefe1;color:#15643f}
   .g-hasan{background:#f6eccf;color:#876413}
   .g-daif{background:#f6ddd5;color:#a5381f}
@@ -1121,22 +1125,29 @@ results.addEventListener("input", e => {
 // hadiths under each — instead of searching. Three views with a breadcrumb; the leaf reuses
 // hadithCard. Server-backed by /books (reads the same index.db). The chapter filter is client-side
 // (a book's chapters are already in hand); hadiths page via «المزيد».
-const booksState = {view:"collections", book_id:null, collection:"", chapter:null, q:"",
+const booksState = {realm:"hadith", view:"collections", book_id:null, collection:"", chapter:null, q:"",
                     offset:0, limit:50, chapters:[]};
 
 async function renderBooks(){
-  Object.assign(booksState, {view:"collections", book_id:null, chapter:null, q:""});
+  Object.assign(booksState, {realm:"hadith", view:"collections", book_id:null, chapter:null, q:""});
   results.innerHTML = `<div class="state">… جارٍ تحميل الكتب</div>`;
-  let d;
+  let d, s = {commentaries:[]};
   try { d = await getJSON("/books"); }
   catch(e){ results.innerHTML = `<div class="state">${esc(e.message || "تعذّر التحميل")}</div>`; return; }
+  try { s = await getJSON("/sharh-books"); } catch(e){ /* sharh index optional */ }
   const cols = d.collections || [];
   const items = cols.map(c =>
     `<div class="rawi-item bk-col" data-id="${c.book_id}" data-name="${esc(c.collection)}" role="button" tabindex="0">`
     + `<span>${esc(c.collection)}</span><span class="simbadge">${c.count}</span></div>`).join("");
+  const shr = (s.commentaries || []).map(c =>
+    `<div class="rawi-item bk-scol" data-id="${c.book_id}" data-name="${esc(c.sharh)}" role="button" tabindex="0">`
+    + `<span>${esc(c.sharh)}${c.base_name ? ` <span class="sharh-on">على ${esc(c.base_name)}</span>` : ""}</span>`
+    + `<span class="simbadge">${c.count}</span></div>`).join("");
   results.innerHTML = booksCrumb()
     + `<div class="note">تصفّح الكتب الكبرى وأبوابها — اختَر كتابًا، ثم بابًا، ثم تظهر أحاديثه.</div>`
-    + `<div class="rawi-col">${items || '<div class="note">لا كتب بعد — ابنِ الفهرس (index.db) أولًا.</div>'}</div>`;
+    + `<div class="rawi-col">${items || '<div class="note">لا كتب بعد — ابنِ الفهرس (index.db) أولًا.</div>'}</div>`
+    + (shr ? `<div class="note" style="margin-top:18px"><b>شروح الحديث</b> — اختَر شرحًا لتصفّح أبوابه ونصوصه.</div>`
+             + `<div class="rawi-col">${shr}</div>` : "");
 }
 
 function booksCrumb(){
@@ -1165,11 +1176,12 @@ function _bkChapterItems(){
     || '<div class="note">لا أبواب مطابقة لهذه التصفية.</div>';
 }
 
-async function openBookChapters(book_id, name){
-  Object.assign(booksState, {book_id, collection:name, chapter:null, q:""});
+async function openBookChapters(book_id, name, realm){
+  Object.assign(booksState, {realm: realm || "hadith", book_id, collection:name, chapter:null, q:""});
   results.innerHTML = `<div class="state">… جارٍ تحميل الأبواب</div>`;
+  const url = booksState.realm === "sharh" ? `/sharh-books/${book_id}/chapters` : `/books/${book_id}/chapters`;
   let d;
-  try { d = await getJSON(`/books/${book_id}/chapters`); }
+  try { d = await getJSON(url); }
   catch(e){ results.innerHTML = `<div class="state">${esc(e.message || "تعذّر التحميل")}</div>`; return; }
   booksState.collection = d.collection || name;
   booksState.chapters = d.chapters || [];
@@ -1184,22 +1196,36 @@ function drawBooksChapters(){
     + `<div class="rawi-col" id="bkchlist">${_bkChapterItems()}</div>`;
 }
 
+function sharhPassageCard(p){
+  const on = [p.base_name, (p.hadith_number != null ? "رقم " + p.hadith_number : null)].filter(Boolean).join(" · ");
+  const cite = [p.sharh, (p.page != null ? "ص " + p.page : null)].filter(Boolean).join("  ·  ");
+  const txt = `${p.text}\n— ${p.sharh}${on ? " — على " + on : ""}`;
+  return `<div class="card sharh">
+    <div class="cite"><span class="sharh-badge">شرح</span><span>${esc(cite)}</span>${on ? `<span class="sharh-on">على ${esc(on)}</span>` : ""}</div>
+    <div class="sharh-text">${esc(p.text)}</div>
+    <div class="actions">${shareTools(txt)}</div></div>`;
+}
+
 async function openChapterHadiths(chapter, kind){
   booksState.chapter = chapter; booksState.view = "hadiths";
-  if(kind !== "more"){ booksState.offset = 0; results.innerHTML = `<div class="state">… جارٍ تحميل الأحاديث</div>`; }
+  const sharh = booksState.realm === "sharh";
+  if(kind !== "more"){ booksState.offset = 0; results.innerHTML = `<div class="state">… جارٍ التحميل</div>`; }
   const p = new URLSearchParams({offset:booksState.offset, limit:booksState.limit});
   if(chapter != null) p.set("chapter", chapter);
+  const url = sharh ? `/sharh-books/${booksState.book_id}/passages?${p.toString()}`
+                    : `/books/${booksState.book_id}/hadiths?${p.toString()}`;
   let d;
-  try { d = await getJSON(`/books/${booksState.book_id}/hadiths?${p.toString()}`); }
+  try { d = await getJSON(url); }
   catch(e){ results.innerHTML = `<div class="state">${esc(e.message || "تعذّر التحميل")}</div>`; return; }
   if(kind !== "more"){
     results.innerHTML = booksCrumb()
-      + `<div class="note">«${esc(booksState.collection)}» — ${esc(chapter || "كل الأحاديث")}</div>`
+      + `<div class="note">«${esc(booksState.collection)}» — ${esc(chapter || (sharh ? "كل النصوص" : "كل الأحاديث"))}</div>`
       + `<div id="bklist"></div><div id="bkmore"></div>`;
   }
+  const rows = sharh ? (d.passages || []) : (d.hadiths || []);
   const list = document.getElementById("bklist");
-  if(list) list.insertAdjacentHTML("beforeend", (d.hadiths || []).map(h => hadithCard(h)).join(""));
-  booksState.offset += (d.hadiths || []).length;
+  if(list) list.insertAdjacentHTML("beforeend", rows.map(r => sharh ? sharhPassageCard(r) : hadithCard(r)).join(""));
+  booksState.offset += rows.length;
   const more = document.getElementById("bkmore");
   if(more) more.innerHTML = d.has_more ? `<button class="tool bk-more">المزيد</button>` : "";
 }
@@ -1210,7 +1236,9 @@ results.addEventListener("click", e => {
   const bb = e.target.closest(".bk-back");
   if(bb){ bb.getAttribute("data-to") === "chapters" ? drawBooksChapters() : renderBooks(); return; }
   const col = e.target.closest(".bk-col");
-  if(col){ openBookChapters(+col.getAttribute("data-id"), col.getAttribute("data-name")); return; }
+  if(col){ openBookChapters(+col.getAttribute("data-id"), col.getAttribute("data-name"), "hadith"); return; }
+  const scol = e.target.closest(".bk-scol");
+  if(scol){ openBookChapters(+scol.getAttribute("data-id"), scol.getAttribute("data-name"), "sharh"); return; }
   const ch = e.target.closest(".bk-chapter");
   if(ch){ openChapterHadiths(ch.getAttribute("data-ch")); return; }
   const more = e.target.closest(".bk-more");
@@ -1789,9 +1817,9 @@ const TECH = [
     "litellm as a unified interface. Three modes: off (extractive from the sources, the safest), local (Ollama), remote (any provider); selected with ?engine= and ?model=.",
     "In every mode the engine is constrained to rely only on the retrieved sources, to cite, and not to fabricate; the sources are always returned so the answer stays verifiable."]},
   {h:"API — app/routers/", p:[
-    "GET /search?q=&mode=&field=&group=&collection=&grade= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /narrators?letter=&grade=&q=&offset=&limit= (browse the رجال — the «الرواة» tab) · GET /books, /books/{id}/chapters, /books/{id}/hadiths?chapter=&offset=&limit= (navigate the library — the «الكتب» tab) · GET /verify-isnad?isnad=|hadith_id= · GET /audit (isnad review) · GET /conflicts (rijal grave↔trustworthy collisions) · GET /matn-audit (matn review) · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
+    "GET /search?q=&mode=&field=&group=&collection=&grade= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /narrators?letter=&grade=&q=&offset=&limit= (browse the رجال — the «الرواة» tab) · GET /books, /books/{id}/chapters, /books/{id}/hadiths?chapter=&offset=&limit= and GET /sharh-books, /sharh-books/{id}/chapters, /sharh-books/{id}/passages?chapter= (navigate the library — collections AND شروح — the «الكتب» tab) · GET /verify-isnad?isnad=|hadith_id= · GET /audit (isnad review) · GET /conflicts (rijal grave↔trustworthy collisions) · GET /matn-audit (matn review) · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
     "Browse — the «الرواة» tab (GET /narrators, RijalIndex.browse_rows): a paged, letter-and-درجة-faceted index of every graded narrator (each facet's counts respect the other active filters), so the user can scroll the رجال without searching; a click opens that man's راوٍ card. Names are de-duplicated by exact form.",
-    "Library — the «الكتب» tab (app/routers/books.py + HadithIndex.collections/chapters/chapter_hadiths over the same index.db): navigate the corpus by its OWN structure instead of searching — collections (GET /books) → a collection's كتب/أبواب in book order (GET /books/{id}/chapters) → the hadiths under a chapter, paged (GET /books/{id}/hadiths?chapter=) — a three-view drill-down with a breadcrumb and a client-side chapter filter; the leaf reuses the full hadith card. The chapter is built from the book's indexes.headings as a hierarchical «كتاب ← باب» (so untitled «بَابٌ» in different كتب stay distinct, no fusion). أبواب whose body is only a تعليق/أثر — no numbered hadith (common in صحيح البخاري) — are recovered by a parse-time post-pass as «taliq» entries so the whole book is browsable; they carry an empty isnad and kind='taliq', so they show in the library (ordered in book place via a sort key) but are excluded from search, the narrator graph, and the isnad/matn audits.",
+    "Library — the «الكتب» tab (app/routers/books.py + HadithIndex.collections/chapters/chapter_hadiths over the same index.db): navigate the corpus by its OWN structure instead of searching — collections (GET /books) → a collection's كتب/أبواب in book order (GET /books/{id}/chapters) → the hadiths under a chapter, paged (GET /books/{id}/hadiths?chapter=) — a three-view drill-down with a breadcrumb and a client-side chapter filter; the leaf reuses the full hadith card. The chapter is built from the book's indexes.headings as a hierarchical «كتاب ← باب» (so untitled «بَابٌ» in different كتب stay distinct, no fusion). أبواب whose body is only a تعليق/أثر — no numbered hadith (common in صحيح البخاري) — are recovered by a parse-time post-pass as «taliq» entries so the whole book is browsable; they carry an empty isnad and kind='taliq', so they show in the library (ordered in book place via a sort key) but are excluded from search, the narrator graph, and the isnad/matn audits. The same tab also browses the شروح (the separate sharh_index.db): GET /sharh-books → each شرح with the collection it explains and its passage count → /sharh-books/{id}/chapters → /sharh-books/{id}/passages?chapter= (one card per passage, its chunks rejoined to the full commentary) — SharhIndex.collections/chapters/chapter_passages.",
     "Notebook: GET/POST /notebook and PATCH/DELETE /notebook/{id}. Maintenance: POST /admin/reload (clears the provider caches). Health: GET /health and /health/ingestion."]},
   {h:"Settings — app/config.py (.env)", p:[
     "pydantic-settings. The main ones: data_dir (=data), rijal_path (a larger rijal base), embedding_model/embedding_dim (768); the data file paths are properties derived from data_dir.",

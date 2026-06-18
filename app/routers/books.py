@@ -10,8 +10,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
+from app.routers.ask import get_sharh_index
 from app.routers.search import get_index
-from app.search import HadithIndex
+from app.search import HadithIndex, SharhIndex
 from app.search.index import COLLECTION_NAMES
 
 router = APIRouter(tags=["books"])
@@ -52,4 +53,37 @@ def hadiths(
         "offset": offset,
         "hadiths": [h.to_dict() for h in hits],
         "has_more": len(hits) == limit,
+    }
+
+
+# ── شروح (commentaries): the same navigator over the separate sharh_index.db ──────────────────────
+@router.get("/sharh-books")
+def sharh_books(sharh: SharhIndex = Depends(get_sharh_index)) -> dict:
+    """Every شرح in the corpus, with the collection it explains and its passage count."""
+    return {"commentaries": sharh.collections()}
+
+
+@router.get("/sharh-books/{book_id}/chapters")
+def sharh_chapters(book_id: int, sharh: SharhIndex = Depends(get_sharh_index)) -> dict:
+    """The chapters (كتب/أبواب) of one شرح, in book order, each with its passage count."""
+    chs = sharh.chapters(book_id)
+    return {"book_id": book_id, "chapters": chs, "total": len(chs)}
+
+
+@router.get("/sharh-books/{book_id}/passages")
+def sharh_passages(
+    book_id: int,
+    chapter: str | None = Query(None),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    sharh: SharhIndex = Depends(get_sharh_index),
+) -> dict:
+    """The passages under one ``chapter`` of a شرح (or the whole book when omitted), paged."""
+    passages = sharh.chapter_passages(book_id, chapter, offset=offset, limit=limit)
+    return {
+        "book_id": book_id,
+        "chapter": chapter,
+        "offset": offset,
+        "passages": passages,
+        "has_more": len(passages) == limit,
     }

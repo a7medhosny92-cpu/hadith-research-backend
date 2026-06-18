@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.routers.search import get_index
-from app.search import HadithIndex
+from app.search import HadithIndex, SharhIndex
 
 REC = [
     {"book_id": 1284, "number": 1, "matn": "إنما الأعمال بالنيات", "isnad": "س", "grade": "صحيح",
@@ -70,6 +70,48 @@ def test_taliq_section_shows_in_library_only_ordered_in_place():
     # search never surfaces a taliق (it is library-only, no isnad to grade)
     assert idx.search("النصيحة") == []
     assert [h.number for h in idx.search("حديث")] == [1, 2]   # the real hadith are still found
+
+
+def test_sharh_library_navigator():
+    """A شرح is browsable like a collection: book → chapters → passages (full text rejoined)."""
+    sx = SharhIndex(":memory:")
+    sx.add([
+        {"book_id": 641, "sharh": "فتح الباري", "base_id": 1284, "base_name": "صحيح البخاري",
+         "hadith_number": 1, "chapter": "كتاب بدء الوحي", "page": 9, "page_id": 100,
+         "text": "قوله إنما الأعمال بالنيات. هذا الحديث أحد قواعد الإسلام."},
+        {"book_id": 641, "sharh": "فتح الباري", "base_id": 1284, "base_name": "صحيح البخاري",
+         "hadith_number": 2, "chapter": "كتاب الإيمان", "page": 20, "page_id": 101,
+         "text": "قوله بني الإسلام على خمس. شرح أركان الإسلام."},
+    ])
+    cols = sx.collections()
+    assert len(cols) == 1 and cols[0]["book_id"] == 641 and cols[0]["base_name"] == "صحيح البخاري"
+    assert cols[0]["count"] == 2                                   # two distinct passages
+
+    chs = sx.chapters(641)
+    assert [c["chapter"] for c in chs] == ["كتاب بدء الوحي", "كتاب الإيمان"]   # in hadith-number order
+
+    ps = sx.chapter_passages(641, "كتاب الإيمان")
+    assert len(ps) == 1 and ps[0]["hadith_number"] == 2 and "أركان الإسلام" in ps[0]["text"]
+
+
+def test_sharh_books_endpoints():
+    sx = SharhIndex(":memory:")
+    sx.add([{"book_id": 641, "sharh": "فتح الباري", "base_id": 1284, "base_name": "صحيح البخاري",
+             "hadith_number": 1, "chapter": "كتاب بدء الوحي", "page": 9, "page_id": 100,
+             "text": "شرح الحديث الأول."}])
+    from app.main import app
+    from app.routers.ask import get_sharh_index
+    app.dependency_overrides[get_sharh_index] = lambda: sx
+    try:
+        client = TestClient(app)
+        cs = client.get("/sharh-books").json()["commentaries"]
+        assert any(c["book_id"] == 641 and c["sharh"] == "فتح الباري" for c in cs)
+        ch = client.get("/sharh-books/641/chapters").json()
+        assert ch["total"] == 1 and ch["chapters"][0]["chapter"] == "كتاب بدء الوحي"
+        pg = client.get("/sharh-books/641/passages", params={"chapter": "كتاب بدء الوحي"}).json()
+        assert len(pg["passages"]) == 1 and "شرح الحديث" in pg["passages"][0]["text"]
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_books_endpoints():

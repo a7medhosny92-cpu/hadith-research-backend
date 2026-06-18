@@ -446,6 +446,47 @@ class SharhIndex:
         ).fetchall()
         return [_sharh_hit(row) for row in rows]
 
+    # ── library navigator (شروح → chapters → passages), for the «الكتب» browse tab ───────────────
+    def collections(self) -> list[dict]:
+        """Every شرح present, with its base collection and DISTINCT-passage count, in build order."""
+        rows = self._con.execute(
+            "SELECT book_id, sharh_name, base_id, base_name, COUNT(DISTINCT page_id) "
+            "FROM sharh GROUP BY book_id ORDER BY MIN(rowid)"
+        ).fetchall()
+        return [{"book_id": b, "sharh": s, "base_id": bi, "base_name": bn, "count": n}
+                for b, s, bi, bn, n in rows]
+
+    def chapters(self, book_id: int) -> list[dict]:
+        """The chapters (كتب/أبواب) of one شرح, in book order, each with its passage count. A شرح
+        follows its base collection, so order by the linked hadith NUMBER where present, else rowid."""
+        rows = self._con.execute(
+            "SELECT chapter, COUNT(DISTINCT page_id) FROM sharh "
+            "WHERE book_id = ? AND chapter IS NOT NULL AND chapter <> '' "
+            "GROUP BY chapter ORDER BY MIN(CAST(hadith_number AS INTEGER)), MIN(rowid)",
+            (book_id,),
+        ).fetchall()
+        return [{"chapter": ch, "count": n} for ch, n in rows]
+
+    def chapter_passages(
+        self, book_id: int, chapter: str | None = None, *, offset: int = 0, limit: int = 20
+    ) -> list[dict]:
+        """The passages of one شرح under ``chapter`` (or the whole book), in book order, paged — the
+        leaf of the «الكتب» navigator. One entry per passage (its chunks rejoined to the full text)."""
+        where, args = "book_id = ?", [book_id]
+        if chapter is not None:
+            where, args = "book_id = ? AND chapter = ?", [book_id, chapter]
+        rows = self._con.execute(
+            "SELECT page_id, MIN(rowid) AS r, sharh_name, base_id, base_name, hadith_number, chapter, page "
+            f"FROM sharh WHERE {where} GROUP BY page_id "
+            "ORDER BY MIN(CAST(hadith_number AS INTEGER)), r LIMIT ? OFFSET ?",
+            (*args, limit, offset),
+        ).fetchall()
+        return [
+            {"book_id": book_id, "sharh": s, "base_id": bi, "base_name": bn, "hadith_number": hn,
+             "chapter": ch, "page": pg, "page_id": pid, "text": self.full_passage(book_id, pid)}
+            for pid, _r, s, bi, bn, hn, ch, pg in rows
+        ]
+
     def full_passage(self, book_id: int, page_id: int) -> str:
         """Re-join every chunk of one شرح *passage* — a whole hadith's commentary, or a
         whole chapter's — identified by its anchor ``page_id``.
