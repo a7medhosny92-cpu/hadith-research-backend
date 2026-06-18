@@ -11,6 +11,8 @@ qualifier (يهم/اختلط/خلط…), the narrator is nudged down a notch.
 
 from __future__ import annotations
 
+import re
+
 from app.parsing.normalize import NEGATORS, normalize_for_search
 
 # Positive ranks that a preceding negator («غير عدل») cancels.
@@ -55,6 +57,12 @@ _QUALIFIERS = ["يهم", "يخطئ", "اوهام", "اختلط", "خلط", "تغ
 _RULES_N = [(cat, [normalize_for_search(p) for p in phrases]) for cat, phrases in _RULES]
 _QUALIFIERS_N = [normalize_for_search(q) for q in _QUALIFIERS]
 
+# A FALSE PROPHET's epithet — «مسيلمةُ الكذّاب»، «الأسودُ [العنسيُّ] الكذّاب»، «طليحةُ/سجاحُ الكذّاب» — is a
+# STORY character, never a جرح of the narrator. A matn «جاء مسيلمةُ الكذّاب إلى رسول الله ﷺ …» that leaked
+# into a verdict field must NOT grade the narrator (أبو عامر العقديّ، ثقة) «كذّاب» and sink a صحيح البخاري
+# chain. Neutralise the epithet before classifying (folded forms: ة→ه, shadda dropped).
+_FALSE_PROPHET_KADHAB = re.compile(r"(?:مسيلمه|الاسود|طليحه|سجاح)\s+(?:العنسي\s+)?الكذاب")
+
 
 def _first_index(haystack: str, needle: str) -> int:
     pos = haystack.find(f" {needle} ")
@@ -66,6 +74,7 @@ def _first_index(haystack: str, needle: str) -> int:
 def classify(verdict: str) -> tuple[str, int | None]:
     """Return ``(category, rank)`` for a raw verdict; ``("غير معروف", None)`` if unread."""
     text = f" {normalize_for_search(verdict)} "
+    text = _FALSE_PROPHET_KADHAB.sub(" مسيلمه ", text)   # drop the false-prophet «الكذّاب» epithet
     best_cat: str | None = None
     best_pos = 10**9
     for cat, phrases in _RULES_N:

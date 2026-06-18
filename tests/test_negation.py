@@ -31,3 +31,14 @@ def test_grade_extraction_is_negation_safe():
     assert extract_grade("إسناده غير صحيح") is None
     assert extract_grade("حديث ليس بصحيح") is None
     assert extract_grade("إسناده صحيح") == "صحيح"
+
+
+def test_false_prophet_epithet_is_not_a_jarh():
+    # a leaked matn «جاء مسيلمة الكذّاب إلى رسول الله ﷺ …» must NOT grade the narrator (أبو عامر
+    # العقدي, ثقة) «كذّاب» and sink a صحيح البخاري chain — مسيلمة الكذّاب is a story character.
+    assert classify("جاء مسيلمة الكذاب إلى رسول الله صلى الله عليه وسلم فلما قام") == ("غير معروف", None)
+    assert classify("الأسود العنسي الكذاب")[0] == "غير معروف"
+    # but a REAL كذّاب verdict is kept — even one that mentions forging «على رسول الله ﷺ»
+    assert classify("كذاب")[0] == "كذاب"
+    assert classify("كذاب يضع الحديث على رسول الله صلى الله عليه وسلم")[0] == "كذاب"
+    assert classify("الأسود بن يزيد النخعي ثقة")[0] == "ثقة"   # a real narrator «الأسود» untouched

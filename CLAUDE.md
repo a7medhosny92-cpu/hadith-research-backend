@@ -202,6 +202,22 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★ (2026-06-19) audit.json DECOMPOSED (user ran `audit_isnad` post-أبو هريرة, rijal 21086 · 84767 chains): W 755 · S 299 · A 46617.**
+✓✓ **أبو هريرة GONE from a_ranked** (was ~6174 #1 → the `_KUNYA_COMPANION` redirect worked). **S 299 = BEST EVER** (was 458; the
+تابعي override + أبو هريرة + positional anchor). **A flat (46839→46617)** because أبو هريرة's −6174 was offset by the base growth
+(+~1489 entries, the user added a source — سير?) AND the now-visible long-standing classes: **«أبيه» 2835** (kinship «عن أبيه»
+→ the father's bare ism, then ambiguous among homonyms قرة بن خالد/قرة بن إياس — both ثقة → **محسوم/harmless** A-inflation, NOT a
+wrong verdict; per the philosophy A's floor isn't chased) · سفيان 2399 · ابن عمر 2225 · محمد بن جعفر 1962 (غندر ②b). **W +74 is
+93% GENUINE متروك/كذاب** (محمد بن عمر→الواقدي «متروك مع سعة علمه» ✓, زيد بن واقد, ابن أبي هلال كذاب…) — a healthy review queue,
+bigger base. **★ THE ONE REAL WRONG-VERDICT FOUND + FIXED: «أبو عامر عبد الملك بن عمرو» (العقدي، ثقة) graded كذاب (18× on صحيح
+البخاري #3368/5285)** — its "verdict" is a leaked matn **«جاء مسيلمةُ الكذّاب إلى رسول الله ﷺ…»**: «مسيلمة الكذّاب» (Musaylima the
+LIAR, a STORY character) read as a كذّاب جرح. FIX (`grades.classify`): `_FALSE_PROPHET_KADHAB` neutralises a false-prophet epithet
+(«مسيلمة/الأسود العنسي/طليحة/سجاح ‹…› الكذّاب») before classifying — surgical (a REAL «كذّاب يضع على رسول الله ﷺ» is KEPT, a narrator
+«الأسود بن يزيد» untouched). +1 test, **536 green**. **NEEDS a `build_rijal` (classify runs at build) → «أبو عامر» becomes غير معروف
+(or his real ثقة), the Bukhārī chains clear.** **RESIDUALS for the user: `probe_name "أبو عامر عبد الملك بن عمرو"`** (confirm the
+corrupt entry + WHICH source leaked the matn — likely the +1489 new source's extractor; the classify guard is the safety net, the
+extractor is the root) + the «بالكوفة…كذاب» dialogue-leak class (rarer, no prophetic phrase, not yet guarded).
+
 **★ (2026-06-19) BUKHĀRĪ #3475 WRONG «ضعيف» FIXED (user screenshot «da sistemare»).** صحيح البخاري #3475
 («… عن ابن مسعود قال: سمعتُ رجلاً قرأ، وسمعتُ النبيﷺ يقرأ خلافها …») was graded **ضعيف** because the STORY
 ابن مسعود tells leaked into the isnad: «سمعتُ رجلاً قرأ» was parsed as a راوٍ **مبهم** «رجلا» (→ false جهالة عين →
