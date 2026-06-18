@@ -216,3 +216,28 @@ def test_vocalised_dual_qala_seam_is_not_a_matn_boundary():
         "أَنَّ النَّبِيَّ ﷺ كَانَ يَتَوَضَّأُ لِكُلِّ صَلَاةٍ")
     assert matn.strip().startswith("النَّبِيَّ") and "كَانَ يَتَوَضَّأُ" in matn
     assert "وَكِيعٌ" in isnad and "وَكِيعٌ" not in matn          # the route stayed in the isnad
+
+
+def test_taliq_co_narrator_route_at_matn_head_is_re_peeled():
+    # «حدّثنا [شيخ]، قال الليثُ: حدّثني [route] … عن رسول الله ﷺ: <body>» — al-Bukhārī's «وقال الليث»
+    # muʿallaq: the split consumed «قال», stranding «الليث: حدّثني [route]» in the matn. The «[راوٍ]:
+    # حدّثني» head is re-peeled back into the isnad and the body recovered (audit RULE 2, ~45 cases).
+    isnad, matn, _ = split_isnad_matn(
+        "حَدَّثَنَا يَحْيَى بْنُ بُكَيْرٍ، قَالَ اللَّيْثُ: حَدَّثَنِي جَعْفَرُ بْنُ رَبِيعَةَ، "
+        "عَنْ عَبْدِ الرَّحْمَنِ، عَنْ أَبِي هُرَيْرَةَ، عَنْ رَسُولِ اللَّهِ ﷺ: ذَكَرَ رَجُلًا مِنْ بَنِي إِسْرَائِيلَ")
+    assert matn.startswith("ذَكَرَ رَجُلًا") and "حَدَّثَنِي" not in matn   # the route went back to the isnad
+    assert "اللَّيْثُ" in isnad and "جَعْفَرُ" in isnad
+
+
+def test_prohibition_verb_before_the_authority_stays_in_the_matn():
+    # «… عن ابن عمر، نَهَى رسولُ الله ﷺ عن بيع الثمار …» — the terminal-authority split takes only «عن
+    # بيع الثمار», stranding «نَهَى» (the prohibition = the matn) in the isnad. The verb must be kept
+    # (audit RULE 3, ~58 cases — incl. the «عن الغلام شاتان» class).
+    isnad, matn, _ = split_isnad_matn(
+        "حَدَّثَنَا قُتَيْبَةُ، عَنْ نَافِعٍ، عَنِ ابْنِ عُمَرَ، نَهَى رَسُولُ اللَّهِ ﷺ عَنْ بَيْعِ الثِّمَارِ حَتَّى يَبْدُوَ صَلَاحُهَا")
+    assert matn.startswith("نَهَى رَسُولُ اللَّهِ") and "بَيْعِ الثِّمَارِ" in matn
+    assert "ابْنِ عُمَرَ" in isnad and "نَهَى" not in isnad
+    # a NORMAL «عن النبيّ ﷺ: "<body>"» (no prohibition verb before) is unchanged
+    _, m2, _ = split_isnad_matn(
+        'حَدَّثَنَا فلان عن الزهري، عن النبيِّ ﷺ: "إذا استأذنت امرأة أحدكم فلا يمنعها"')
+    assert "إذا استأذنت امرأة" in m2 and "نهى" not in m2

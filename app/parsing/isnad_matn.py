@@ -50,6 +50,14 @@ _CHAIN_AHEAD = re.compile(
     r"^\W*(?:%s)" % "|".join(flexible_word(w) for w in
                              ("حدثنا", "حدثني", "أخبرنا", "أخبرني", "أنبأنا", "أنبأني", "ثنا"))
 )
+# A taʿlīq / co-narrator route at the matn HEAD — «[راوٍ]: حدّثني [route] …» — left there when the split
+# fired on al-Bukhārī's «وقال الليثُ: حدّثني …» (the «قال» consumed, the name + route stranded in the
+# matn). A name (1-4 tokens) + «:» + a transmission verb is distinctive (a real matn never opens so), so
+# the route is re-peeled back into the isnad and the body recovered.
+_TALIQ_AHEAD = re.compile(
+    r"^\W*(?:[^\s:]+\s+){0,3}[^\s:]+\s*:\s*(?:%s)" % "|".join(
+        flexible_word(w) for w in ("حدثني", "حدثنا", "أخبرني", "أخبرنا", "أنبأنا", "أنبأني"))
+)
 _MIN_MATN = 10   # a recovered matn must be at least this many chars to be believable
 # «أنّ النبيَّ ﷺ …» / «أنّ رسولَ الله …» introduces a (marfūʿ) matn that carries no «قال».
 _ANNA = re.compile(
@@ -119,6 +127,12 @@ _AUTHORITY = re.compile(
         r"صلى\s+الله\s+عليه\s+و?سلم",
     )
 )
+# An action verb that governs «عن …» and IS itself the matn — «نَهَى/سُئِل رسولُ الله ﷺ عن …». The
+# terminal-authority split takes only «عن …» after «… ﷺ», stranding the verb (the actual prohibition /
+# question) in the isnad; when the verb sits right before the authority the matn must start at it.
+_ACTION_BEFORE = re.compile(
+    r"(?:%s)\s*$" % "|".join(flexible_word(w) for w in
+                             ("نهى", "ينهى", "نهانا", "نهي", "سئل", "يسأل")))
 
 
 # «أنّ [راوٍ] قال: قال رسولُ الله ﷺ …» — a marfūʿ ATTRIBUTION (the narrator quotes the Prophet), NOT a
@@ -256,8 +270,8 @@ def split_isnad_matn(text: str) -> tuple[str, str, str]:
     a non-empty body (never blanks a real matn)."""
     isnad, matn, conf = _split_isnad_matn(text)
     matn = _trim_grade_tail(matn)
-    for _ in range(3):                              # peel each leaked route («… ح … ح …»)
-        if not _CHAIN_AHEAD.match(matn):
+    for _ in range(3):                              # peel each leaked route («… ح … ح …», «قال الليث: حدّثني …»)
+        if not (_CHAIN_AHEAD.match(matn) or _TALIQ_AHEAD.match(matn)):
             break
         isnad2, matn2, _c = _split_isnad_matn(matn)
         matn2 = _trim_grade_tail(matn2)
@@ -350,8 +364,15 @@ def _split_isnad_matn(text: str) -> tuple[str, str, str]:
     # back-reference («بمعنى…»، «وأما حديث…») or another chain link. Also a late, empty-only fallback.
     auths = list(_AUTHORITY.finditer(text))
     if auths:
-        body = _WS.sub(" ", _QUOTE_CHARS.sub(" ", text[auths[-1].end():])).strip(_STRIP + "؛")
+        a = auths[-1]
+        body = _WS.sub(" ", _QUOTE_CHARS.sub(" ", text[a.end():])).strip(_STRIP + "؛")
         if len(body) >= _MIN_MATN and not _CHAIN_AHEAD.match(body) and not _BACKREF.match(body):
-            return text[:auths[-1].end()].strip(_STRIP), body, "authority"
+            # «نَهَى/سُئِل رسولُ الله ﷺ عن …» — a bare «عن …» body means the action verb before the
+            # authority is the real matn; start there so the prohibition/question isn't lost to the isnad.
+            av = _ACTION_BEFORE.search(text[:a.start()])
+            if av and strip_diacritics(body).lstrip().startswith("عن "):
+                full = _WS.sub(" ", _QUOTE_CHARS.sub(" ", text[av.start():])).strip(_STRIP + "؛")
+                return text[:av.start()].strip(_STRIP), full, "authority"
+            return text[:a.end()].strip(_STRIP), body, "authority"
 
     return text.strip(_STRIP), "", "none"
