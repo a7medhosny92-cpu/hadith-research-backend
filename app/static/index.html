@@ -229,9 +229,9 @@
   .net-center .net-lbl{font-weight:700;fill:#221d16}
   .net-edge{stroke:#cabd9f;opacity:.75;stroke-linecap:round}
   .net-row{font-family:inherit;font-size:14px;fill:var(--gold2);font-weight:700}
-  .net-back,.bk-back{background:var(--card);color:var(--accent);border:1px solid var(--accent);
+  .net-back,.bk-back,.gbl-back{background:var(--card);color:var(--accent);border:1px solid var(--accent);
     border-radius:9px;padding:7px 16px;font-size:.95rem;cursor:pointer;font-family:inherit}
-  .net-back:hover,.bk-back:hover{background:var(--accent);color:#fff}
+  .net-back:hover,.bk-back:hover,.gbl-back:hover{background:var(--accent);color:#fff}
   .net-legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:.85rem;align-items:center}
   .net-legend span{display:flex;gap:5px;align-items:center}
   .net-legend i{width:12px;height:12px;border-radius:50%;display:inline-block}
@@ -493,6 +493,7 @@ engineSel.addEventListener("change", syncEngineUI);
 
 document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
   mode = b.dataset.mode;
+  viewBack = null;                          // switching tabs starts a fresh view → no «رجوع» trail
   document.querySelectorAll(".modes button").forEach(x => x.classList.toggle("active", x === b));
   go.textContent = LABELS[mode];
   q.placeholder = PLACEHOLDER[mode];
@@ -514,8 +515,8 @@ document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
     q.focus();
   }
 });
-go.onclick = run;
-q.addEventListener("keydown", e => { if (e.key === "Enter") run(); });
+go.onclick = () => { viewBack = null; run(); };          // an explicit search starts a fresh view
+q.addEventListener("keydown", e => { if (e.key === "Enter"){ viewBack = null; run(); } });
 
 function esc(s){ const d = document.createElement("div"); d.textContent = (s==null?"":s);
   return d.innerHTML.replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }   // also safe in attributes
@@ -951,7 +952,15 @@ function rawiList(title, arr){
 // تمييز المهمل in the UI: a مشترك name (عبد الله / محمد / عمر) matches many men — we never pick
 // one (which would show a generation-mixed network: عمر الصحابي with a شيخ who died 180 years
 // later). The user picks the intended narrator from the candidate list; each row re-runs the search.
+// A global one-step «◀ رجوع» for the راوٍ tab: a thunk that re-renders the view you came FROM (the
+// browse list, or the «مشترك» candidates), shown atop the narrator/candidate card. Cleared on a fresh
+// search or a tab switch, so it only appears when there is genuinely a place to step back to.
+let viewBack = null;
+let lastCand = null;     // the last «مشترك» payload, so a chosen candidate can step back to the list
+function backBar(){ return viewBack ? `<button class="gbl-back">◀ رجوع</button>` : ""; }
+
 function renderCandidates(d){
+  lastCand = d;
   const more = d.truncated ? ` <span class="r-era">(عُرض أوّل ${d.candidates.length} — ضيّق البحث بإضافة اسم الأب)</span>` : "";
   const head = `<div class="card"><div class="rawi-name">${esc(d.name)} <span class="grade g-other">مشترك</span></div>`
     + `<div class="rawi-summary">هذا الاسم مشتركٌ بين ${d.count} راويًا في القاعدة${more} — اخترِ المقصود (لا نختار عنك):</div></div>`;
@@ -962,7 +971,7 @@ function renderCandidates(d){
     return `<div class="rawi-item rawi-pick" data-pick="${esc(c.name)}" role="button" tabindex="0">`
       + `<span>${esc(c.name)}${ku}${dy}</span>${g}</div>`;
   }).join("");
-  return head + `<div class="rawi-col">${rows}</div>`;
+  return backBar() + head + `<div class="rawi-col">${rows}</div>`;
 }
 function renderNarrator(d){
   if(d.kind === "ambiguous"){ results.innerHTML = renderCandidates(d); return; }
@@ -971,7 +980,7 @@ function renderNarrator(d){
     : v ? `<span class="grade ${rijalClass(v)}">${esc(v)}</span>` : "";
   const save = saveChip({kind:"narrator", title:d.name, body:d.summary || "",
     meta:{grade:d.grade, sources:d.sources}});
-  let html = `<div class="card"><div class="rawi-name">${esc(d.name)} ${badge} ${save}</div>`;
+  let html = backBar() + `<div class="card"><div class="rawi-name">${esc(d.name)} ${badge} ${save}</div>`;
   if(d.summary) html += `<div class="rawi-summary">${esc(d.summary)}</div>`;
   html += rijalAttribution(d.grade);
   html += rijalAppraisals(d.grade);
@@ -1073,7 +1082,8 @@ results.addEventListener("click", e => {
   const pk = e.target.closest(".br-pick");
   if(pk){
     q.value = pk.getAttribute("data-pick");
-    document.querySelector('.modes button[data-mode="narrator"]').click();  // open the راوٍ card
+    document.querySelector('.modes button[data-mode="narrator"]').click();  // open the راوٍ card (clears viewBack)
+    viewBack = () => document.querySelector('.modes button[data-mode="browse"]').click();  // «رجوع» → the list
     run();
   }
 });
@@ -1985,12 +1995,21 @@ results.addEventListener("click", e => {
   if(node) navigateNet(node.getAttribute("data-nav"));
 });
 
-// A candidate row in a «مشترك» disambiguation list → re-run on that specific narrator (same tab).
+// A candidate row in a «مشترك» disambiguation list → re-run on that specific narrator (same tab),
+// remembering the list so «رجوع» steps back to it (and restores any outer back, e.g. the browse list).
 results.addEventListener("click", e => {
   const pick = e.target.closest(".rawi-pick");
   if(!pick) return;
+  const dCand = lastCand, outerBack = viewBack;
   q.value = pick.getAttribute("data-pick");
+  viewBack = () => { viewBack = outerBack; if(dCand) results.innerHTML = renderCandidates(dCand); };
   run();
+});
+
+// The global «◀ رجوع» (راوٍ / candidate cards): replay the saved view-back thunk.
+results.addEventListener("click", e => {
+  if(!e.target.closest(".gbl-back")) return;
+  const f = viewBack; viewBack = null; if(f) f();
 });
 
 // «تتبّع تخريجه ⟶» on a hadith card → jump to the تخريج tab and trace that matn.
