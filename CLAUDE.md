@@ -194,10 +194,30 @@ via rijal_extract._BOUNDARY (line-start «N -»), network from «حدّث عن/�
 verdict else «غير معروف» (coverage semantics). ✅ **DONE:** (1) `app/parsing/sair_extract.py` (103 lines, reuses jarh
 helpers); (2) `catalog.py` RIJAL_PROSE_BOOKS += 10906; (3) `build_rijal.py` import + merge_source add-only + _PROSE
 appraisals loop; (4) `build_graph.py` _NETWORK_SOURCES += 10906 (شيوخ/تلاميذ to resolver); (5) `tests/test_sair_extract.py`
-(19 tests, **482 green**). On branch `claude/festive-heisenberg-gybt4g`. **NEXT:** User rebuilds (`build_rijal --no-download`
-+ `build_graph` + `audit_isnad`) → measure A drop (expect ~1500 from الأصم-class resolution via network) + W/S flat/better.
+(19 tests, **482 green**). **★ SQUASH-MERGED TO MAIN (#215, 2026-06-18, commit `ccc67db`) — branch realigned.**
 **Decision record (user, 2026-06-17):** deferred الطبقات (step 3) — hard body-parse format, low ROI vs the high-value
 #2 (double-opinion) + #7 (علّة/شذوذ) shipped; سير chosen for A.3 coverage gap (post-Six-Books شيوخ).
+**★★ FIRST REBUILD (user, 2026-06-18) DID NOT TEST سير — the code was STRANDED ON THE BRANCH.** The user ran the full
+`build_rijal --no-download` + `build_graph` (3652s!) + `audit_isnad` BEFORE the merge, so `update.bat`/their pull had
+**main without سير** → NEITHER build showed a «merged سير» line (the exact «update.bat pulls main» gotcha CLAUDE.md
+warns about). Those numbers (**W 679 · S 419 · A 48559**, 84783 chains · rijal 19591 · مهمل 26423 · شبكة موثّقة yes) are
+**main-without-سير**: S 419 is the BEST yet (the تابعي override #203 + positional anchor #205 paying off, 458→419), W 679
+healthy, A 48559 is the honest floor (graph-rebuild variance vs the last full rebuild's 46839 — NOT a regression; W/S are
+the wins, A's floor is not chased). **NEXT (after #215 on main): user RE-PULLS main → re-runs `build_rijal --no-download`
+(now merges سير, ADD-ONLY) → `build_graph` (سير's شيوخ/تلاميذ → documented network) → `audit_isnad`** → THEN the A.3 effect
+shows (الأصم-class resolved via network). The build_rijal+audit alone gives a quick COVERAGE signal (سير men identified as
+terminal narrators) without the 61-min build_graph; the full A-drop needs build_graph (the network is the A.3 deliverable).
+**★★ SECOND REBUILD (user, 2026-06-18) — سير MERGED, but a COVERAGE GAP found.** After `git pull` (the #215 code), `build_rijal
+--no-download` showed «**merged سير أعلام النبلاء: +93 late narrators (الأصم-class)**» + «attached أقوال الأئمة from سير: 7» →
+rijal 19648 (was 19559). The integration WORKS. **BUT +93 is LOW for a 47 MB / ~6000-tarjama book** → diagnosed: `sair_extract`
+keys on `rijal_extract._BOUNDARY` (line-start «N -»), but سير's tarjama heads flow INLINE («…مات سنة ٢٠٠. ١٤٦ - فلان…»), so only
+**432 of the ~6162 `indexes.headings`** are caught (≈7%). الثقات gets away with the same `_BOUNDARY` because its heads ARE
+line-anchored and it maps heading→body BY NUMBER (sequential); سير can't (numbers RESTART each طبقة, `indexes.numbers` empty). So
+the reliable structure for سير is `indexes.headings` (page-positioned), not the body boundary — a heading-based rewrite is the real
+A.3 lever (could lift +93 → ~+300-600 late men). **MEASURE-FIRST before the blind rewrite + the 61-min build_graph:** wrote
+`scripts/peek_sair_coverage.py` (read-only, ~10s) — compares heading-tarjamas vs body-boundaries, shows the طبقة spread (death-year
+buckets) + sample LATE names with their شيوخ/تلاميذ counts, so we KNOW if the الأصم-class is captured/network-rich before investing.
+**WAITING ON THE USER: pull main → run `python -m scripts.peek_sair_coverage`** → send the output → then decide rewrite-vs-ship-93.
 
 **★ (2026-06-17) ROADMAP #7 STRUCTURAL علّة/شذوذ — STARTED (the user's «1+2+3», step 2).** New `app/qa/illal.py`
 `detect_structural_illal(takhrij)`: reads the SHAPE of the طرق `analyze_narrations` already gathers and emits HINTS
