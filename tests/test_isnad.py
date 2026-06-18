@@ -373,26 +373,50 @@ def test_demotion_sees_homonyms_even_for_a_very_common_ism():
 
 
 def test_joint_resolver_identifies_a_held_name_from_the_documented_shaykh():
-    """End-to-end: a bare mid-chain «سفيان» (الثوري vs عيينة) that the name+company leave ambiguous is
-    resolved by the documented network — only الثوري is a تلميذ of الأعمش (the anchored, unique-named
-    شيخ below him). Without a network the same chain stays held (the lever is inert when absent)."""
+    """End-to-end: a bare mid-chain «يحيى بن سعيد» (القطان vs الأنصاري) that the name+company leave
+    ambiguous is resolved by the documented network — only القطان is a تلميذ of شعبة (the anchored,
+    unique-named شيخ below him). Without a network the same chain stays held. NB سفيان/الأعمش is now
+    handled deterministically by the قواعد, so this tests a homonym the قواعد don't cover, in isolation."""
     from app.rijal.index import RijalIndex
     from app.rijal.resolve import DocumentedNetwork, network_key as _k
+    _T = "تقريب التهذيب (رقم 8609)"
+    idx = RijalIndex([
+        {"name": "يحيى بن سعيد القطان", "grade": "ثقة", "source": _T},
+        {"name": "يحيى بن سعيد الأنصاري", "grade": "ثقة", "source": _T},
+        {"name": "شعبة بن الحجاج", "grade": "ثقة", "source": _T},
+        {"name": "وكيع بن الجراح", "grade": "ثقة", "source": _T},
+        {"name": "قتادة بن دعامة", "grade": "ثقة", "source": _T},
+    ])
+    chain = "حدثنا وكيع عن يحيى بن سعيد عن شعبة عن قتادة"
+    held = next(n for n in analyze_isnad(chain, rijal=idx).narrators if n["name"] == "يحيى بن سعيد")
+    assert held["rijal"]["ambiguous"]                        # no network → honestly held «مشترك»
+    net = DocumentedNetwork(students={_k("شعبة بن الحجاج"): {_k("يحيى بن سعيد القطان")}})
+    res = next(n for n in analyze_isnad(chain, rijal=idx, network=net).narrators if n["name"] == "يحيى بن سعيد")
+    assert res.get("resolved") == "يحيى بن سعيد القطان"      # identified by the documented شيخ
+    assert res["rijal"]["name"] == "يحيى بن سعيد القطان" and not res["rijal"]["ambiguous"]
+
+
+def test_qaida_resolves_a_homonym_by_its_shaykh():
+    """قواعد التمييز: a bare «سفيان» is fixed by its شيخ, deterministically, with no graph or network —
+    «سفيان عن الأعمش» = الثوري, «سفيان عن عمرو بن دينار» = ابن عيينة. A شيخ that doesn't discriminate
+    (شعبة) leaves it honestly held «مشترك»."""
+    from app.rijal.index import RijalIndex
     _T = "تقريب التهذيب (رقم 8609)"
     idx = RijalIndex([
         {"name": "سفيان بن سعيد الثوري", "grade": "ثقة", "source": _T},
         {"name": "سفيان بن عيينة", "grade": "ثقة", "source": _T},
         {"name": "سليمان بن مهران الأعمش", "grade": "ثقة", "source": _T},
-        {"name": "وكيع بن الجراح", "grade": "ثقة", "source": _T},
-        {"name": "إبراهيم النخعي", "grade": "ثقة", "source": _T},
+        {"name": "عمرو بن دينار", "grade": "ثقة", "source": _T},
     ])
-    chain = "حدثنا وكيع عن سفيان عن الأعمش عن إبراهيم النخعي"
-    held = next(n for n in analyze_isnad(chain, rijal=idx).narrators if n["name"] == "سفيان")
-    assert held["rijal"]["ambiguous"]                        # no network → honestly held «مشترك»
-    net = DocumentedNetwork(students={_k("سليمان بن مهران الأعمش"): {_k("سفيان بن سعيد الثوري")}})
-    res = next(n for n in analyze_isnad(chain, rijal=idx, network=net).narrators if n["name"] == "سفيان")
-    assert res.get("resolved") == "سفيان بن سعيد الثوري"     # identified by the documented شيخ
-    assert res["rijal"]["name"] == "سفيان بن سعيد الثوري" and not res["rijal"]["ambiguous"]
+    pick = lambda sh: next(
+        n for n in analyze_isnad(f"حدثنا وكيع عن سفيان عن {sh} عن رجل", rijal=idx).narrators
+        if n["name"] == "سفيان")
+    th = pick("الأعمش")
+    assert th.get("resolved") == "سفيان بن سعيد الثوري" and not th["rijal"]["ambiguous"]
+    uy = pick("عمرو بن دينار")
+    assert uy.get("resolved") == "سفيان بن عيينة" and not uy["rijal"]["ambiguous"]
+    held = pick("شعبة")                                      # not a discriminator → still «مشترك»
+    assert held.get("resolved") is None and held["rijal"]["ambiguous"]
 
 
 @pytest.mark.parametrize("isnad, expect_names, expect_absent", [

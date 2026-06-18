@@ -197,6 +197,18 @@ def _chain_assessment(matches: list["RijalMatch | None"], total: int, mubham: in
             "mubham": mubham, "verdict": verdict, "disputed": disputed}
 
 
+# A finalised node that is purely EDITORIAL — «واللفظ له» (the «and the wording is his» interjection) or
+# a leading «الشيخ» title — is not a narrator; it sits BETWEEN real narrators (the «و»-split surfaced it),
+# so dropping it cleans the graph/coverage AND connects the real adjacent narrators. «أبو الشيخ» (الشيخ
+# not leading) is safe — only a node that STARTS with «اللفظ»/«الشيخ» is dropped.
+_EDITORIAL_NODE = {normalize_for_search(w) for w in ("اللفظ", "الشيخ")}
+
+
+def _is_editorial_node(name: str) -> bool:
+    folded = [f for f in (normalize_for_search(t) for t in name.split()) if f]
+    return bool(folded) and folded[0] in _EDITORIAL_NODE
+
+
 def analyze_isnad(
     text: str, rijal: "RijalIndex | None" = None, canon: "Canonicalizer | None" = None,
     muhmal: "dict[str, str] | None" = None, network: "DocumentedNetwork | None" = None,
@@ -217,8 +229,8 @@ def analyze_isnad(
     def flush() -> bool:
         nonlocal pending_break
         name = " ".join(buf).strip(" -،")
-        if name:
-            narrators.append(Narrator(name=name, via=via or "—"))
+        if name and not _is_editorial_node(name):     # «واللفظ له» / «الشيخ …» — an editorial interjection,
+            narrators.append(Narrator(name=name, via=via or "—"))   # not a narrator; drop so it isn't a node
             if pending_break:
                 route_starts.add(len(narrators) - 1)
                 pending_break = False
@@ -393,6 +405,15 @@ def analyze_isnad(
                 # the (تلميذ, شيخ) sandwich is only valid when both neighbours are on the SAME route —
                 # a ح seam (i or i+1 begins a new route) gives a false شيخ, so skip تمييز المهمل there.
                 same_route = i not in route_starts and (i + 1) not in route_starts
+                # قواعد التمييز — the classical, deterministic disambiguation by the شيخ (the next man on
+                # the route): «سفيان عن الأعمش» = الثوري. Curated & high-confidence, so it runs BEFORE the
+                # graph levers (muhmal/canon, whose `name == narrator.name` guards then skip the man).
+                if name == narrator.name and (i + 1) < len(narrators) and same_route:
+                    from app.rijal.qaida import resolve_qaida
+                    q = resolve_qaida(name, narrators[i + 1].name)
+                    if q:
+                        name = q
+                        record["resolved"] = name
                 if muhmal and 0 < i < len(narrators) - 1 and same_route:
                     from app.rijal.muhmal import resolve as _resolve_muhmal
                     name = _resolve_muhmal(name, narrators[i - 1].name, narrators[i + 1].name, muhmal)
