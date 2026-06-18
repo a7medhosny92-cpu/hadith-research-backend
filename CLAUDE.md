@@ -159,8 +159,8 @@ Depth docs (NOT auto-loaded — open when relevant):
   diverge and the *next* PR hits merge conflicts on re-edited files (CLAUDE.md/docs). Immediately run
   `git fetch origin main && git reset --hard origin/main && git push --force-with-lease origin <branch>`
   so work stays linear (cost me a real conflict-resolution once before I learned this).
-- Branch: `claude/intelligent-bardeen-HAsrg` — **we stay on this ONE branch** (the user deleted all
-  others on 2026-06-09; do not create new feature branches). Repo (MCP scope): `a7medhosny92-cpu/hadith-research-backend`.
+- Branch: `claude/festive-heisenberg-gybt4g` — **we stay on this ONE branch** (the user deletes the
+  rest; do not create new feature branches). Repo (MCP scope): `a7medhosny92-cpu/hadith-research-backend`.
   NB: this container can push but **cannot delete remote branches** (the git proxy hangs up on `--delete`);
   the user prunes from the GitHub UI.
 - Tests: `PYTHONPATH=. python3 -m pytest -q`. CI also runs `node --check` on the `<script>` extracted
@@ -195,6 +195,42 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★★ (2026-06-18, CURRENT SESSION) branch `claude/festive-heisenberg-gybt4g`, 529 tests green.** Two arcs landed earlier
+this session (already squash-merged, branch realigned to main `9b55c7c`), then the أبو هريرة wrong-verdict fix below:
+- **THE «الكتب» LIBRARY-NAVIGATOR completed** — in-page chapter positioning (`clean_block_marked` sentinels ↔ indexed
+  `headings`), **relaxed alignment** (`_aligned` accepts a shared distinctive ≥4-char word, not just containment → align-fail
+  ~915→~3 corpus-wide), hierarchical «كتاب ← باب» via `_eff_level` (a باب/فصل nests 0.5 under a «جماع أبواب» grouping), **تعليق
+  recovery** («voglio tutto» — a parse-time post-pass emits `kind='taliq'` records for أبواب holding only a تعليق/أثر, so the
+  library shows the WHOLE book; excluded from search/graph/audits), **شروح browsable** (`SharhIndex.collections/chapters/
+  chapter_passages/search_in_book` + `/sharh-books*` endpoints), **«السابق»/«التالي» باب nav** + in-book search box. البخاري
+  2657→3594 أبواب.
+- **قواعد التمييز (`app/rijal/qaida.py`) — curated شيخ-conditioned homonym disambiguation** («molti مشترك si possono identificare
+  secondo le regole del حديث» — تمييز المهمل بالشيخ): a DETERMINISTIC table (bare ism → [(distinctive شيخ markers, full name)])
+  for 9 names (سفيان · حماد · هشام · يحيى بن سعيد · سليمان · خالد · جرير · الأسود · إسماعيل-ابن-أبي-خالد), wired into
+  `analyze_isnad` as the LAST تمييز lever after kin, BEFORE muhmal/canon/graph. حماد DISAPPEARED from `a_ranked` (its قاعدة
+  fully resolved it = proof of concept). Conservative: only DISTINCTIVE شيوخ listed, a shared شيخ left «مشترك» (لا نختلق).
+  Also: a purely editorial node («واللفظ له» / leading «الشيخ») dropped at segmentation (`_is_editorial_node`).
+- **matn isnad-in-matn RULES 1-4 (`isnad_matn.py`)** — قَالَا dual-vocalised `_SAY` fix (~151), تعليق re-peel `_TALIQ_AHEAD` (~45),
+  «نهى رسولُ الله» `_ACTION_BEFORE` (~41), colon-fallback for a leaked route (~67); +بينما/لمّا scene-keep + attribution guard.
+
+**★ (2026-06-18) أبو هريرة WRONG-VERDICT FIX — the biggest single A item (~6174 positions).** The user ran
+`probe_name "أبي هريرة"`: the matcher RESOLVED a bare «أبو هريرة» to the obscure late namesake **«محمد بن أيوب الكلابي أبو هريرة
+الواسطي» (صدوق)** instead of the Companion **«عبد الرحمن بن صخر الدوسي» (صحابي)** — a WRONG verdict, not just an honest hold. The
+base holds 5 candidates: 3 real kunya-sharing late namesakes (محمد بن أيوب صدوق · محمد بن فراس الضبعي ثقة ت245 · a parse-artifact
+«أبو هريرة واثلة بن الأسقع» — واثلة is a DIFFERENT Companion, name-concatenation bug) + a DEDUP DUPLICATE of the Companion
+(«أبو هريرة الدوسي» ثقة) beside the correct «عبد الرحمن بن صخر الدوسي» صحابي. Why mis-resolved: `_prefer_prominent` keys freq by
+`entry.name`, but the corpus freq sits under the cited «أبو هريرة», not the full ism → the Companion can't win the tie. **FIX
+(`index.py`): a new CLOSED, documentary `_KUNYA_COMPANION` map (kunya-folded keys via `_clean_seq`, so أبو/أبا/أبي match),
+consulted in `_resolve_shuhra` beside `_SHUHRA` — a bare «أبو هريرة» redirects to «عبد الرحمن بن صخر الدوسي» → resolves uniquely
+(صحابي), EXACT bare kunya only («أبو هريرة الواسطي» with a nisba falls through).** +1 test, **529 green**, node --check clean. Docs:
+التقنية lookup card (+_KUNYA_COMPANION). **Effective on the next `audit_isnad` ALONE (live matcher, no rebuild)** → expect A to
+drop ~6000 (the «أبو هريرة» positions resolve to one صحابي), W/S flat (صح. is terminal). **RESIDUALS noted, not chased here:** the
+dedup duplicate («أبو هريرة الدوسي» ثقة vs «عبد الرحمن بن صخر الدوسي» صحابي) + the واثلة parse artifact are build-time issues.
+**NEXT:** extend `_KUNYA_COMPANION` to other المكثرون cited by bare kunya (أبو سعيد الخدري · أبو موسى · أبو ذر · أبو الدرداء…) —
+but PROBE each first (confirm the canonical entry name + that bare-kunya genuinely mis-resolves) before adding; and the user's
+②b honest-doubt PRESENTATION (a genuine-homonymy node showing its few documented candidates + grades: «محسوم الدرجة» vs
+«يُتوقَّف اختُلفت درجاتهم» vs «مُميَّز بالقرينة»).
+
 **★ (2026-06-17) A.3 — سير أعلام النبلاء EXTRACTOR (10906) BUILT & WIRED.** Post-Six-Books محدّثون coverage source
 (الأصم-class late narrators, 5th–8th centuries). Follows the jarh_extract/lisan_extract prose pattern: body-parsing
 via rijal_extract._BOUNDARY (line-start «N -»), network from «حدّث عن/عنه» markers, grade = weakest cited جرح/تعديل

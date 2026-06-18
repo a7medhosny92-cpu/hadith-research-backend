@@ -179,10 +179,30 @@ _SHUHRA: dict[tuple[str, ...], str] = {
 }
 
 
+# Famous-Companion kunya: a chain that cites a bare kunya «أبو هريرة» means the Companion, but the base
+# ALSO holds obscure late namesakes carrying the same kunya (محمد بن أيوب الواسطي صدوق، محمد بن فراس
+# الضبعي…) + a duplicate of the Companion himself («أبو هريرة الدوسي» beside «عبد الرحمن بن صخر الدوسي»),
+# so the bare kunya ties «مشترك» and the matcher may even pick the obscure namesake (wrong verdict, not
+# just an honest hold). This CLOSED, documentary map (أبو هريرة = عبد الرحمن بن صخر الدوسي is established
+# رجال, not a guess) redirects the bare kunya to the Companion's full canonical ism, so the ordinary
+# lookup resolves him uniquely (صحابي) and his grade flows. Keys are kunya-FOLDED token tuples (via
+# `_clean_seq`, so أبو/أبا/أبي هريرة all match), EXACT on the bare kunya only — «أبو هريرة الدوسي» /
+# «الواسطي» (with a nisba) folds to a longer tuple and falls through to normal matching.
+_KUNYA_COMPANION: dict[tuple[str, ...], str] = {
+    tuple(_clean_seq(form)): canonical
+    for form, canonical in {
+        "أبو هريرة": "عبد الرحمن بن صخر الدوسي",   # ثقة الصحابة · المُكثِر · ت57
+    }.items()
+}
+
+
 def _resolve_shuhra(name: str) -> str:
-    """Redirect a bare shuhra-by-ancestor citation («ابن جريج») to the man's full canonical name."""
+    """Redirect a bare shuhra-by-ancestor citation («ابن جريج») or a bare famous-Companion kunya
+    («أبو هريرة») to the man's full canonical name; otherwise return ``name`` unchanged."""
     key = tuple(t for t in (normalize_for_search(w) for w in name.split()) if t)
-    return _SHUHRA.get(key, name)
+    if key in _SHUHRA:
+        return _SHUHRA[key]
+    return _KUNYA_COMPANION.get(tuple(_clean_seq(name)), name)
 
 
 def _is_flipped_alias(alias: str, name_ism: str | None) -> bool:

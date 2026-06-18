@@ -183,6 +183,25 @@ def test_shuhra_extends_to_ibn_abi_dhib_and_ibn_abi_mulayka():
     assert k is not None and k.entry.name.startswith("عبد الله بن عبيد الله") and k.entry.category == "ثقة"
 
 
+def test_bare_kunya_abu_hurayra_resolves_to_the_companion_not_an_obscure_namesake():
+    # A chain that cites a bare «أبو هريرة» means the Companion عبد الرحمن بن صخر الدوسي — but the base
+    # also holds late namesakes carrying the kunya (محمد بن أيوب الواسطي صدوق…) + a duplicate of the
+    # Companion himself, so the bare kunya may even pick the obscure namesake (a WRONG verdict). The
+    # curated kunya redirect resolves him uniquely as the صحابي.
+    rij = RijalIndex([
+        {"name": "محمد بن أيوب الكلابي أبو هريرة الواسطي", "grade": "صدوق"},     # obscure late namesake
+        {"name": "محمد بن فراس أبو هريرة الضبعي الصيرفي", "grade": "ثقة"},        # another late namesake
+        {"name": "عبد الرحمن بن صخر الدوسي", "grade": "صحابي"},                  # = أبو هريرة (the Companion)
+    ])
+    for cited in ("أبو هريرة", "أبي هريرة", "أبا هريرة"):                        # all kunya cases fold alike
+        m = rij.lookup(cited)
+        assert m is not None and not m.ambiguous
+        assert m.entry.name.startswith("عبد الرحمن بن صخر") and m.entry.category == "صحابي"
+    # a kunya carrying a nisba is NOT redirected — «أبو هريرة الواسطي» still reaches the late namesake
+    w = rij.lookup("أبو هريرة الواسطي")
+    assert w is not None and w.entry.name.startswith("محمد بن أيوب")
+
+
 def test_a_bare_grave_namesake_does_not_sink_a_fuller_trustworthy_one():
     # «إسحاق بن عمر» [متروك] (a bare, truncated entry) must NOT confidently grade a chain «ضعيف جدًا»
     # when a fuller, trustworthy «إسحاق بن عمر بن سليط الهذلي» also fits the bare citation — hold instead.
