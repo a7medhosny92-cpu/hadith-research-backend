@@ -243,14 +243,18 @@ class HadithIndex:
 
     def chapters(self, book_id: int) -> list[dict]:
         """The chapters (كتاب/باب headings) of one collection, in book order, each with its count.
-        A chapter recurs on every hadith under it, so we group and order by first appearance."""
+
+        A chapter recurs on every hadith under it, so we group and order by the FIRST hadith NUMBER in
+        it — the hadith number is monotonic in book order (and global across volumes), unlike ``rowid``
+        (insertion order, which interleaved the كتب) or ``page`` (which restarts each volume). Falls
+        back to ``rowid`` when a number is missing/non-numeric."""
         rows = self._con.execute(
-            "SELECT chapter, COUNT(*), MIN(rowid) FROM hadith "
+            "SELECT chapter, COUNT(*) FROM hadith "
             "WHERE book_id = ? AND chapter IS NOT NULL AND chapter <> '' "
-            "GROUP BY chapter ORDER BY MIN(rowid)",
+            "GROUP BY chapter ORDER BY MIN(CAST(number AS INTEGER)), MIN(rowid)",
             (book_id,),
         ).fetchall()
-        return [{"chapter": ch, "count": n} for ch, n, _ in rows]
+        return [{"chapter": ch, "count": n} for ch, n in rows]
 
     def chapter_hadiths(
         self, book_id: int, chapter: str | None = None, *, offset: int = 0, limit: int = 50
