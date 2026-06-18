@@ -56,6 +56,8 @@
     display:flex;gap:12px;flex-wrap:wrap;align-items:center}
   .grade{padding:4px 13px;border-radius:999px;font-size:.85rem;font-weight:700}
   .r-num{display:inline-block;background:#f0ece0;color:var(--gold2);font-weight:700;font-size:.9rem;border-radius:8px;padding:1px 9px;margin-bottom:8px}
+  .card.taliq{background:#fbf9f3;border-style:dashed}
+  .taliq-badge{background:#efe7d6;color:var(--gold2);padding:4px 13px;border-radius:999px;font-size:.85rem;font-weight:700}
   .g-sahih{background:#dcefe1;color:#15643f}
   .g-hasan{background:#f6eccf;color:#876413}
   .g-daif{background:#f6ddd5;color:#a5381f}
@@ -619,6 +621,13 @@ function _varRow(m){
 }
 function hadithCard(h, n){
   const cite = citeOf(h);
+  if(h.kind === "taliq"){   // a باب with only a تعليق/أثر (no isnad, no number) — library-only
+    const num = n ? `<span class="r-num">${n}</span>` : "";
+    return `<div class="card taliq">${num}
+      <div class="cite"><span class="taliq-badge">تعليق / أثر</span><span>${esc(cite)}</span></div>
+      <div class="matn">${hlMatn(h.matn)}</div>
+      <div class="actions">${shareTools(h.matn + "\n— " + cite)}</div></div>`;
+  }
   const grade = h.grade ? `<span class="grade ${gradeClass(h.grade)}">${esc(h.grade)}</span>` : "";
   const save = saveChip({kind:"hadith", title:cite, body:h.matn,
     meta:{collection:h.collection, number:h.number, volume:h.volume, page:h.page, grade:h.grade,
@@ -1782,7 +1791,7 @@ const TECH = [
   {h:"API — app/routers/", p:[
     "GET /search?q=&mode=&field=&group=&collection=&grade= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /narrators?letter=&grade=&q=&offset=&limit= (browse the رجال — the «الرواة» tab) · GET /books, /books/{id}/chapters, /books/{id}/hadiths?chapter=&offset=&limit= (navigate the library — the «الكتب» tab) · GET /verify-isnad?isnad=|hadith_id= · GET /audit (isnad review) · GET /conflicts (rijal grave↔trustworthy collisions) · GET /matn-audit (matn review) · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
     "Browse — the «الرواة» tab (GET /narrators, RijalIndex.browse_rows): a paged, letter-and-درجة-faceted index of every graded narrator (each facet's counts respect the other active filters), so the user can scroll the رجال without searching; a click opens that man's راوٍ card. Names are de-duplicated by exact form.",
-    "Library — the «الكتب» tab (app/routers/books.py + HadithIndex.collections/chapters/chapter_hadiths over the same index.db): navigate the corpus by its OWN structure instead of searching — collections (GET /books) → a collection's كتب/أبواب in book order (GET /books/{id}/chapters) → the hadiths under a chapter, paged (GET /books/{id}/hadiths?chapter=) — a three-view drill-down with a breadcrumb and a client-side chapter filter; the leaf reuses the full hadith card.",
+    "Library — the «الكتب» tab (app/routers/books.py + HadithIndex.collections/chapters/chapter_hadiths over the same index.db): navigate the corpus by its OWN structure instead of searching — collections (GET /books) → a collection's كتب/أبواب in book order (GET /books/{id}/chapters) → the hadiths under a chapter, paged (GET /books/{id}/hadiths?chapter=) — a three-view drill-down with a breadcrumb and a client-side chapter filter; the leaf reuses the full hadith card. The chapter is built from the book's indexes.headings as a hierarchical «كتاب ← باب» (so untitled «بَابٌ» in different كتب stay distinct, no fusion). أبواب whose body is only a تعليق/أثر — no numbered hadith (common in صحيح البخاري) — are recovered by a parse-time post-pass as «taliq» entries so the whole book is browsable; they carry an empty isnad and kind='taliq', so they show in the library (ordered in book place via a sort key) but are excluded from search, the narrator graph, and the isnad/matn audits.",
     "Notebook: GET/POST /notebook and PATCH/DELETE /notebook/{id}. Maintenance: POST /admin/reload (clears the provider caches). Health: GET /health and /health/ingestion."]},
   {h:"Settings — app/config.py (.env)", p:[
     "pydantic-settings. The main ones: data_dir (=data), rijal_path (a larger rijal base), embedding_model/embedding_dim (768); the data file paths are properties derived from data_dir.",

@@ -31,7 +31,7 @@ def main() -> None:
 
     settings = get_settings()
     con = sqlite3.connect(str(settings.index_path))
-    sql = "SELECT rowid, collection, number, matn, isnad, chapter FROM hadith"
+    sql = "SELECT rowid, collection, number, matn, isnad, chapter FROM hadith WHERE kind = 'hadith'"
     if args.limit:
         sql += f" LIMIT {args.limit}"
     rows = con.execute(sql).fetchall()

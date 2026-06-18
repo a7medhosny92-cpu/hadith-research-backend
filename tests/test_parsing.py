@@ -251,3 +251,44 @@ def test_hierarchical_chapter_heading_page_not_an_exact_page_id():
     by_num = {h.number: h.chapter for h in iter_hadith(1284, pages, headings=headings)}
     assert by_num[1] == "كتاب الإيمان ← باب الأول"
     assert by_num[2] == "كتاب الإيمان ← باب الثاني"   # the page-15 باب opened on page 20, not lost
+
+
+def test_taliq_only_chapter_is_recovered():
+    """A باب whose body is only a تعليق/أثر (no numbered hadith) is recovered as a «taliq» entry, in
+    book order, with an empty isnad — so the «الكتب» tab shows the whole book (صحيح البخاري معلّقات)."""
+    pages = [
+        {"pg": 10, "meta": {"vol": "1", "page": 1}, "text": "• [١] حدثنا الحميدي عن عمر قال إنما الأعمال بالنيات."},
+        {"pg": 11, "meta": {"vol": "1", "page": 2},   # باب 2 has only a تعليق — no «• [N]» marker
+         "text": "وقال مالك بن أنس رحمه الله الدين النصيحة لله ولرسوله ولأئمة المسلمين وعامتهم."},
+        {"pg": 12, "meta": {"vol": "1", "page": 3}, "text": "• [٢] حدثنا قتيبة عن أنس أن النبي ﷺ صلى."},
+    ]
+    headings = [
+        {"page": 10, "level": 1, "title": "كتاب الإيمان"},
+        {"page": 10, "level": 2, "title": "١ - باب النية"},
+        {"page": 11, "level": 2, "title": "٢ - باب الدين النصيحة"},   # تعليق-only
+        {"page": 12, "level": 2, "title": "٣ - باب الصلاة"},
+    ]
+    out = list(iter_hadith(1284, pages, headings=headings))
+    taliq = [h for h in out if h.kind == "taliq"]
+    assert len(taliq) == 1
+    t = taliq[0]
+    assert t.chapter == "كتاب الإيمان ← ٢ - باب الدين النصيحة"
+    assert t.number is None and t.isnad == "" and t.sort == 1   # ordered after hadith #1
+    assert "النصيحة" in t.matn and "باب" not in t.matn.split()[:1]   # body kept, heading line stripped
+    # the hadith أبواب are NOT duplicated as taliq
+    assert [h.chapter for h in out if h.kind == "hadith"] == [
+        "كتاب الإيمان ← ١ - باب النية", "كتاب الإيمان ← ٣ - باب الصلاة"]
+
+
+def test_taliq_not_emitted_when_baab_has_hadith():
+    """A باب that has a numbered hadith on a shared page is never also emitted as a تعليق."""
+    pages = [
+        {"pg": 10, "meta": {"vol": "1", "page": 1},
+         "text": "وقال مالك تمهيد للباب.\n• [١] حدثنا الحميدي عن عمر قال إنما الأعمال بالنيات."},
+    ]
+    headings = [
+        {"page": 10, "level": 1, "title": "كتاب الإيمان"},
+        {"page": 10, "level": 2, "title": "١ - باب النية"},
+    ]
+    out = list(iter_hadith(1284, pages, headings=headings))
+    assert all(h.kind == "hadith" for h in out)   # the باب has hadith #1 → no spurious تعليق

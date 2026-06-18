@@ -41,6 +41,8 @@ CREATE VIRTUAL TABLE IF NOT EXISTS hadith USING fts5(
     chapter     UNINDEXED,
     page        UNINDEXED,
     volume      UNINDEXED,
+    kind        UNINDEXED,
+    sort        UNINDEXED,
     tokenize = 'unicode61 remove_diacritics 2'
 );
 """
@@ -80,6 +82,7 @@ class SearchHit:
     volume: str | None
     score: float           # higher = better (negated bm25)
     snippet: str           # matched matn fragment, match wrapped in «…»
+    kind: str = "hadith"   # "hadith" | "taliq" (a باب with only a تعليق/أثر — no isnad, no number)
 
     def to_dict(self) -> dict:
         return {
@@ -95,6 +98,7 @@ class SearchHit:
             "volume": self.volume,
             "score": round(self.score, 4),
             "snippet": self.snippet,
+            "kind": self.kind,
         }
 
 
@@ -154,11 +158,14 @@ class HadithIndex:
                     r.get("chapter"),
                     r.get("page"),
                     r.get("volume"),
+                    r.get("kind") or "hadith",
+                    r.get("sort"),
                 )
             )
         self._con.executemany(
             "INSERT INTO hadith (matn_norm, chapter_norm, isnad_norm, book_id, collection, "
-            "number, matn, isnad, grade, chapter, page, volume) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            "number, matn, isnad, grade, chapter, page, volume, kind, sort) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             rows,
         )
         self._con.commit()
@@ -199,7 +206,7 @@ class HadithIndex:
         col = {"matn": "matn_norm", "isnad": "isnad_norm"}.get(field)
         prefix = f"{col}:" if col else ""  # column filter, or whole-row for "all"
 
-        filters, params = ["hadith MATCH ?"], [""]
+        filters, params = ["hadith MATCH ?", "kind = 'hadith'"], [""]  # «taliq» معلّقات are library-only
         if collection_id is not None:
             filters.append("book_id = ?")
             params.append(collection_id)
@@ -210,7 +217,7 @@ class HadithIndex:
         sql = (
             "SELECT rowid, book_id, collection, number, matn, isnad, grade, chapter, "
             f"page, volume, -bm25(hadith, {_HADITH_WEIGHTS}) AS score, "
-            "snippet(hadith, 0, '«', '»', '…', 12) AS snip "
+            "snippet(hadith, 0, '«', '»', '…', 12) AS snip, kind "
             f"FROM hadith WHERE {' AND '.join(filters)} ORDER BY score DESC{limit_sql}"
         )
         joiners = {"and": (" AND ",), "or": (" OR ",), "auto": (" AND ", " OR ")}[match]
@@ -225,7 +232,7 @@ class HadithIndex:
     def get(self, hadith_id: int) -> SearchHit | None:
         row = self._con.execute(
             "SELECT rowid, book_id, collection, number, matn, isnad, grade, chapter, "
-            "page, volume, 0.0 AS score, '' AS snip FROM hadith WHERE rowid = ?",
+            "page, volume, 0.0 AS score, '' AS snip, kind FROM hadith WHERE rowid = ?",
             (hadith_id,),
         ).fetchone()
         return _hit(row) if row else None
@@ -246,12 +253,13 @@ class HadithIndex:
 
         A chapter recurs on every hadith under it, so we group and order by the FIRST hadith NUMBER in
         it — the hadith number is monotonic in book order (and global across volumes), unlike ``rowid``
-        (insertion order, which interleaved the كتب) or ``page`` (which restarts each volume). Falls
-        back to ``rowid`` when a number is missing/non-numeric."""
+        (insertion order, which interleaved the كتب) or ``page`` (which restarts each volume). A «taliq»
+        باب (تعليق/أثر, no number) has no number, so it orders by its ``sort`` key (the preceding hadith
+        number); ``rowid`` is the final tie-break."""
         rows = self._con.execute(
             "SELECT chapter, COUNT(*) FROM hadith "
             "WHERE book_id = ? AND chapter IS NOT NULL AND chapter <> '' "
-            "GROUP BY chapter ORDER BY MIN(CAST(number AS INTEGER)), MIN(rowid)",
+            "GROUP BY chapter ORDER BY MIN(COALESCE(CAST(number AS INTEGER), sort)), MIN(rowid)",
             (book_id,),
         ).fetchall()
         return [{"chapter": ch, "count": n} for ch, n in rows]
@@ -266,8 +274,8 @@ class HadithIndex:
             where, args = "book_id = ? AND chapter = ?", [book_id, chapter]
         rows = self._con.execute(
             "SELECT rowid, book_id, collection, number, matn, isnad, grade, chapter, "
-            f"page, volume, 0.0 AS score, '' AS snip FROM hadith WHERE {where} "
-            "ORDER BY rowid LIMIT ? OFFSET ?",
+            f"page, volume, 0.0 AS score, '' AS snip, kind FROM hadith WHERE {where} "
+            "ORDER BY COALESCE(CAST(number AS INTEGER), sort), rowid LIMIT ? OFFSET ?",
             (*args, limit, offset),
         ).fetchall()
         return [_hit(row) for row in rows]
@@ -322,6 +330,7 @@ def _hit(row: tuple, terms: tuple[str, ...] = ()) -> SearchHit:
         id=row[0], book_id=row[1], collection=row[2], number=row[3], matn=row[4],
         isnad=row[5], grade=row[6], chapter=row[7], page=row[8], volume=row[9],
         score=row[10], snippet=_excerpt(row[4], terms),
+        kind=(row[12] if len(row) > 12 else "hadith") or "hadith",
     )
 
 

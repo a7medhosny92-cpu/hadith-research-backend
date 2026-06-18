@@ -52,6 +52,26 @@ def test_collections_chapters_hadiths():
     assert len(idx.chapter_hadiths(1284, "كتاب الإيمان", offset=1, limit=1)) == 1   # paged
 
 
+def test_taliq_section_shows_in_library_only_ordered_in_place():
+    """A «taliq» باب (تعليق/أثر, no number/isnad) appears in the library in book order (via its
+    ``sort`` key), but is excluded from search."""
+    idx = HadithIndex(":memory:")
+    idx.add([
+        {"book_id": 9, "number": 1, "matn": "حديث الأول", "isnad": "س", "chapter": "باب أ", "page": 1, "volume": "1"},
+        # a تعليق باب between #1 and #2, no number, sort=1 (after hadith #1):
+        {"book_id": 9, "number": None, "matn": "وقال مالك الدين النصيحة", "isnad": "", "chapter": "باب ب — تعليق",
+         "page": 2, "volume": "1", "kind": "taliq", "sort": 1},
+        {"book_id": 9, "number": 2, "matn": "حديث الثاني", "isnad": "س", "chapter": "باب ج", "page": 3, "volume": "1"},
+    ])
+    # library: the تعليق باب sits in book order (after باب أ, before باب ج)
+    assert [c["chapter"] for c in idx.chapters(9)] == ["باب أ", "باب ب — تعليق", "باب ج"]
+    leaf = idx.chapter_hadiths(9, "باب ب — تعليق")
+    assert len(leaf) == 1 and leaf[0].kind == "taliq" and leaf[0].number is None
+    # search never surfaces a taliق (it is library-only, no isnad to grade)
+    assert idx.search("النصيحة") == []
+    assert [h.number for h in idx.search("حديث")] == [1, 2]   # the real hadith are still found
+
+
 def test_books_endpoints():
     idx = _idx()
     from app.main import app

@@ -13,6 +13,7 @@ citation, and skipping the editor's muqaddima via the book ``numbers`` index.
 
 from __future__ import annotations
 
+import bisect
 import json
 import re
 from dataclasses import asdict, dataclass
@@ -56,12 +57,14 @@ class ParsedHadith:
     text: str            # full hadith text (isnad + matn), diacritics preserved
     isnad: str
     matn: str
-    matn_confidence: str  # quote | phrase | none
+    matn_confidence: str  # quote | phrase | none | ref | llm | taliq
     grade: str | None
     chapter: str | None
     volume: str | None
     page: int | None      # printed page (for citation)
     page_id: int | None   # turath sequential page id
+    kind: str = "hadith"  # "hadith" (numbered) | "taliq" (a باب with only a تعليق/أثر, no numbered hadith)
+    sort: int | None = None  # ordering key for a non-numbered «taliq» (the preceding hadith number)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -120,35 +123,44 @@ def iter_hadith(
     collide and fuse in the «الكتب» tab). Without it the chapter falls back to the page text.
     """
     pages = list(pages)
+    pages_sorted = sorted(pages, key=lambda p: p.get("pg", 0))
     marker = _detect_marker(pages, start_page_id)
     current: dict | None = None
     chapter: str | None = None
     # Hierarchical chapter from indexes.headings: (page, level, title), sorted by page (stable → keeps
-    # the array order within a page, so كتاب precedes its باب). A two-pointer over the page stream opens
-    # every heading whose page we've reached — robust when a heading's page is NOT an exact page id (it
-    # then opens on the next page, never silently dropped → no fusion; mirrors sair_extract's page map).
-    # `active` tracks the open كتاب→باب path (a higher level closes the deeper ones).
+    # the array order within a page, so كتاب precedes its باب). `head_chapter[i]` is the full open
+    # «كتاب ← باب» path after applying heading i (a higher level closes the deeper ones). A two-pointer
+    # over the page stream then opens every heading whose page we've reached — robust when a heading's
+    # page is NOT an exact page id (it opens on the next page, never silently dropped → no fusion;
+    # mirrors sair_extract's page map).
     heads: list[tuple[int, int, str]] = []
     for h in (headings or []):
         p, t = h.get("page"), (h.get("title") or "").strip()
         if p is not None and t:
             heads.append((int(p), int(h.get("level") or 99), t))
     heads.sort(key=lambda x: x[0])
+    head_chapter: list[str] = []
+    _active: dict[int, str] = {}
+    for _p, _lvl, _title in heads:
+        for d in [l for l in list(_active) if l > _lvl]:
+            del _active[d]
+        _active[_lvl] = _title
+        head_chapter.append(" ← ".join(_active[l] for l in sorted(_active)))
     hi = 0
-    active: dict[int, str] = {}
+    # Which heading-chapters actually got a numbered hadith, and the running max hadith number per page
+    # (so a «taliq» باب — تعليق/أثر, no numbered hadith — can be ordered among the hadith afterwards).
+    seen_chapters: set[str] = set()
+    hadith_pages: list[int] = []
+    hadith_numbers: list[int] = []
 
-    for page in sorted(pages, key=lambda p: p.get("pg", 0)):
+    for page in pages_sorted:
         pg = page.get("pg", 0)
         if start_page_id is not None and pg < start_page_id:
             continue
         while hi < len(heads) and heads[hi][0] <= pg:    # open every heading up to and including this page
-            _, lvl, title = heads[hi]
-            for d in [l for l in list(active) if l > lvl]:
-                del active[d]
-            active[lvl] = title
             hi += 1
-        if heads:
-            chapter = " ← ".join(active[l] for l in sorted(active)) or chapter
+        if heads and hi > 0:
+            chapter = head_chapter[hi - 1] or chapter
 
         meta = page.get("meta") or {}
         raw = page.get("text") or ""
@@ -183,8 +195,14 @@ def iter_hadith(
                     chapter = remove_footnote_refs(segment.strip().split("\n", 1)[0]).strip() or chapter
                 current = None
                 continue
+            number = arabic_digits_to_int(match.group(1))
+            if chapter:
+                seen_chapters.add(chapter)        # this باب has a numbered hadith → not a «taliq» باب
+            if number is not None:
+                hadith_pages.append(pg)
+                hadith_numbers.append(number)
             current = {
-                "number": arabic_digits_to_int(match.group(1)),
+                "number": number,
                 "chapter": chapter,
                 "volume": meta.get("vol"),
                 "page": meta.get("page"),
@@ -195,6 +213,98 @@ def iter_hadith(
 
     if current is not None:
         yield _finish(book_id, current, default_grade)
+
+    # ── post-pass: أبواب that carry only a تعليق / أثر (no numbered hadith) ─────────────────────────
+    # The library groups by hadith, so a باب whose body is just a تعليق («وقال مالك: …») or an أثر —
+    # very common in صحيح البخاري — never appears. Recover each as a «taliq» entry so the «الكتب» tab
+    # shows the WHOLE book. They carry an empty isnad (the chain is مُعلّق) → the narrator graph and the
+    # isnad audit skip them for free; kind="taliq" keeps them out of search and the matn audit.
+    if heads:
+        yield from _emit_taliq_sections(
+            book_id, pages_sorted, heads, head_chapter, seen_chapters,
+            hadith_pages, hadith_numbers, marker, start_page_id,
+        )
+
+
+def _meaningful_taliq(body: str) -> bool:
+    """A real تعليق/أثر body (not an empty باب nor a stray fragment): ≥4 Arabic words."""
+    return len([w for w in body.split() if any("ء" <= c <= "ي" for c in w)]) >= 4
+
+
+def _emit_taliq_sections(
+    book_id: int,
+    pages_sorted: list[dict],
+    heads: list[tuple[int, int, str]],
+    head_chapter: list[str],
+    seen_chapters: set[str],
+    hadith_pages: list[int],
+    hadith_numbers: list[int],
+    marker: Pattern[str],
+    start_page_id: int | None,
+) -> Iterator[ParsedHadith]:
+    """For every heading whose chapter got NO numbered hadith, recover its تعليق/أثر body.
+
+    The body is the cleaned text of the heading's page range ``[page_i, page_{i+1})`` minus the
+    heading line itself. A range that contains a hadith marker is skipped (a numbered hadith lives
+    there → not a pure تعليق). Each emitted «taliq» is ordered (``sort``) right after the last hadith
+    on an earlier page, so it sits in book order in the «الكتب» tab."""
+    pg_clean: dict[int, str] = {}
+    pg_meta: dict[int, dict] = {}
+    pgs_list: list[int] = []
+    for page in pages_sorted:
+        pg = page.get("pg", 0)
+        if start_page_id is not None and pg < start_page_id:
+            continue
+        body, _ = split_footnotes(page.get("text") or "")
+        pg_clean[pg] = clean_block(body)
+        pg_meta[pg] = page.get("meta") or {}
+        pgs_list.append(pg)
+    pgs_list.sort()
+
+    # running max hadith number per page, so a taliq can be ordered among the numbered hadith
+    order_pages: list[int] = []
+    order_max: list[int] = []
+    run = 0
+    for pg, num in sorted(zip(hadith_pages, hadith_numbers)):
+        run = max(run, num)
+        order_pages.append(pg)
+        order_max.append(run)
+
+    def _sort_key(page_no: int) -> int:
+        j = bisect.bisect_right(order_pages, page_no) - 1
+        return order_max[j] if j >= 0 else 0
+
+    # A كتاب that has بابs with hadith (e.g. «كتاب الإيمان», parent of «كتاب الإيمان ← باب النية») is an
+    # ANCESTOR of a seen chapter — it is not itself a تعليق-only باب, so never emit it as one.
+    ancestors: set[str] = set()
+    for sc in seen_chapters:
+        parts = sc.split(" ← ")
+        for k in range(1, len(parts)):
+            ancestors.add(" ← ".join(parts[:k]))
+
+    for i, (p_i, _lvl, title) in enumerate(heads):
+        cs = head_chapter[i]
+        if cs in seen_chapters or cs in ancestors:   # has numbered hadith, or is a كتاب above ones that do
+            continue
+        p_next = next((heads[j][0] for j in range(i + 1, len(heads)) if heads[j][0] > p_i), None)
+        lo = bisect.bisect_left(pgs_list, p_i)
+        hi_ = bisect.bisect_left(pgs_list, p_next) if p_next is not None else len(pgs_list)
+        rng = pgs_list[lo:hi_]
+        if not rng:
+            continue
+        block = " ".join(pg_clean.get(pp, "") for pp in rng)
+        if marker.search(block):                 # a numbered hadith sits here → not a pure تعليق range
+            continue
+        body = _WS.sub(" ", remove_footnote_refs(block).replace(title, " ", 1)).strip()
+        if not _meaningful_taliq(body):
+            continue
+        meta = pg_meta.get(rng[0], {})
+        yield ParsedHadith(
+            book_id=book_id, number=None, text=body, isnad="", matn=body,
+            matn_confidence="taliq", grade=None, chapter=cs,
+            volume=meta.get("vol"), page=meta.get("page"), page_id=rng[0],
+            kind="taliq", sort=_sort_key(p_i),
+        )
 
 
 def _first_text_page(data: dict) -> int | None:
