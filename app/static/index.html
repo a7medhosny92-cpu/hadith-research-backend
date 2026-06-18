@@ -603,7 +603,7 @@ function citeOf(x){
 // variant, so every طريق (the representative's included) is displayed the same way.
 function chainBlock(item){
   if(!item.isnad) return "";
-  return `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${esc(item.isnad)}</div>`
+  return `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${clickableIsnadString(item.isnad, item.companion ? [item.companion] : [])}</div>`
     + `<div class="toggle" data-id="${item.id != null ? item.id : ""}" data-closed="عرض الحكم على الإسناد ▾" data-open="إخفاء الحكم ▴">عرض الحكم على الإسناد ▾</div>`
     + `<div class="isnad"><div class="chain-verdict"></div></div>`;
 }
@@ -861,7 +861,7 @@ function narrationCard(n){
   const sim = `<span class="simbadge">${Math.round((n.overlap||0)*100)}% تطابق</span>`;
   // The chain is always shown here — «who carried it» is the point of takhrij.
   const chain = n.isnad
-    ? `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${esc(n.isnad)}</div>` : "";
+    ? `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${clickableIsnadString(n.isnad, n.companion ? [n.companion] : [])}</div>` : "";
   const save = saveChip({kind:"hadith", title:cite, body:n.matn,
     meta:{collection:n.collection, number:n.number, volume:n.volume, page:n.page, grade:n.grade,
           isnad:n.isnad, companion:n.companion, rulings:n.rulings}});
@@ -1348,7 +1348,7 @@ function renderIsnad(d){
     html += `<div class="card">`
       + (s.matn ? `<div class="matn">${esc(s.matn)}</div>` : "")
       + (cite0 ? `<div class="cite"><span>${esc(cite0)}</span></div>` : "")
-      + (s.isnad ? `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${esc(s.isnad)}</div>` : "")
+      + (s.isnad ? `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${clickableIsnadString(s.isnad, _sahabiOf(d))}</div>` : "")
       + `</div>`;
   }
   // 1) the bottom-line verdict «الحكم على الإسناد»
@@ -1432,6 +1432,37 @@ function _restoreView(m, html){
   results.innerHTML = html;
 }
 
+// Make a RAW isnad STRING clickable, keeping the exact wording: split on the transmission connectors
+// (عن / حدثنا / ح …), wrap each narrator run in a link to his راوٍ card, and tint a صحابي green.
+// `sahabiNames` (the chain's known Companions) drives the green; the connectors stay plain text.
+const _ISNAD_CONN = /((?:^|\s)(?:عن|حدّثنا|حدّثني|حدثنا|حدثني|أخبرنا|أخبرني|أنبأنا|أنبأني|ثنا|أنا|سمعت|وحدّثنا|وحدثنا|وحدّثني|وحدثني|وعن|قال)\s|\sح\s)/;
+const _RAWI_STOP = new Set(["بن", "ابن", "ابو", "ابي", "ابا", "ام", "عبد", "مولى", "رجل", "وهو", "عند"]);
+function _normRawi(s){ return (s || "").replace(/[ً-ْٰ]/g, "").replace(/[إأآ]/g, "ا"); }
+function _segIsSahabi(seg, names){
+  if(!names || !names.length) return false;
+  const t = _normRawi(seg).split(/\s+/).map(w => w === "ابن" ? "بن" : w).filter(w => w.length >= 3 && !_RAWI_STOP.has(w));
+  if(!t.length) return false;
+  return names.some(nm => {
+    const nt = new Set(_normRawi(nm).split(/\s+/).map(w => w === "ابن" ? "بن" : w));
+    return t.filter(w => nt.has(w)).length >= Math.min(2, t.length);
+  });
+}
+function clickableIsnadString(isnad, sahabiNames){
+  if(!isnad) return "";
+  return isnad.split(_ISNAD_CONN).map((p, i) => {
+    if(!p) return "";
+    if(i % 2 === 1) return esc(p);                 // a connector (عن / حدثنا / ح) — plain text
+    const seg = p.trim();
+    if(!seg) return esc(p);
+    const sah = _segIsSahabi(seg, sahabiNames) ? " sahabi" : "";
+    return `<span class="rawi-link${sah}" data-pick="${esc(seg)}" role="button" tabindex="0">${esc(seg)}</span>`;
+  }).join("");
+}
+function _sahabiOf(d){
+  return ((((d || {}).analysis) || {}).narrators || [])
+    .filter(n => n.rijal && /صحاب/.test(n.rijal.grade || "")).map(n => n.name);
+}
+
 // Compact «الحكم على الإسناد» for a hadith card (lazy-loaded from /verify-isnad when the
 // isnad is unfolded) — the same engine as the الإسناد tab: verdict + each راوٍ graded.
 function chainVerdictHtml(d){
@@ -1464,7 +1495,7 @@ function caseDetailHtml(d){
   const cite = citeOf(s);
   return (s.matn ? `<div class="matn">${esc(s.matn)}</div>` : "")
     + (cite ? `<div class="cite"><span>${esc(cite)}</span></div>` : "")
-    + (s.isnad ? `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${esc(s.isnad)}</div>` : "")
+    + (s.isnad ? `<div class="chain"><span class="chain-lbl">الإسناد:</span> ${clickableIsnadString(s.isnad, _sahabiOf(d))}</div>` : "")
     + chainVerdictHtml(d);
 }
 
