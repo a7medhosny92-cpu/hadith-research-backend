@@ -36,3 +36,12 @@ def test_yahya_sulayman_khalid():
     assert resolve_qaida("خالد", "أبي قلابة") == "خالد بن مهران الحذاء"
     assert resolve_qaida("خالد", "يونس بن عبيد") == "خالد بن عبد الله الطحان"
     assert resolve_qaida("يحيى بن سعيد", "رجل") is None        # no discriminator → held
+
+
+def test_jarir_aswad_ismail():
+    assert resolve_qaida("جرير", "منصور") == "جرير بن عبد الحميد"
+    assert resolve_qaida("جرير", "أيوب") == "جرير بن حازم"
+    assert resolve_qaida("الأسود", "علقمة") == "الأسود بن يزيد"
+    assert resolve_qaida("الأسود", "شعبة") == "الأسود بن عامر"
+    assert resolve_qaida("إسماعيل", "قيس بن أبي حازم") == "إسماعيل بن أبي خالد"
+    assert resolve_qaida("إسماعيل", "أيوب") is None          # the ابن علية side is left held (shared شيوخ)

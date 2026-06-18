@@ -373,27 +373,27 @@ def test_demotion_sees_homonyms_even_for_a_very_common_ism():
 
 
 def test_joint_resolver_identifies_a_held_name_from_the_documented_shaykh():
-    """End-to-end: a bare mid-chain «إسماعيل» (ابن أبي خالد vs ابن جعفر) that the name+company leave
-    ambiguous is resolved by the documented network — only ابن أبي خالد is a تلميذ of قيس بن أبي حازم
-    (the anchored, unique-named شيخ below him). Without a network the same chain stays held. NB this
-    uses a homonym the قواعد don't cover, to test the network lever in isolation."""
+    """End-to-end: a bare mid-chain «محمد بن جعفر» (غندر vs الوركاني) that the name+company leave
+    ambiguous is resolved by the documented network — only غندر is a تلميذ of شعبة (the anchored,
+    unique-named شيخ below him). Without a network the same chain stays held. NB «محمد بن جعفر» is the
+    project's ②b context-floor (never put in the قواعد), so this tests the network lever in isolation."""
     from app.rijal.index import RijalIndex
     from app.rijal.resolve import DocumentedNetwork, network_key as _k
     _T = "تقريب التهذيب (رقم 8609)"
     idx = RijalIndex([
-        {"name": "إسماعيل بن أبي خالد", "grade": "ثقة", "source": _T},
-        {"name": "إسماعيل بن جعفر", "grade": "ثقة", "source": _T},
-        {"name": "قيس بن أبي حازم", "grade": "ثقة", "source": _T},
+        {"name": "محمد بن جعفر غندر", "grade": "ثقة", "source": _T},
+        {"name": "محمد بن جعفر الوركاني", "grade": "ثقة", "source": _T},
+        {"name": "شعبة بن الحجاج", "grade": "ثقة", "source": _T},
         {"name": "وكيع بن الجراح", "grade": "ثقة", "source": _T},
-        {"name": "عبد الله بن مسعود", "grade": "صحابي", "source": _T},
+        {"name": "قتادة بن دعامة", "grade": "ثقة", "source": _T},
     ])
-    chain = "حدثنا وكيع عن إسماعيل عن قيس بن أبي حازم عن عبد الله بن مسعود"
-    held = next(n for n in analyze_isnad(chain, rijal=idx).narrators if n["name"] == "إسماعيل")
+    chain = "حدثنا وكيع عن محمد بن جعفر عن شعبة عن قتادة"
+    held = next(n for n in analyze_isnad(chain, rijal=idx).narrators if n["name"] == "محمد بن جعفر")
     assert held["rijal"]["ambiguous"]                        # no network → honestly held «مشترك»
-    net = DocumentedNetwork(students={_k("قيس بن أبي حازم"): {_k("إسماعيل بن أبي خالد")}})
-    res = next(n for n in analyze_isnad(chain, rijal=idx, network=net).narrators if n["name"] == "إسماعيل")
-    assert res.get("resolved") == "إسماعيل بن أبي خالد"      # identified by the documented شيخ
-    assert res["rijal"]["name"] == "إسماعيل بن أبي خالد" and not res["rijal"]["ambiguous"]
+    net = DocumentedNetwork(students={_k("شعبة بن الحجاج"): {_k("محمد بن جعفر غندر")}})
+    res = next(n for n in analyze_isnad(chain, rijal=idx, network=net).narrators if n["name"] == "محمد بن جعفر")
+    assert res.get("resolved") == "محمد بن جعفر غندر"        # identified by the documented شيخ
+    assert res["rijal"]["name"] == "محمد بن جعفر غندر" and not res["rijal"]["ambiguous"]
 
 
 def test_qaida_resolves_a_homonym_by_its_shaykh():
