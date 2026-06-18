@@ -39,6 +39,12 @@ _FOLD = str.maketrans(
     }
 )
 
+# Compound proper names written with a VARIABLE internal space — «معدي كرب» / «معد يكرب» / «معديكرب»
+# are one name (the Companion المقدام بن معديكرب), but the space lands differently in the chain vs the
+# base, so the tokens never match. Fold them to one canonical token (applied post-letter-fold, gated on
+# «كرب» so the regex runs only on the rare name).
+_COMPOUND = re.compile(r"معدي?\s*ي?كرب")
+
 
 # These two are pure and get called millions of times on a small set of repeated strings
 # (narrator names during graph-building / rijal-matching), so memoise them. A bounded LRU keeps
@@ -58,6 +64,8 @@ def normalize_for_search(text: str) -> str:
     """Fold orthographic variation for robust lexical / embedding matching."""
     text = strip_diacritics(text)
     text = text.translate(_FOLD)
+    if "كرب" in text:
+        text = _COMPOUND.sub("معديكرب", text)
     text = _NON_ARABIC_WS.sub(" ", text)
     return _WS.sub(" ", text).strip()
 

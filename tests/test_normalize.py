@@ -33,3 +33,13 @@ def test_accusative_tanwin_alif_dropped():
     assert strip_diacritics("جابرًا") == "جابر"
     assert strip_diacritics("مجاهداً") == "مجاهد"
     assert normalize_for_search("مجاهدًا") == normalize_for_search("مجاهد")
+
+
+def test_compound_name_variable_spacing_folds():
+    """«معديكرب» is one name (المقدام بن معديكرب الكندي, صحابي) but the internal space lands
+    differently in the chain vs the base — all spellings fold to one token so they match."""
+    from app.parsing.normalize import normalize_for_search
+    canon = normalize_for_search("المقدام بن معديكرب الكندي")
+    assert normalize_for_search("المقدام بن معد يكرب الكندي") == canon
+    assert normalize_for_search("المقدام بن معدي كرب الكندي") == canon
+    assert normalize_for_search("كربلاء") != canon            # an unrelated word is untouched
