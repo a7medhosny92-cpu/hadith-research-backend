@@ -319,6 +319,26 @@ def test_alignment_tolerates_an_abbreviated_index_title():
     assert by_num[2] == "٣ - باب أمور الإيمان"
 
 
+def test_baab_nests_under_a_same_level_grouping_heading():
+    """ابن خزيمة gives «جماع أبواب X» and its «باب Y» the SAME turath level, so a باب would replace the
+    grouping and orphan it (the 111 «empty» جماع أبواب). A «باب/فصل» now nests half a level deeper, so
+    the hierarchy stays «كتاب ← جماع أبواب ← باب»."""
+    pages = [
+        {"pg": 10, "meta": {"vol": "1", "page": 1}, "text":
+            "<span data-type='title'>كتاب الوضوء</span>"
+            "<span data-type='title'>جماع أبواب الأحداث الموجبة للوضوء</span>"
+            "<span data-type='title'>باب الوضوء من النوم</span>"
+            "• [١] حدثنا فلان عن أنس قال متن الأول كذا."},
+    ]
+    headings = [
+        {"page": 10, "level": 1, "title": "كتاب الوضوء"},
+        {"page": 10, "level": 2, "title": "جماع أبواب الأحداث الموجبة للوضوء"},
+        {"page": 10, "level": 2, "title": "باب الوضوء من النوم"},   # same turath level as the grouping
+    ]
+    [h] = list(iter_hadith(1446, pages, headings=headings))
+    assert h.chapter == "كتاب الوضوء ← جماع أبواب الأحداث الموجبة للوضوء ← باب الوضوء من النوم"
+
+
 def test_unlocatable_heading_falls_back_to_page_level():
     """If a heading can't be placed in the text (a bare «باب»), the page falls back to the last باب —
     the old behaviour, so the change never regresses."""

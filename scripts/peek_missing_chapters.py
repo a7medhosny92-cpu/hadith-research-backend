@@ -26,17 +26,17 @@ import sqlite3
 from collections import Counter
 
 from app.config import get_settings
-from app.parsing.hadith_extract import _aligned, _detect_marker, _first_text_page, _HEAD_SENTINEL
+from app.parsing.hadith_extract import _aligned, _detect_marker, _eff_level, _first_text_page, _HEAD_SENTINEL
 from app.parsing.html_clean import clean_block, clean_block_marked, extract_titles, remove_footnote_refs, split_footnotes
 
 
-def _head_chapters(headings: list) -> list[tuple[int, int, str]]:
-    """(page, level, title) sorted by page — the parser's heading list."""
+def _head_chapters(headings: list) -> list[tuple[int, float, str]]:
+    """(page, effective-level, title) sorted by page — the parser's heading list."""
     heads = []
     for h in headings or []:
         p, t = h.get("page"), (h.get("title") or "").strip()
         if p is not None and t:
-            heads.append((int(p), int(h.get("level") or 99), t))
+            heads.append((int(p), _eff_level(int(h.get("level") or 99), t), t))
     heads.sort(key=lambda x: x[0])
     return heads
 
