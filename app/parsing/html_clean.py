@@ -114,3 +114,22 @@ def clean_block(text: str) -> str:
     text = remove_footnote_refs(text)
     text = _INLINE_WS.sub(" ", text)
     return "\n".join(line.strip() for line in text.split("\n")).strip()
+
+
+def clean_block_marked(text: str, sentinel: str = "\x00") -> tuple[str, list[str]]:
+    """Like :func:`clean_block`, but each title span is replaced by ``sentinel`` (its position kept,
+    its text out of the body) and the span titles are returned in order. Lets the parser place several
+    أبواب within one page's text — so each hadith takes the باب that precedes it, not the last of the
+    page — without the heading text leaking into a matn."""
+    titles: list[str] = []
+
+    def _repl(m: "re.Match[str]") -> str:
+        titles.append(_WS.sub(" ", m.group(1).strip()))
+        return f"\n{sentinel}\n"   # own line, so a following line-anchored «• [N]»/«N -» marker still matches
+
+    text = _TITLE_SPAN.sub(_repl, text)
+    text = _PAGE_ANCHOR.sub("", text)
+    text = strip_tags(text)
+    text = remove_footnote_refs(text)
+    text = _INLINE_WS.sub(" ", text)
+    return "\n".join(line.strip() for line in text.split("\n")).strip(), titles

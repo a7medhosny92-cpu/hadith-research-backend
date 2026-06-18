@@ -24,13 +24,14 @@ from app.parsing.grading import extract_grade, grade_in_ruling
 from app.parsing.html_clean import (
     arabic_digits_to_int,
     clean_block,
+    clean_block_marked,
     extract_s0_grades,
     extract_titles,
     remove_footnote_refs,
     split_footnotes,
 )
 from app.parsing.isnad_matn import split_isnad_matn
-from app.parsing.normalize import normalize_for_search
+from app.parsing.normalize import _DIACRITICS, _FOLD, normalize_for_search
 
 _NUM = r"[\d٠-٩۰-۹]+"
 # "• [N]" bullet (a "* [N]" line is a takhrij note, not a hadith — we anchor on •).
@@ -90,6 +91,69 @@ def _finish(book_id: int, cur: dict, default_grade: str | None) -> ParsedHadith:
 
 
 _DASH_PROBE = re.compile(rf"(?:^|\n)[ \t]*{_NUM}\s*-\s")
+_HEAD_NUM_PREFIX = re.compile(rf"^{_NUM}\s*-\s*")  # the «٢ - » before a باب title
+
+
+def _fold_keep_pos(s: str) -> tuple[str, list[int]]:
+    """Fold ``s`` like ``normalize_for_search`` (drop tashkeel/tatweel, unify alef/hamza/ta-marbuta)
+    but KEEP a map from each folded-char index back to its raw index, so a match in the folded text
+    maps back to a position in the raw block."""
+    out: list[str] = []
+    idx: list[int] = []
+    for i, ch in enumerate(s):
+        if _DIACRITICS.match(ch) or ch == "ـ":
+            continue
+        for c in ch.translate(_FOLD):     # "" for a bare hamza, else one char
+            out.append(c)
+            idx.append(i)
+    return "".join(out), idx
+
+
+_HEAD_SENTINEL = "\x00"   # marks a title span's position in the cleaned block (clean_block_marked)
+
+
+def _aligned(spans: list[str], titles: list[str]) -> bool:
+    """The k-th title span on the page is the k-th indexed heading (same count, each text agreeing
+    once folded and the «N - » number dropped) — so a sentinel can be mapped to a chapter by order."""
+    if len(spans) != len(titles):
+        return False
+    for s, t in zip(spans, titles):
+        a, b = _fold(_HEAD_NUM_PREFIX.sub("", s)), _fold(_HEAD_NUM_PREFIX.sub("", t))
+        if not a or not b or (a not in b and b not in a):
+            return False
+    return True
+
+
+def _fold(s: str) -> str:
+    return _fold_keep_pos(s)[0]
+
+
+def _locate_headings(block: str, page_heads: list[tuple[str, str]]) -> list[tuple[int, str]] | None:
+    """Find each heading of the page INSIDE the block → ``[(raw_pos, chapter)]`` sorted by position.
+
+    Several أبواب can share one page; the heading index gives their order but not where each sits in
+    the text, so a hadith would be filed under the LAST باب of the page. Locating each title (folded
+    for diacritics/orthography) lets every hadith take the باب that precedes it. Returns ``None`` —
+    the caller then falls back to page-level assignment, no regression — when a title can't be located
+    UNIQUELY (e.g. a bare «باب», or a title that also appears in a matn) or the positions aren't in
+    heading order."""
+    folded_block, idx = _fold_keep_pos(block)
+    found: list[tuple[int, str]] = []
+    for title, chapter in page_heads:
+        pos = -1
+        for key in (_fold_keep_pos(title)[0], _fold_keep_pos(_HEAD_NUM_PREFIX.sub("", title))[0]):
+            if len(key) < 8:                              # too short to be distinctive (a bare «باب»)
+                continue
+            j = folded_block.find(key)
+            if j != -1 and folded_block.find(key, j + 1) == -1:   # present and unique
+                pos = idx[j]
+                break
+        if pos < 0:
+            return None
+        found.append((pos, chapter))
+    if any(found[i][0] > found[i + 1][0] for i in range(len(found) - 1)):
+        return None                                       # out of text order → fall back
+    return found
 
 
 def _detect_marker(pages: list[dict], start_page_id: int | None = None) -> Pattern[str]:
@@ -146,7 +210,7 @@ def iter_hadith(
             del _active[d]
         _active[_lvl] = _title
         head_chapter.append(" ← ".join(_active[l] for l in sorted(_active)))
-    hi = 0
+    heads_pages = [h[0] for h in heads]
     # Which heading-chapters actually got a numbered hadith, and the running max hadith number per page
     # (so a «taliq» باب — تعليق/أثر, no numbered hadith — can be ordered among the hadith afterwards).
     seen_chapters: set[str] = set()
@@ -157,29 +221,58 @@ def iter_hadith(
         pg = page.get("pg", 0)
         if start_page_id is not None and pg < start_page_id:
             continue
-        while hi < len(heads) and heads[hi][0] <= pg:    # open every heading up to and including this page
-            hi += 1
-        if heads and hi > 0:
-            chapter = head_chapter[hi - 1] or chapter
-
         meta = page.get("meta") or {}
         raw = page.get("text") or ""
 
         body, footnotes = split_footnotes(raw)
-        if not heads:                                # fallback (no headings index): chapter from text
+        page_grades = extract_s0_grades(footnotes) or extract_s0_grades(raw)
+        # For a book WITH a headings index, keep each title span's POSITION (a sentinel) so several
+        # أبواب on one page can be placed; otherwise (no index) fall back to the page-text chapter.
+        if heads:
+            block, span_titles = clean_block_marked(body, _HEAD_SENTINEL)
+        else:
+            block, span_titles = clean_block(body), []
             titles = extract_titles(body) or (meta.get("headings") or [])
             if titles:
                 chapter = remove_footnote_refs(titles[-1]).strip()
-        page_grades = extract_s0_grades(footnotes) or extract_s0_grades(raw)
-        block = clean_block(body)
+
+        # Chapter from the headings index: `incoming` = the باب open before this page; the أبواب that
+        # OPEN on this page are placed in the text (each hadith takes the باب that precedes it, not the
+        # LAST of the page). `inpage` None → couldn't place them → fall back to the page-level باب.
+        incoming = chapter
+        inpage: list[tuple[int, str]] | None = None
+        page_last = chapter
+        if heads:
+            lo = bisect.bisect_left(heads_pages, pg)
+            hiq = bisect.bisect_right(heads_pages, pg)
+            incoming = head_chapter[lo - 1] if lo > 0 else chapter
+            page_last = head_chapter[hiq - 1] if hiq > 0 else chapter
+            chapter = page_last or chapter
+            if hiq > lo:
+                sent = [i for i, c in enumerate(block) if c == _HEAD_SENTINEL]
+                if sent and _aligned(span_titles, [heads[j][2] for j in range(lo, hiq)]):
+                    inpage = [(sent[k], head_chapter[lo + k]) for k in range(hiq - lo)]   # spans → chapters
+                elif not sent:   # plain-text headings (no spans) — locate the title in the block
+                    inpage = _locate_headings(block, [(heads[j][2], head_chapter[j]) for j in range(lo, hiq)])
+
+        def _chapter_at(pos: int) -> str | None:
+            if inpage:
+                ch = incoming
+                for hpos, hch in inpage:
+                    if hpos <= pos:
+                        ch = hch
+                    else:
+                        break
+                return ch
+            return page_last if heads else chapter
 
         matches = list(marker.finditer(block))
         if not matches:
             if current is not None:
-                current["parts"].append(block)
+                current["parts"].append(block.replace(_HEAD_SENTINEL, " "))
             continue
 
-        prefix = block[: matches[0].start()]
+        prefix = block[: matches[0].start()].replace(_HEAD_SENTINEL, " ")
         if current is not None and prefix.strip():
             current["parts"].append(prefix)
 
@@ -188,7 +281,7 @@ def iter_hadith(
                 yield _finish(book_id, current, default_grade)
             end = matches[i + 1].start() if i + 1 < len(matches) else len(block)
             grade_hint = page_grades[i] if i < len(page_grades) else None
-            segment = _LEADING_SUBNUM.sub("", block[match.end():end], count=1)
+            segment = _LEADING_SUBNUM.sub("", block[match.end():end].replace(_HEAD_SENTINEL, " "), count=1)
             head = normalize_for_search(segment[:40]).split()
             if head and head[0] in _HEADING_WORDS:   # a numbered «باب/كتاب …» heading, not a hadith
                 if not heads:   # with the headings index the hierarchical chapter already covers it
@@ -196,14 +289,15 @@ def iter_hadith(
                 current = None
                 continue
             number = arabic_digits_to_int(match.group(1))
-            if chapter:
-                seen_chapters.add(chapter)        # this باب has a numbered hadith → not a «taliq» باب
+            ch = _chapter_at(match.start())
+            if ch:
+                seen_chapters.add(ch)             # this باب has a numbered hadith → not a «taliq» باب
             if number is not None:
                 hadith_pages.append(pg)
                 hadith_numbers.append(number)
             current = {
                 "number": number,
-                "chapter": chapter,
+                "chapter": ch,
                 "volume": meta.get("vol"),
                 "page": meta.get("page"),
                 "page_id": pg,

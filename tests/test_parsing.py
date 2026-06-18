@@ -253,6 +253,67 @@ def test_hierarchical_chapter_heading_page_not_an_exact_page_id():
     assert by_num[2] == "كتاب الإيمان ← باب الثاني"   # the page-15 باب opened on page 20, not lost
 
 
+def test_multiple_baabs_on_one_page_each_keep_their_own_hadith():
+    """Several أبواب on ONE page: each hadith takes the باب that precedes it in the text — not the
+    LAST باب of the page (the bug that hid البخاري's باب 2,5,7,10,13)."""
+    pages = [
+        {"pg": 10, "meta": {"vol": "1", "page": 1}, "text":
+            "كتاب الإيمان\n"
+            "١ - باب دعاؤكم إيمانكم\n• [١] حدثنا الحميدي عن عمر قال متن الأول كذا وكذا.\n"
+            "٢ - باب أي الإسلام أفضل\n• [٢] حدثنا قتيبة عن أنس قال متن الثاني كذا وكذا.\n"
+            "٣ - باب إفشاء السلام\n• [٣] حدثنا مالك عن نافع قال متن الثالث كذا وكذا."},
+    ]
+    headings = [
+        {"page": 10, "level": 1, "title": "كتاب الإيمان"},
+        {"page": 10, "level": 2, "title": "١ - باب دعاؤكم إيمانكم"},
+        {"page": 10, "level": 2, "title": "٢ - باب أي الإسلام أفضل"},
+        {"page": 10, "level": 2, "title": "٣ - باب إفشاء السلام"},
+    ]
+    by_num = {h.number: h.chapter for h in iter_hadith(1284, pages, headings=headings)}
+    assert by_num[1] == "كتاب الإيمان ← ١ - باب دعاؤكم إيمانكم"
+    assert by_num[2] == "كتاب الإيمان ← ٢ - باب أي الإسلام أفضل"   # NOT filed under the last باب
+    assert by_num[3] == "كتاب الإيمان ← ٣ - باب إفشاء السلام"
+
+
+def test_multiple_baabs_as_title_spans_on_one_page():
+    """The real البخاري case: أبواب are <span data-type='title'> headings (clean_block removes them),
+    so they're placed by a sentinel matched to the indexed headings by order — each hadith keeps its
+    own باب and the heading text never leaks into the matn."""
+    pages = [
+        {"pg": 10, "meta": {"vol": "1", "page": 1}, "text":
+            "<span data-type='title'>كتاب الإيمان</span>"
+            "<span data-type='title'>٢ - باب دعاؤكم إيمانكم</span>"
+            "• [١] حدثنا الحميدي عن عمر قال متن الأول كذا وكذا.\n"
+            "<span data-type='title'>٥ - باب أي الإسلام أفضل</span>"
+            "• [٢] حدثنا قتيبة عن أنس قال متن الثاني كذا وكذا."},
+    ]
+    headings = [
+        {"page": 10, "level": 1, "title": "كتاب الإيمان"},
+        {"page": 10, "level": 2, "title": "٢ - باب دعاؤكم إيمانكم"},
+        {"page": 10, "level": 2, "title": "٥ - باب أي الإسلام أفضل"},
+    ]
+    out = list(iter_hadith(1284, pages, headings=headings))
+    by_num = {h.number: h for h in out}
+    assert by_num[1].chapter == "كتاب الإيمان ← ٢ - باب دعاؤكم إيمانكم"
+    assert by_num[2].chapter == "كتاب الإيمان ← ٥ - باب أي الإسلام أفضل"   # its own باب, not the last
+    assert "باب" not in by_num[1].matn and "دعاؤكم" not in by_num[1].matn   # heading text not in the matn
+
+
+def test_unlocatable_heading_falls_back_to_page_level():
+    """If a heading can't be placed in the text (a bare «باب»), the page falls back to the last باب —
+    the old behaviour, so the change never regresses."""
+    pages = [
+        {"pg": 10, "meta": {"vol": "1", "page": 1}, "text":
+            "• [١] حدثنا أ عن ب قال متن الأول.\n• [٢] حدثنا ج عن د قال متن الثاني."},
+    ]
+    headings = [
+        {"page": 10, "level": 1, "title": "كتاب العلم"},   # not present in the block text
+        {"page": 10, "level": 2, "title": "بابٌ"},          # bare → unlocatable
+    ]
+    chs = {h.number: h.chapter for h in iter_hadith(1284, pages, headings=headings)}
+    assert chs[1] == "كتاب العلم ← بابٌ" and chs[2] == "كتاب العلم ← بابٌ"   # page-level fallback
+
+
 def test_taliq_only_chapter_is_recovered():
     """A باب whose body is only a تعليق/أثر (no numbered hadith) is recovered as a «taliq» entry, in
     book order, with an empty isnad — so the «الكتب» tab shows the whole book (صحيح البخاري معلّقات)."""
