@@ -30,7 +30,7 @@ from app.config import get_settings
 from app.rijal import RijalIndex, load_entries
 from app.rijal.graph import is_prophet
 from app.rijal.grades import classify
-from app.rijal.index import from_companion_dictionary
+from app.rijal.index import from_companion_dictionary, from_coverage_source
 
 
 def _companion(rijal: RijalIndex, name: str):
@@ -40,11 +40,18 @@ def _companion(rijal: RijalIndex, name: str):
     ``candidates(apply_prominence=False)``, the true homonym set, NOT from ``lookup`` (which the
     prominence prior would resolve to a صحابي bearer even for a bare, ambiguous «عبد الله» with
     hundreds of mixed namesakes, or «محمد بن جعفر» = 7 non-صحابي + غندر). So a bare/ambiguous node is
-    NOT miscounted as a Companion; only a name whose homonyms agree on صحابي (or a unique صحابي) is."""
+    NOT miscounted as a Companion; only a name whose homonyms agree on صحابي (or a unique صحابي) is.
+
+    Coverage-only namesakes (الإصابة/الثقات) are dropped first when a real (non-coverage) man is present
+    — mirroring the matcher's ``_prefer_non_coverage`` — so the famous «أبو هريرة» (الدوسي, in تقريب) is
+    not excluded just because obscure الثقات men share his kunya. (When ALL are coverage — an obscure
+    الإصابة-only Companion — they are kept, so the terminal Companions still count.)"""
     cands = rijal.candidates(name, apply_prominence=False, max_results=None)
-    if cands and all(c.category == "صحابي" for c in cands):
-        return cands[0]
-    return None
+    if not cands:
+        return None
+    real = [c for c in cands if not from_coverage_source(c)]
+    pool = real or cands
+    return pool[0] if all(c.category == "صحابي" for c in pool) else None
 
 
 def audit(rijal: RijalIndex, nodes: list[tuple[int, str, int]],
