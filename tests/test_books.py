@@ -25,6 +25,18 @@ def _idx() -> HadithIndex:
     return idx
 
 
+def test_chapters_ordered_by_hadith_number_not_insertion():
+    """Chapters order by their first hadith NUMBER (book order), even when hadiths are inserted out of
+    that order (rowid). This is the ابن ماجه bug: كتب interleaved because MIN(rowid) ≠ book order."""
+    idx = HadithIndex(":memory:")
+    idx.add([
+        {"book_id": 7, "number": 5, "matn": "x", "isnad": "س", "chapter": "باب الثاني", "page": 1, "volume": "1"},
+        {"book_id": 7, "number": 1, "matn": "y", "isnad": "س", "chapter": "باب الأول", "page": 1, "volume": "1"},
+        {"book_id": 7, "number": 6, "matn": "z", "isnad": "س", "chapter": "باب الثاني", "page": 1, "volume": "1"},
+    ])
+    assert [c["chapter"] for c in idx.chapters(7)] == ["باب الأول", "باب الثاني"]   # number 1 before 5
+
+
 def test_collections_chapters_hadiths():
     idx = _idx()
     cols = {c["book_id"]: c for c in idx.collections()}
