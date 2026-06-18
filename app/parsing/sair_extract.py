@@ -3,21 +3,23 @@
 A COVERAGE source covering post-Six-Books men (الأصم-class محدّثون, 5th–8th centuries). Like الجرح/الثقات,
 it is a PROSE rijal dictionary with documented شيوخ/تلاميذ network — the key for joint-resolver disambiguation.
 
-**Segmentation (heading-driven).** سير's tarjama heads «N - Name» flow INLINE in the body («… مات سنة ٢٠٠.
-١٤٦ - فلان …»), so the line-anchored `rijal_extract._BOUNDARY` caught only ~7 % of them (407 of 5893), and
-almost none of the LATE الأصم-class (the whole point of the source). al-Thiqāt got away with `_BOUNDARY`
-because its heads are line-anchored AND it maps heading→body BY NUMBER; سير can't — its numbers RESTART each
-طبقة and `indexes.numbers` is empty. So here every «N -» in the body is found (inline included) and ALIGNED
-to the ordered `indexes.headings` «N - Name» list by number + name-prefix — robust to false «N -» (date ranges
-«٢٠٠ - ٢١٠») since a candidate must match the expected heading's number AND the start of its name.
+**Segmentation (page-driven, like isaba_extract — never drops a tarjama).** سير's body is continuous prose
+whose tarjama markers «N -» are NOT reliably line-anchored — the line-start `rijal_extract._BOUNDARY` caught
+only 432 of ~5893 (≈7 %), so a body-boundary extractor missed almost every man, esp. the LATE الأصم-class
+(the whole point of the source). The reliable structure is `indexes.headings`: every tarjama IS a heading
+«N - Name» carrying its **page** (numbers RESTART each طبقة and `indexes.numbers` is empty, so the page —
+not the number — is the key). So the headings are walked in order and each is mapped to its body by PAGE: a
+heading's body runs from its page to the next heading's page, and several short tarjamas sharing one page are
+sub-split by locating each heading's name. Every «N - Name» heading therefore yields a record.
 
-The name comes from the (clean) heading; the body gives the network «حدّث عن … حدّث عنه …» (or «روى عن/عنه»),
-the death «مات سنة …», and the quoted جرح/تعديل critics. Grade = weakest cited verdict, else «غير معروف»
+The name comes from the (clean) heading; the body gives the network «حدّث عن … حدّث عنه …» / «وعنه …», the
+death «مات سنة …», and the quoted جرح/تعديل critics. Grade = weakest cited verdict, else «غير معروف»
 (coverage pattern: no inclusion توثيق like الثقات, so no default «ثقة»).
 """
 
 from __future__ import annotations
 
+import bisect
 import json
 import re
 from pathlib import Path
@@ -55,14 +57,12 @@ _NET_END = re.compile(
 )
 # A «N - Name» tarjama heading (in indexes.headings) — «١٤٥ - عمرو بن دينار البصري».
 _HEAD = re.compile(r"^\s*([\d٠-٩۰-۹]+)\s*[-–—]\s*(.+)$")
-# Every «N -» boundary in the body, INLINE too (not line-anchored). The lookbehind keeps «٤٥» from
-# matching inside «٢٤٥»; the alignment to the heading sequence rejects spurious hits (date ranges).
-_INLINE_HEAD = re.compile(r"(?<![\d٠-٩۰-۹])([\d٠-٩۰-۹]+)\s*[-–—]\s*")
 # Name boundary: where tarjama body text begins (network markers, transmission verbs, verdict/death).
 _NAME_END = re.compile(
     r"حدّ?ث|رو[ىي]\s+عنه?|سمعت|أخبرنا|أنبأنا|قال|يقال|مات|توفي|كان|وكان|ذكره|وفي|بل|إن|لكن"
 )
 _JUNK_HEAD = ("باب", "كتاب", "فصل", "ذكر", "مقدمة", "فأما", "وأما", "أخوه", "وابنه", "ابنه")
+_PAGE_SLACK = 4  # search a name a few chars before the page start (heading may sit on the prior line)
 
 
 def _clean_name(raw: str) -> str | None:
@@ -88,52 +88,93 @@ def book_main_text(data: dict) -> str:
     )
 
 
-def _tarjama_heads(data: dict) -> list[tuple[int, str]]:
-    """Ordered ``(number, name)`` for every «N - Name» heading — the reliable tarjama list."""
-    out: list[tuple[int, str]] = []
+def _tarjama_heads(data: dict) -> list[tuple[int, int, str]]:
+    """Ordered ``(page, number, name)`` for every «N - Name» heading — the reliable tarjama list.
+
+    The page (not the number, which restarts each طبقة) is what locates the body."""
+    out: list[tuple[int, int, str]] = []
     for h in (data.get("indexes") or {}).get("headings") or []:
         m = _HEAD.match(_WS.sub(" ", h.get("title") or "").strip())
         if not m:
             continue
-        num, name = arabic_digits_to_int(m.group(1)), _clean_name(m.group(2))
-        if num and name and not name.startswith(_JUNK_HEAD):
-            out.append((num, name))
+        num, name, pg = arabic_digits_to_int(m.group(1)), _clean_name(m.group(2)), h.get("page")
+        if num and name and pg is not None and not name.startswith(_JUNK_HEAD):
+            out.append((int(pg), num, name))
     return out
 
 
-def _segment(full: str, heads: list[tuple[int, str]]) -> Iterator[tuple[str, str]]:
-    """Align the ordered heading list to the body's «N -» boundaries and yield ``(name, body)``.
+def _locate(stripped: str, name: str, frm: int, to: int) -> int:
+    """First offset of the name (its first ≤4 leading tokens) within ``stripped[frm:to]``, else ``-1``."""
+    toks = strip_diacritics(name).split()
+    for k in (4, 3, 2):
+        if len(toks) >= k:
+            idx = stripped.find(" ".join(toks[:k]), frm, to)
+            if idx >= 0:
+                return idx
+    return -1
 
-    A heading is matched to the next forward body-boundary whose number equals it AND whose following
-    text begins with the heading's name — so a stray «N -» (a date range «٢٠٠ - ٢١٠», a list item) is
-    skipped, and the right tarjama body (this boundary → the next matched one) is returned."""
-    cands = [(m.start(), arabic_digits_to_int(m.group(1)), m.end()) for m in _INLINE_HEAD.finditer(full)]
+
+def _segment(data: dict) -> Iterator[tuple[int, str, str]]:
+    """Walk the heading list and yield ``(number, name, body)`` for every «N - Name» tarjama.
+
+    Each heading is mapped to its body by PAGE: the body runs from this heading's located position to the
+    next heading's — several short tarjamas on one page are sub-split by locating each name, and a heading
+    whose name cannot be located still gets the page span (so a tarjama is never dropped)."""
+    heads = _tarjama_heads(data)
+    if not heads:
+        return
+    pages = sorted(
+        (
+            (p["pg"], _FOOTNOTE.split(clean_block(p.get("text") or ""), 1)[0])
+            for p in data.get("pages", [])
+            if p.get("pg") is not None
+        ),
+        key=lambda x: x[0],
+    )
+    if not pages:
+        return
+    page_start: dict[int, int] = {}
+    page_end: dict[int, int] = {}
+    parts: list[str] = []
+    off = 0
+    for pg, text in pages:
+        page_start[pg] = off
+        parts.append(text)
+        off += len(text) + 1
+        page_end[pg] = off - 1
+    full = "\n".join(parts)
+    stripped = strip_diacritics(full)
+    pgs = [pg for pg, _ in pages]
+
     starts: list[int] = []
-    ci = 0
-    for num, name in heads:
-        first = strip_diacritics(name).split()
-        prefix = first[0][:4] if first else ""
-        found = -1
-        cj = ci
-        while cj < len(cands):
-            pos, cnum, end = cands[cj]
-            if cnum == num:
-                after = strip_diacritics(full[end : end + 30]).lstrip(" :-،*")
-                if not prefix or after.startswith(prefix):
-                    found, ci = pos, cj + 1
-                    break
-            cj += 1
-        starts.append(found)
-    for i, (num, name) in enumerate(heads):
+    cursor: dict[int, int] = {}
+    for pg, _num, name in heads:
+        if pg in page_start:
+            base, pend = page_start[pg], page_end[pg]
+        else:                                              # heading page not an exact page id → nearest ≤ pg
+            i = bisect.bisect_right(pgs, pg) - 1
+            if i < 0:
+                starts.append(-1)
+                continue
+            base, pend = page_start[pgs[i]], page_end[pgs[i]]
+        frm = max(base - _PAGE_SLACK, cursor.get(pg, base - _PAGE_SLACK))
+        pos = _locate(stripped, name, max(0, frm), pend)
+        if pos < 0:
+            pos = max(0, frm)
+        starts.append(pos)
+        cursor[pg] = pos + 1
+
+    n = len(heads)
+    for i, (_pg, num, name) in enumerate(heads):
         s = starts[i]
         if s < 0:
             continue
         e = len(full)
-        for j in range(i + 1, len(heads)):
-            if starts[j] >= 0:
+        for j in range(i + 1, n):
+            if starts[j] > s:
                 e = starts[j]
                 break
-        yield name, full[s:e]
+        yield num, name, full[s:e]
 
 
 def parse_entry(number: int | None, body: str, heading_name: str | None = None) -> dict | None:
@@ -170,9 +211,8 @@ def parse_entry(number: int | None, body: str, heading_name: str | None = None) 
 
 def iter_sair(data: dict) -> Iterator[dict]:
     """Yield a graded record for every «N - Name» tarjama in سير أعلام النبلاء (book 10906)."""
-    full = book_main_text(data)
-    for name, body in _segment(full, _tarjama_heads(data)):
-        rec = parse_entry(None, strip_diacritics(body), heading_name=name)
+    for num, name, body in _segment(data):
+        rec = parse_entry(num, strip_diacritics(body), heading_name=name)
         if rec:
             yield rec
 

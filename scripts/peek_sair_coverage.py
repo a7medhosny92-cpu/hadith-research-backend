@@ -12,16 +12,11 @@ is captured or lost BEFORE committing to a 61-min build_graph.
 from __future__ import annotations
 
 import json
-import re
 from collections import Counter
 
 from app.config import get_settings
-from app.parsing.html_clean import arabic_digits_to_int
 from app.parsing.rijal_extract import _BOUNDARY
-from app.parsing.sair_extract import SAIR_BOOK_ID, book_main_text, iter_sair
-
-_WS = re.compile(r"\s+")
-_HEAD = re.compile(r"^\s*([\d٠-٩۰-۹]+)\s*-\s*(.+)$")        # «١٤٥ - فلان بن فلان …» tarjama head
+from app.parsing.sair_extract import SAIR_BOOK_ID, _tarjama_heads, book_main_text, iter_sair
 
 
 def main() -> None:
@@ -31,11 +26,11 @@ def main() -> None:
         return
     data = json.loads(path.read_text(encoding="utf-8"))
 
-    # 1) headings index: how many are «N - Name» tarjama heads (the reliable structure)?
+    # 1) headings index: how many are «N - Name» tarjama heads (the reliable structure the extractor walks)?
     headings = (data.get("indexes") or {}).get("headings") or []
-    head_tarjamas = sum(1 for h in headings if _HEAD.match(_WS.sub(" ", h.get("title") or "").strip()))
+    head_tarjamas = len(_tarjama_heads(data))
 
-    # 2) body line-start «N -» boundaries (what the extractor currently keys on)
+    # 2) body line-start «N -» boundaries (what the OLD body-boundary extractor keyed on — the 7% trap)
     full = book_main_text(data)
     body_bounds = sum(1 for m in _BOUNDARY.finditer(full) if m.group(1) is not None)
 
@@ -53,12 +48,12 @@ def main() -> None:
 
     print(f"=== سير أعلام النبلاء {SAIR_BOOK_ID} coverage ===")
     print(f"indexes.headings total          : {len(headings)}")
-    print(f"  of which «N - Name» tarjamas  : {head_tarjamas}   ← reliable tarjama count")
-    print(f"body line-start «N -» boundaries: {body_bounds}   ← what the extractor catches")
-    if head_tarjamas:
-        print(f"  → body catches {100*body_bounds/head_tarjamas:.0f}% of heading tarjamas")
+    print(f"  «N - Name» tarjama heads      : {head_tarjamas}   ← the page-driven extractor walks these")
+    print(f"OLD body line-start «N -» bounds: {body_bounds}   ← the 7% trap the rewrite replaced")
     print()
-    print(f"iter_sair parsed records        : {len(records)}")
+    print(f"iter_sair parsed records        : {len(records)}   ← should be ≈ the head count now")
+    if head_tarjamas:
+        print(f"  → emits {100*len(records)/head_tarjamas:.0f}% of heading tarjamas")
     print(f"  with a death-year             : {len(with_death)}")
     print(f"  LATE (وفاة ≥ 250, الأصم-class) : {len(late)}   ← the A.3 target")
     print(f"  death-year buckets            : {dict(buckets)}")

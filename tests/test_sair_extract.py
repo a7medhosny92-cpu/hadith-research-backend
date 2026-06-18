@@ -8,10 +8,19 @@ from app.parsing.sair_extract import _clean_name, _grade_from, iter_sair, parse_
 
 
 def _sair(headings: list[str], text: str) -> dict:
-    """A minimal سير book payload: «N - Name» headings + one page of inline body text."""
+    """A minimal سير book payload: «N - Name» headings (all on page 1) + one page of body text."""
     return {
         "indexes": {"headings": [{"title": t, "page": 1, "level": 3} for t in headings]},
         "pages": [{"pg": 1, "text": text}],
+    }
+
+
+def _sair_pages(headings: list[tuple[str, int]], pages: dict[int, str]) -> dict:
+    """A سير payload with explicit ``(heading-title, page)`` pairs and per-page body text — so the
+    page-driven segmentation (one tarjama per page-block) can be exercised."""
+    return {
+        "indexes": {"headings": [{"title": t, "page": p, "level": 3} for t, p in headings]},
+        "pages": [{"pg": p, "text": txt} for p, txt in sorted(pages.items())],
     }
 
 
@@ -190,6 +199,61 @@ class TestInlineSegmentation:
         recs = list(iter_sair(data))
         assert len(recs) == 1
         assert recs[0]["name"] == "عمرو بن دينار البصري"
+
+
+class TestPageDrivenSegmentation:
+    """Each heading is mapped to its body BY PAGE — one tarjama per page-block, and a heading is
+    NEVER dropped even when its name can't be located in the body (the +4-narrators regression)."""
+
+    def test_one_tarjama_per_page(self) -> None:
+        """Long tarjamas, one per page-block, each body sliced by the page boundary."""
+        data = _sair_pages(
+            [("١ - محمد بن علي الكوفي", 1), ("٢ - أحمد بن سعيد الرباطي", 2), ("٣ - يحيى بن إبراهيم البغدادي", 3)],
+            {
+                1: "١ - محمد بن علي الكوفي روى عن الزهري. وعنه مالك. مات سنة 300.",
+                2: "٢ - أحمد بن سعيد الرباطي روى عن مالك. وعنه البخاري. مات سنة 310.",
+                3: "٣ - يحيى بن إبراهيم البغدادي روى عن شعبة. مات سنة 320.",
+            },
+        )
+        recs = list(iter_sair(data))
+        assert len(recs) == 3
+        rec1 = next(r for r in recs if "محمد بن علي" in r["name"])
+        assert rec1["death_year"] == 300
+        assert any("الزهري" in s for s in rec1.get("shuyukh", []))
+
+    def test_heading_emitted_even_if_name_not_in_body(self) -> None:
+        """The +4 regression: a shuhra heading whose body opens with the ISM-led full name must STILL
+        be emitted (page fallback), not silently dropped."""
+        data = _sair_pages(
+            [("٣٠٠ - أبو الفضل الأصم", 5)],
+            {5: "هو محمد بن يعقوب بن يوسف النيسابوري. روى عن الربيع. مات سنة 346."},
+        )
+        recs = list(iter_sair(data))
+        assert len(recs) == 1
+        assert recs[0]["name"] == "أبو الفضل الأصم"
+        assert recs[0]["death_year"] == 346
+
+    def test_short_tarjamas_sharing_a_page_split_by_name(self) -> None:
+        """The LATE الأصم-class: several short tarjamas on ONE page, sub-split by locating each name."""
+        data = _sair_pages(
+            [("١ - الحسن بن سفيان النسوي", 9), ("٢ - عمران بن موسى الجرجاني", 9), ("٣ - دعلج بن أحمد السجزي", 9)],
+            {
+                9: (
+                    "١ - الحسن بن سفيان النسوي روى عن قتيبة. وعنه الطبراني. مات سنة 303. "
+                    "٢ - عمران بن موسى الجرجاني روى عن هدبة. وعنه ابن عدي. مات سنة 305. "
+                    "٣ - دعلج بن أحمد السجزي روى عن موسى بن هارون. وعنه الحاكم. مات سنة 351."
+                )
+            },
+        )
+        recs = list(iter_sair(data))
+        assert len(recs) == 3
+        names = " | ".join(r["name"] for r in recs)
+        assert "الحسن بن سفيان" in names
+        assert "عمران بن موسى" in names
+        assert "دعلج بن أحمد" in names
+        # each keeps its OWN death year — the bodies didn't bleed together
+        years = sorted(r["death_year"] for r in recs if r.get("death_year"))
+        assert years == [303, 305, 351]
 
 
 class TestWaAnhu:
