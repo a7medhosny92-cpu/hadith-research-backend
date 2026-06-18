@@ -47,3 +47,17 @@ def test_no_companions_when_base_has_none():
     assert res["distinct"] == 0
     assert res["positions"] == 0
     assert res["terminal_distinct"] == 0
+
+
+def test_coverage_namesake_does_not_exclude_a_real_companion():
+    """A famous Companion (أبو هريرة الدوسي, in تقريب) must still count even though an obscure
+    coverage namesake (من الثقات) shares his kunya — the coverage shadow is dropped first, mirroring
+    the matcher. (Were it kept, the «all homonyms صحابي» gate would wrongly exclude أبو هريرة.)"""
+    from scripts.audit_companions import _companion
+    rijal = RijalIndex([
+        {"name": "عبد الرحمن بن صخر الدوسي", "grade": "صحابي", "kunya": "أبو هريرة"},
+        {"name": "محمد بن أيوب الواسطي", "grade": "ثقة", "kunya": "أبو هريرة",
+         "source": "الثقات لمن لم يقع في الكتب الستة (رقم 96165)"},
+    ])
+    entry = _companion(rijal, "أبو هريرة")
+    assert entry is not None and entry.category == "صحابي"
