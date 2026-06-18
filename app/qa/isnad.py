@@ -17,7 +17,7 @@ from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING
 
 from app.parsing.normalize import normalize_for_search, strip_diacritics
-from app.rijal.graph import is_prophet
+from app.rijal.graph import _ancestor_from_nasab, _kin_relation, is_prophet
 from app.rijal.grades import RANKS
 from app.rijal.index import _clean_tokens, from_companion_dictionary
 
@@ -99,6 +99,10 @@ _WAW_STOP = {"وهو", "وهي", "وهم", "وهما", "وغير", "وغيره",
              "واخرين", "وذكر", "وذكره", "وكان", "وكانت", "وقال", "وقالت", "وقالوا", "ونحوه",
              "ونحوها", "وزاد", "وزادني", "وحده", "وفيه", "وفيها", "وكذا", "وكذلك", "ولفظه",
              "وهذا", "وكلاهما", "وكلهم", "وجميعا", "ومن", "وفي", "وقد"}
+# Collective adverbs that CLOSE a co-narrator group («حدّثنا فلانٌ وفلانٌ جميعاً / كلاهما عن …») —
+# they terminate the current narrator but are not a name, so the word is dropped (else it glued onto
+# the last man: «أبو بكر بن أبي شيبة جميع» → غير معروف).
+_COLLECTIVE = {"جميعا", "جميع", "معا", "جميعهم", "كلهم", "كلاهما", "كليهما"}
 _TOKEN = re.compile(r"[^\s،,.:؛()«»\"']+")
 
 
@@ -273,6 +277,10 @@ def analyze_isnad(
             break
         if soft:   # «قال حدثنا …» / «سمعته يحدّث عن …» — connective, not the matn; drop it
             continue
+        if folded in _COLLECTIVE:   # «… جميعاً / كلاهما» closes a co-narrator group — finalise, drop word
+            if flush():
+                break
+            continue
         # co-narrator waw: «A وB …» lists two narrators sharing the next شيخ; split so B is its OWN
         # clean node, not fused into «A وB». This is a GRAPH-HYGIENE operation (de-fuse the node for
         # the network / «راوٍ» card), gated to graph-build: in the VERDICT path it would surface the
@@ -334,6 +342,29 @@ def analyze_isnad(
                                    rijal.candidates(nar.name, apply_prominence=False, max_results=None)])
         joint = resolve_chain(cand_lists, anchors, network, route_starts)
 
+    # «عن أبيه / جده» is a kinship REFERENCE, not a name — resolve it to the real ancestor from the
+    # anchoring narrator's nasab («هشام بن عروة عن أبيه» → عروة), exactly as the graph does, so the
+    # verdict grades the man, not a «غير معروف» «أبيه». The anchor is the last NAMED narrator (a ح
+    # route seam resets it); an apposition («أبيه أبي موسى») names the relative directly.
+    kin_resolved = [n.name for n in narrators]
+    _anchor: str | None = None
+    for i, n in enumerate(narrators):
+        if i in route_starts:
+            _anchor = None
+        rel = _kin_relation(n.name)
+        if rel is None:
+            if not is_prophet(n.name) and not _is_mubham(n.name) and len(_clean_tokens(n.name)) >= 2:
+                _anchor = n.name
+            continue
+        _label, degree = rel
+        appos = " ".join(n.name.split()[1:]).strip()
+        if appos:
+            kin_resolved[i] = appos
+        elif _anchor and degree:
+            named = _ancestor_from_nasab(_anchor, degree)
+            if named:
+                kin_resolved[i] = named
+
     narrator_dicts: list[dict] = []
     matches: list["RijalMatch | None"] = []
     mubham_count = 0
@@ -356,7 +387,9 @@ def analyze_isnad(
                 # identify the man from the chain's company (the links), then grade HIM. First try
                 # تمييز المهمل: a bare name whose (تلميذ, شيخ) sandwich the corpus names in full
                 # elsewhere is resolved deterministically — «عبد الرحمن» between بشار وسفيان = ابن مهدي.
-                name = narrator.name
+                name = kin_resolved[i]
+                if name != narrator.name:
+                    record["resolved"] = name        # «عن أبيه/جده» → the named ancestor
                 # the (تلميذ, شيخ) sandwich is only valid when both neighbours are on the SAME route —
                 # a ح seam (i or i+1 begins a new route) gives a false شيخ, so skip تمييز المهمل there.
                 same_route = i not in route_starts and (i + 1) not in route_starts

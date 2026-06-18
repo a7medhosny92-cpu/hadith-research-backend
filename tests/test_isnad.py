@@ -59,6 +59,27 @@ def test_reaches_prophet():
     assert not analyze_isnad("حدثنا فلان، عن أنس").reaches_prophet
 
 
+def test_kinship_reference_resolves_to_the_ancestor():
+    """«عن أبيه» is not a name: it resolves to the previous narrator's father from his nasab, so the
+    verdict grades the man (هشام بن عروة عن أبيه → عروة), not a «غير معروف» «أبيه»."""
+    from app.rijal import RijalIndex
+    rijal = RijalIndex([
+        {"name": "عروة بن الزبير الأسدي", "grade": "ثقة"},
+        {"name": "عائشة أم المؤمنين", "grade": "صحابي"},
+    ])
+    a = analyze_isnad("حدثنا مالك عن هشام بن عروة عن أبيه عن عائشة", rijal=rijal)
+    abih = next(n for n in a.narrators if "أبيه" in n["name"])
+    assert abih.get("resolved") == "عروة"            # «أبيه» → عروة (the father in هشام's nasab)
+    assert abih.get("rijal") is not None             # and it's graded, not «غير معروف»
+
+
+def test_collective_adverb_dropped_from_co_narrators():
+    """«… جميعاً / كلاهما» closes a co-narrator group and must not glue onto the last name."""
+    names = [n["name"] for n in analyze_isnad("حدثنا أبو بكر بن أبي شيبة جميعا عن وكيع").narrators]
+    assert "أبو بكر بن أبي شيبة" in names
+    assert not any("جميع" in nm for nm in names)
+
+
 # ── matn must not leak into the last narrator (audit ISN-1/2/3) ───────────────
 def test_matn_does_not_leak_into_last_narrator():
     a = analyze_isnad("حدثنا الحميدي حدثنا سفيان عن عمر بن الخطاب "
