@@ -131,6 +131,13 @@ Depth docs (NOT auto-loaded — open when relevant):
   [coverage]). For (a) confirming the exact canonical name behind a shuhra before adding it to `index._SHUHRA`,
   and (b) diagnosing a mis-resolution (why a bare «الشعبي» grades صحابي mid-chain — which صحابي/coverage entry
   shadows him). Default args = the shuhra-by-ancestor candidates + the S-class تابعون.
+- **`python -m scripts.derive_qaida [--names …] [--min-count N] [--max-token-df N]`** → read-only: MINES candidate
+  `قواعد التمييز` from the books (the auto counterpart of the hand `app/rijal/qaida.py`). For each ambiguous name
+  (audit `a_ranked`) it reads each homonym's شيوخ from `documented_network.json` (inverts `students`→`teachers`) and
+  proposes «‹ism› عن ‹distinctive شيخ› = ‹that homonym›» — the marker = a token of the شيخ RARE in the base (df ≤
+  `--max-token-df`, so «دينار» not «عمرو»); a شيخ SHARED by two namesakes is dropped (لا نختلق), a name whose homonyms
+  share all شيوخ = the ②b floor. Writes `data/qaida.json` (+ a readable digest: homonym ← his distinctive شيوخ).
+  **A PROPOSAL to REVIEW (NOT auto-loaded)** — run it, probe a sample, then wire the trusted subset.
 - **`python -m scripts.list_books [title…]`** → read-only: lists the turath books currently DOWNLOADED
   (`raw_dir/books/*.json`) with id · size · cat · title (titles from the cached catalog). To see what's on
   disk before ingesting a new source, so we REUSE an already-downloaded book instead of re-fetching.
@@ -239,6 +246,17 @@ node fixed by قاعدة/شبكة/رفقة shows **«↜ مُيِّز بالقر
 درجات (each clickable → his راوٍ card). +1 test (`test_ambiguous_node_documents_its_possible_identities_with_grades`),
 **530 green**, node --check clean. Docs: التقنية isnad-analysis card (the honest-doubt node). The verdict logic is unchanged
 (usable gate identical) — this is PRESENTATION of the existing honest hold.
+
+**★ (2026-06-18) `scripts.derive_qaida` — MINE قواعد التمييز from the books (the user's «i libri hanno le regole già pronte»).**
+The hand `qaida.py` table (9 names) is now auto-derivable: for each ambiguous name (audit `a_ranked`) the script reads each
+homonym's شيوخ from `documented_network.json` (inverts `students`→`teachers`) and proposes «‹ism› عن ‹distinctive شيخ› = ‹that
+homonym›» — marker = a token of the شيخ RARE in the base (df ≤ `--max-token-df`, «دينار» not «عمرو»); a SHARED شيخ dropped
+(لا نختلق), a name whose homonyms share all شيوخ = the ②b floor. Writes `data/qaida.json` + a readable digest. Core
+`derive_rules(rijal, teachers, df, names)` is unit-tested (distinctive→rule, shared→floor); +2 tests, **532 green**. **READ-ONLY
+PROPOSAL, NOT auto-loaded** — the disciplined next step is: user runs it → we review the proposed rules (probe a sample) → wire
+the trusted subset into `qaida.py` (a gated loader) and MEASURE with `audit_isnad` (W/S must stay flat). Docs: التقنية قواعد card,
+tool list. **WAITING ON THE USER: `python -m scripts.derive_qaida`** (needs `rijal.jsonl` + `documented_network.json` + `audit.json`
+a_ranked on disk) → send `qaida.json` + the digest → we pick which rules to trust.
 
 **★ (2026-06-17) A.3 — سير أعلام النبلاء EXTRACTOR (10906) BUILT & WIRED.** Post-Six-Books محدّثون coverage source
 (الأصم-class late narrators, 5th–8th centuries). Follows the jarh_extract/lisan_extract prose pattern: body-parsing
