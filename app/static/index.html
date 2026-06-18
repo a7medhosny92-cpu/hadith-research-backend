@@ -198,6 +198,14 @@
   .r-basis{opacity:.65;font-size:.76rem}
   .r-diverge{color:#b5701a;font-weight:700;font-size:.85rem}
   .r-info{cursor:help;opacity:.85}
+  /* ★ تمييز المهمل badges + the «② dubbio onesto» node — a genuinely ambiguous narrator the شيخ/التلميذ
+     cannot split is documented (its few possible identities + each درجة), never guessed */
+  .simbadge.sim-stop{color:#a6432f;font-weight:700}      /* يُتوقَّف — اختُلفت درجاتهم */
+  .simbadge.sim-ok{color:#15643f}                         /* مُيِّز بالقرينة */
+  .doubt-box{margin:2px 18px 8px;padding:7px 11px;border-inline-start:3px solid var(--gold);
+    background:#fbf7ee;border-radius:0 8px 8px 0;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+  .doubt-lbl{flex-basis:100%;color:#7a6a48;font-size:.86rem;line-height:1.7}
+  .doubt-cand{display:inline-flex;gap:7px;align-items:center;font-size:1rem}
   /* ★ save-to-notebook chip + the notebook cards */
   .save-btn{margin-inline-start:auto;background:transparent;border:1px solid var(--line);
     color:var(--gold);border-radius:9px;padding:3px 11px;font-size:1.1rem;cursor:pointer;line-height:1}
@@ -1485,7 +1493,14 @@ function renderIsnad(d){
   (a.narrators || []).forEach((n, i) => {
     const rij = n.rijal;
     const g = rij && rij.grade;
-    const amb = rij && rij.ambiguous ? ` <span class="simbadge" title="${esc((rij.alternatives||[]).join(' / '))}">مشترك</span>` : "";
+    const cands = (rij && rij.candidates) || null;          // [{name,grade}] — the ②b honest-doubt set
+    const contested = !!(rij && rij.ambiguous && !rij.grade_agreed);   // اختُلفت درجاتهم → يُتوقَّف
+    // مُيِّز بالقرينة: a bare name fixed by its شيخ/الرفقة (قاعدة · شبكة · رفقة) — show what it resolved to
+    const res = n.resolved && n.resolved !== n.name
+      ? ` <span class="simbadge sim-ok" title="مُيِّز بالقرينة: الشيخ أو الرفقة">↜ ${esc(n.resolved)}</span>` : "";
+    // the «مشترك» label: محسوم الدرجة (all candidates agree → الحكم لا يتغيّر) vs يُتوقَّف (اختُلفت درجاتهم)
+    const amb = rij && rij.ambiguous
+      ? ` <span class="simbadge${contested ? ' sim-stop' : ''}" title="${esc((rij.alternatives||[]).join(' / '))}">${contested ? 'يُتوقَّف' : 'مشترك · محسوم'}</span>` : "";
     const ops = rij && rij.opinions;
     const div = ops && new Set(ops.map(o => o.grade)).size > 1
       ? ` <span class="r-diverge" title="${esc(ops.map(o => (SRC_AUTHOR[o.source]||o.source)+": "+o.grade).join(" · "))}">⚠ اختلفوا</span>` : "";
@@ -1493,10 +1508,20 @@ function renderIsnad(d){
       ? `<span class="grade g-sahih">مصدر الحديث ﷺ</span>`
       : n.mubham
         ? `<span class="grade g-daif" title="راوٍ لم يُسمَّ — جهالةُ عين">راوٍ مبهم</span>`
+      : contested
+        ? `<span class="grade g-other" title="اختُلفت درجاتُهم فلا يُحكم بواحدةٍ">يُتوقَّف فيه</span>${res}${amb}`
       : g
-        ? `<span class="grade ${rijalClass(g)}" title="${esc((rij.verdict || '') + (rij.source ? ' — ' + rij.source : ''))}">${esc(g)}</span>${srcTag(rij)}${amb}`
+        ? `<span class="grade ${rijalClass(g)}" title="${esc((rij.verdict || '') + (rij.source ? ' — ' + rij.source : ''))}">${esc(g)}</span>${srcTag(rij)}${res}${amb}`
         : `<span class="simbadge">غير معروف في القاعدة</span>`;
     html += `<div class="rawi-item"><span>${i + 1}. ${chainName(n)} ${isnadVia(n.via)}</span>${badge}</div>`;
+    // the ②b «dubbio onesto» box — the few possible identities + each درجة (clickable → his راوٍ card)
+    if(cands && cands.length){
+      html += `<div class="doubt-box"><span class="doubt-lbl">${contested
+          ? 'يُحتمل أنه أحدُ هؤلاء — مختلفو الدرجة، فيُتوقَّف حتى يُميَّز بقرينة:'
+          : 'مشتركٌ بين هؤلاء، وكلُّهم بدرجةٍ واحدة فلا يتغيّر الحكم:'}</span>`
+        + cands.map(c => `<span class="doubt-cand"><span class="rawi-link" data-pick="${esc(c.name)}" role="button" tabindex="0">${esc(c.name)}</span><span class="grade ${rijalClass(c.grade||'')}">${esc(c.grade||'—')}</span></span>`).join('')
+        + `</div>`;
+    }
   });
   html += `</div>`;
   // 4) continuity, link by link
@@ -1862,6 +1887,7 @@ const TECH = [
     "Grading excludes both the Prophet (the source) and the مبهم: _is_mubham flags an unnamed narrator («رجل»، «شيخ له»، «عمّن حدّثه»، «بعض أصحابه»), excepting an unnamed Companion («من أصحاب النبي ﷺ»); such a chain is weakened to «ضعيف» (جهالة), distinct from the paused «يُتوقَّف» of a mere DB gap.",
     "overall_ruling: a concise verdict (weakest narrator + transmission modes), held back conservatively. A missing network link is a CAUTION, not a downgrade — the graph is built from the same corpus with canonical names, so a gap is usually a name-form difference, and must not turn a صحيح البخاري chain of ثقات into «ضعيف». This is the «الحكم على الإسناد» every hadith card loads on demand.",
     "An ambiguous match is held ONLY when its tied candidates disagree on the grade: usable = (not ambiguous) OR grade_agreed. «عدي بن حاتم» (both candidates صحابي) and «الليث بن سعد» (الكاشف+تقريب, both ثقة) keep the grade; «عثمان بن أبي شيبة» (ثقة vs a متروك namesake) is held «يُتوقَّف» — so a disagreeing namesake never drives a confident weak verdict.",
+    "The honest-doubt node (②b): when the شيخ/التلميذ company cannot split a homonym, the node is not guessed — _doubt_candidates attaches the few possible identities + each درجة to record.rijal.candidates, and the «الإسناد»/«التحقق» card documents them: «مشترك · محسوم» (the candidates AGREE on the grade → the حكم is unchanged) vs «يُتوقَّف» (they DISAGREE → held, shown in g-other, the disagreeing namesake never counted); a node fixed by a قاعدة/الشبكة/الرفقة instead shows «↜ مُيِّز بالقرينة → <the resolved man>». Each possible identity is clickable to its راوٍ card. This is «لا نختلق»: a genuine doubt is presented as its closed set of possibilities, not collapsed to one.",
     "الرأي الثاني (double opinion) — ADJUDICATED: when the critics differ on ONE man (ثقة عند ابن حجر · ضعيف عند الذهبي, his RijalEntry.opinions spanning ≥2 grades), isnad._effective_rank grades him by his WEAKEST opinion (أنزل القولين عند الاختلاف), so a مختلف فيه narrator drags the chain down, not up; _chain_assessment returns the disputed list, analyze_isnad adds a «اختُلف فيه … أُخذ بأنزل القولين» note, and the card flags «⚠ اختلفوا». A man with one opinion (the common case) is unchanged."]},
   {h:"Self-audit — scripts/audit_isnad.py", p:[
     "A bulk quality report (the «التدقيق» tab), NOT a religious ruling: it re-runs analyze_isnad over EVERY isnad in the corpus — with the live رجال DB and a Canonicalizer built from graph.adjacency() — and flags each narrator whose grading looks wrong, so a human can review it. Rebuilt from scratch as the last step of update.bat, so it tracks the data as it improves.",

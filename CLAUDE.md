@@ -227,9 +227,18 @@ consulted in `_resolve_shuhra` beside `_SHUHRA` — a bare «أبو هريرة»
 drop ~6000 (the «أبو هريرة» positions resolve to one صحابي), W/S flat (صح. is terminal). **RESIDUALS noted, not chased here:** the
 dedup duplicate («أبو هريرة الدوسي» ثقة vs «عبد الرحمن بن صخر الدوسي» صحابي) + the واثلة parse artifact are build-time issues.
 **NEXT:** extend `_KUNYA_COMPANION` to other المكثرون cited by bare kunya (أبو سعيد الخدري · أبو موسى · أبو ذر · أبو الدرداء…) —
-but PROBE each first (confirm the canonical entry name + that bare-kunya genuinely mis-resolves) before adding; and the user's
-②b honest-doubt PRESENTATION (a genuine-homonymy node showing its few documented candidates + grades: «محسوم الدرجة» vs
-«يُتوقَّف اختُلفت درجاتهم» vs «مُميَّز بالقرينة»).
+but PROBE each first (confirm the canonical entry name + that bare-kunya genuinely mis-resolves) before adding.
+
+**★ (2026-06-18) ②b HONEST-DOUBT NODE — DONE (the user's «è un nodo con solo le identità possibili»).** When the شيخ/التلميذ
+company genuinely cannot split a homonym (candidates SHARE company), the node is now PRESENTED as a documented doubt, not
+guessed (لا نختلق). Backend `isnad._doubt_candidates(rijal, surface, match)` attaches the tied identities + each grade to
+`record["rijal"]["candidates"]` (`[{name, grade}]`, from the full homonym set) whenever a match is ambiguous; the existing
+`grade_agreed` flag already encodes محسوم-vs-يُتوقَّف. UI (`renderIsnad`): an ambiguous node shows **«مشترك · محسوم»** (candidates
+AGREE on the grade → الحكم لا يتغيّر) vs **«يُتوقَّف»** (DISAGREE → held, g-other, the disagreeing namesake never counted), a
+node fixed by قاعدة/شبكة/رفقة shows **«↜ مُيِّز بالقرينة → <resolved>»**, and a **`.doubt-box`** lists the possible identities +
+درجات (each clickable → his راوٍ card). +1 test (`test_ambiguous_node_documents_its_possible_identities_with_grades`),
+**530 green**, node --check clean. Docs: التقنية isnad-analysis card (the honest-doubt node). The verdict logic is unchanged
+(usable gate identical) — this is PRESENTATION of the existing honest hold.
 
 **★ (2026-06-17) A.3 — سير أعلام النبلاء EXTRACTOR (10906) BUILT & WIRED.** Post-Six-Books محدّثون coverage source
 (الأصم-class late narrators, 5th–8th centuries). Follows the jarh_extract/lisan_extract prose pattern: body-parsing
