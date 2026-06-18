@@ -419,6 +419,42 @@ def test_qaida_resolves_a_homonym_by_its_shaykh():
     assert held.get("resolved") is None and held["rijal"]["ambiguous"]
 
 
+def test_ambiguous_node_documents_its_possible_identities_with_grades():
+    """The ②b honest-doubt node: when the شيخ/التلميذ company cannot split a homonym, the node carries
+    its few possible identities + each درجة — محسوم الدرجة (all agree → الحكم لا يتغيّر) when the grades
+    match, يُتوقَّف (held, not counted) when they disagree. We document who he might be, never guess one."""
+    from app.rijal.index import RijalIndex
+    # محسوم: two محمد بن جعفر, both ثقة, with no distinguishing شيخ (شعبة fits both) → tied but harmless
+    agree = RijalIndex([
+        {"name": "محمد بن جعفر الهذلي البصري غندر", "grade": "ثقة"},
+        {"name": "محمد بن جعفر المدائني", "grade": "ثقة"},
+        {"name": "علي بن المديني", "grade": "ثقة"},
+        {"name": "شعبة بن الحجاج", "grade": "ثقة"},
+    ])
+    node = next(n for n in analyze_isnad("حدثنا علي بن المديني عن محمد بن جعفر عن شعبة", rijal=agree).narrators
+                if n["name"] == "محمد بن جعفر")
+    rij = node["rijal"]
+    assert rij["ambiguous"] and rij["grade_agreed"]                       # محسوم الدرجة
+    cands = rij["candidates"]
+    assert {c["name"] for c in cands} == {"محمد بن جعفر الهذلي البصري غندر", "محمد بن جعفر المدائني"}
+    assert all(c["grade"] == "ثقة" for c in cands)                        # each identity carries its درجة
+
+    # يُتوقَّف: a ثقة and a متروك namesake tie → held, candidates still documented, never graded weak
+    clash = RijalIndex([
+        {"name": "عثمان بن محمد بن أبي شيبة العبسي", "grade": "ثقة"},
+        {"name": "عثمان بن محمد الخراساني", "grade": "متروك"},
+        {"name": "وكيع بن الجراح", "grade": "ثقة"},
+        {"name": "الأعمش سليمان بن مهران", "grade": "ثقة"},
+    ])
+    a = analyze_isnad("حدثنا وكيع عن عثمان بن محمد عن الأعمش", rijal=clash)
+    node = next(n for n in a.narrators if n["name"] == "عثمان بن محمد")
+    rij = node["rijal"]
+    assert rij["ambiguous"] and not rij["grade_agreed"]                   # يُتوقَّف — اختُلفت درجاتهم
+    assert {c["grade"] for c in rij["candidates"]} == {"ثقة", "متروك"}    # both درجتان shown
+    # the disagreeing namesake never drives a confident weak verdict (he is counted undetermined)
+    assert "متروك" not in a.rijal_assessment["verdict"]
+
+
 @pytest.mark.parametrize("isnad, expect_names, expect_absent", [
     # the screenshot bug: «الزهري وهشام بن عروة عن عروة» fused two men → split into two clean nodes
     ("حدثنا قتيبة عن الزهري وهشام بن عروة عن عروة بن الزبير عن عائشة",

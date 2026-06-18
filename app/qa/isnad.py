@@ -165,6 +165,18 @@ def _effective_rank(match: "RijalMatch") -> int | None:
     return min(ranks) if ranks else match.entry.rank
 
 
+def _doubt_candidates(rijal, surface: str, match: "RijalMatch") -> list[dict]:
+    """The tied identities behind an ambiguous node — the few possible men, each with his grade — so the
+    chain can DOCUMENT an honest doubt («مشترك») instead of a guessed pick. This is the ②b floor: genuine
+    homonymy the شيخ/التلميذ company cannot split is presented (who he MIGHT be + درجاتهم), never invented.
+    When the candidates AGREE on the grade the حكم is unaffected (محسوم الدرجة); when they disagree the
+    chain is held (يُتوقَّف). Grades are read from the full homonym set so each tied name carries its own."""
+    tied = [match.entry.name, *match.alternatives]
+    grades = {c.name: c.category
+              for c in rijal.candidates(surface, apply_prominence=False, max_results=None)}
+    return [{"name": nm, "grade": grades.get(nm)} for nm in tied]
+
+
 def _chain_assessment(matches: list["RijalMatch | None"], total: int, mubham: int = 0) -> dict:
     """Summarise the chain from its narrator gradings — verdict by the weakest link (and, for a
     مختلف فيه narrator, by his weakest opinion — see :func:`_effective_rank`)."""
@@ -484,6 +496,9 @@ def analyze_isnad(
                                     or (i == terminal_idx and match.entry.category == "صحابي"))
                 matches.append(match if usable else None)
             record["rijal"] = match.to_dict() if match else None
+            if match and match.ambiguous and record["rijal"] is not None:
+                # the ②b honest-doubt node: surface the few possible identities + their grades
+                record["rijal"]["candidates"] = _doubt_candidates(rijal, narrator.name, match)
         narrator_dicts.append(record)
 
     notes: list[str] = []
