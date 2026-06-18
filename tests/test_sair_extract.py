@@ -4,7 +4,15 @@ from __future__ import annotations
 
 import pytest
 
-from app.parsing.sair_extract import _clean_name, _grade_from, parse_entry
+from app.parsing.sair_extract import _clean_name, _grade_from, iter_sair, parse_entry
+
+
+def _sair(headings: list[str], text: str) -> dict:
+    """A minimal سير book payload: «N - Name» headings + one page of inline body text."""
+    return {
+        "indexes": {"headings": [{"title": t, "page": 1, "level": 3} for t in headings]},
+        "pages": [{"pg": 1, "text": text}],
+    }
 
 
 class TestCleanName:
@@ -134,3 +142,90 @@ class TestSourceField:
         rec = parse_entry(1, body)
         assert rec is not None
         assert rec["source"] == "سير أعلام النبلاء (الذهبي، ط الرسالة، رقم 10906)"
+
+
+class TestInlineSegmentation:
+    """iter_sair uses heading-driven segmentation, finding inline «N -» in the body."""
+
+    def test_three_inline_tarjamas(self) -> None:
+        """Three tarjamas on one line (inline heads) are all extracted."""
+        data = _sair(
+            ["١ - محمد بن علي الكوفي", "٢ - أحمد بن سعيد الرباطي", "٣ - يحيى بن إبراهيم البغدادي"],
+            "١ - محمد بن علي الكوفي روى عن الزهري. مات سنة 300. "
+            "٢ - أحمد بن سعيد الرباطي روى عن مالك. مات سنة 310. "
+            "٣ - يحيى بن إبراهيم البغدادي روى عن شعبة. مات سنة 320.",
+        )
+        recs = list(iter_sair(data))
+        assert len(recs) == 3
+        names = [r["name"] for r in recs]
+        assert any("محمد بن علي" in n for n in names)
+        assert any("أحمد بن سعيد" in n for n in names)
+        assert any("يحيى بن إبراهيم" in n for n in names)
+
+    def test_date_range_not_a_tarjama(self) -> None:
+        """A «٢٠٠ - ٢١٠» date range in the body is not a tarjama boundary."""
+        data = _sair(
+            ["٢٠٠ - محمد بن عمر البغدادي"],
+            "نشأ في الفترة ٢٠٠ - ٢١٠ هجرية. "
+            "٢٠٠ - محمد بن عمر البغدادي روى عن ابن المبارك. قال أحمد: ثقة.",
+        )
+        recs = list(iter_sair(data))
+        assert len(recs) == 1
+        assert "محمد بن عمر" in recs[0]["name"]
+
+    def test_no_heading_no_record(self) -> None:
+        """Body with valid «N -» inline text but no matching heading yields nothing."""
+        data = _sair(
+            [],  # no headings
+            "١ - محمد بن علي الكوفي روى عن الزهري. قال أحمد: ثقة.",
+        )
+        assert list(iter_sair(data)) == []
+
+    def test_heading_name_used_not_body(self) -> None:
+        """Name comes from the clean heading, not from the body text."""
+        data = _sair(
+            ["١٤٥ - عمرو بن دينار البصري"],
+            "١٤٥ - عمرو بن دينار البصري المكي روى عن جابر. قال أحمد: ثقة.",
+        )
+        recs = list(iter_sair(data))
+        assert len(recs) == 1
+        assert recs[0]["name"] == "عمرو بن دينار البصري"
+
+
+class TestWaAnhu:
+    """«وعنه» is the dominant تلاميذ marker in سير; critics after terminators are excluded."""
+
+    def test_wa_anhu_captures_students(self) -> None:
+        """«وعنه» introduces تلاميذ; full names (≥3 chars) are captured."""
+        body = (
+            "محمد بن علي المكي حدث عن الزهري والأوزاعي. "
+            "وعنه عبد الرحمن بن مهدي وقتيبة بن سعيد. مات سنة 295."
+        )
+        rec = parse_entry(1, body, heading_name="محمد بن علي المكي")
+        assert rec is not None
+        assert rec.get("talamidh")
+        assert any("عبد الرحمن" in t for t in rec["talamidh"])
+
+    def test_critic_after_daafahu_not_in_talamidh(self) -> None:
+        """A name after «ضعّفه» is a critic, not a student."""
+        body = (
+            "سفيان الكوفي روى عن مالك وسعيد. "
+            "وعنه وكيع وعبد الرحمن بن مهدي. "
+            "ضعّفه أبو حاتم الرازي. قال ابن معين: ثقة."
+        )
+        rec = parse_entry(1, body, heading_name="سفيان الكوفي")
+        assert rec is not None
+        talamidh = rec.get("talamidh", [])
+        assert not any("أبو حاتم" in t for t in talamidh)
+
+    def test_wa_akharun_terminates_student_list(self) -> None:
+        """«وآخرون» terminates the تلاميذ list; names after it are not students."""
+        body = (
+            "يحيى بن سعيد البصري روى عن ابن المبارك. "
+            "وعنه ابن راهويه وأحمد وآخرون. "
+            "قال أبو زرعة: ثقة."
+        )
+        rec = parse_entry(1, body, heading_name="يحيى بن سعيد البصري")
+        assert rec is not None
+        talamidh = rec.get("talamidh", [])
+        assert not any("أبو زرعة" in t for t in talamidh)
