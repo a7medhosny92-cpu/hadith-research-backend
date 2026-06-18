@@ -71,11 +71,29 @@ def token_df(entries) -> Counter:
     return df
 
 
-def derive_rules(rijal: RijalIndex, teachers: dict[str, set[str]], df: Counter,
-                 names, *, max_token_df: int = 50) -> tuple[dict, list[str]]:
+# Tokens that must never be a شيخ marker even when rare: a ضبط letter-name («راء/طاء/قاف»), a bio /
+# description / grade word, a comparative — the noise that leaks into the network node NAMES (bio not
+# fully stripped at extraction). They identify nothing in a chain citation. (The PROMINENT-homonyms
+# filter removes most of this at the source by dropping the obscure namesakes whose names carry it.)
+_DABT_LETTERS = {"راء", "طاء", "زاي", "قاف", "حاء", "خاء", "دال", "ذال", "صاد", "ضاد", "سين", "شين",
+                 "عين", "غين", "فاء", "كاف", "لام", "ميم", "نون", "هاء", "واو", "ياء", "باء", "تاء",
+                 "ثاء", "جيم", "همزه", "الف", "والمد", "مهمله", "معجمه", "بالتصغير"}
+_MARKER_STOP = {"احد", "الناس", "الفقيه", "اثبت", "النقبا", "بدري", "شهد", "صحابي", "ثقه", "صدوق",
+                "ضعيف", "متروك", "الاكبر", "الاصغر", "الكبير", "الصغير", "الاول", "الثاني", "متاخر",
+                "مافنه", "اكثرت", "الراي", "رايته", "ذكر", "غير", "ذلك", "نفسه", "ابنه", "اخوه"} | _DABT_LETTERS
+
+
+def derive_rules(rijal: RijalIndex, teachers: dict[str, set[str]], df: Counter, names, *,
+                 max_token_df: int = 50, prominence: dict[str, int] | None = None,
+                 prom_ratio: int = 60, min_prom: int = 3) -> tuple[dict, list[str]]:
     """The قواعد mined from the network. Returns ``(rules, floor)``:
     ``rules[folded ism] = [{name, markers, distinctive}]`` (homonyms with a distinctive شيخ + its marker
-    tokens), and ``floor`` = the ambiguous names where NO homonym had a distinctive شيخ (the ②b floor)."""
+    tokens), and ``floor`` = the ambiguous names where NO homonym had a distinctive شيخ (the ②b floor).
+
+    Distinctiveness is computed over the PROMINENT homonyms only (those the corpus actually cites, by
+    ``prominence`` freq) — an obscure namesake neither needs a قاعدة nor should dilute one (and its
+    bio-polluted name is the main marker-noise source). Markers are rare TOKENS of the distinctive
+    شيوخ, minus the ضبط/bio stoplist."""
     rules: dict[str, list[dict]] = {}
     floor: list[str] = []
     for raw in names:
@@ -83,7 +101,14 @@ def derive_rules(rijal: RijalIndex, teachers: dict[str, set[str]], df: Counter,
         if not key or key in rules:
             continue
         cands = rijal.candidates(raw, max_results=None, apply_prominence=False)
-        if len(cands) < 2:                               # not ambiguous → no قاعدة needed
+        if prominence:                                   # keep the homonyms the chains actually cite
+            top = max((prominence.get(e.name, 0) for e in cands), default=0)
+            if top > 0:
+                prom = [e for e in cands if prominence.get(e.name, 0) * prom_ratio >= top
+                        or prominence.get(e.name, 0) >= min_prom]
+                if len(prom) >= 2:
+                    cands = prom
+        if len(cands) < 2:                               # not ambiguous (among the prominent) → skip
             continue
         shuyukh = {e.name: teachers.get(network_key(e.name), frozenset()) for e in cands}
         homonyms: list[dict] = []
@@ -97,7 +122,7 @@ def derive_rules(rijal: RijalIndex, teachers: dict[str, set[str]], df: Counter,
                     others |= s
             distinctive = mine - others                  # شيوخ unique to THIS homonym (لا نختلق)
             markers = sorted({t for sk in distinctive for t in sk.split()
-                              if len(t) >= 3 and df.get(t, 0) <= max_token_df})
+                              if len(t) >= 3 and df.get(t, 0) <= max_token_df and t not in _MARKER_STOP})
             if markers:
                 homonyms.append({"name": e.name, "markers": markers,
                                  "distinctive": sorted(distinctive)})
@@ -126,11 +151,13 @@ def main() -> None:
     settings = get_settings()
     entries = load_entries(settings.rijal_file)
     rijal = RijalIndex(entries)
+    prominence: dict[str, int] = {}
     gp = settings.narrator_graph_path
     if gp.exists():
         g = NarratorGraph(gp)
         if g.count():
-            rijal.set_prominence(g.frequencies())
+            prominence = g.frequencies()
+            rijal.set_prominence(prominence)
     teachers = load_teachers(settings.documented_network_path)
     df = token_df(entries)
     key2name = {network_key(e["name"]): e["name"]                 # folded شيخ key → a readable name
@@ -144,9 +171,10 @@ def main() -> None:
         print("⚠ no documented_network.json — قواعد cannot be mined without the شيوخ/تلاميذ network.")
         return
 
-    print(f"rijal {len(entries)} · network شيوخ-of {len(teachers)} · mining {len(names)} ambiguous names "
-          f"(df≤{args.max_token_df})…")
-    rules, floor = derive_rules(rijal, teachers, df, names, max_token_df=args.max_token_df)
+    print(f"rijal {len(entries)} · network شيوخ-of {len(teachers)} · prominence {'yes' if prominence else 'no'} · "
+          f"mining {len(names)} ambiguous names (df≤{args.max_token_df})…")
+    rules, floor = derive_rules(rijal, teachers, df, names,
+                                max_token_df=args.max_token_df, prominence=prominence)
 
     out = {
         "generated": time.strftime("%Y-%m-%d %H:%M"),

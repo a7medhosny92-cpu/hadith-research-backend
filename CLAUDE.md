@@ -265,11 +265,15 @@ The hand `qaida.py` table (9 names) is now auto-derivable: for each ambiguous na
 homonym's شيوخ from `documented_network.json` (inverts `students`→`teachers`) and proposes «‹ism› عن ‹distinctive شيخ› = ‹that
 homonym›» — marker = a token of the شيخ RARE in the base (df ≤ `--max-token-df`, «دينار» not «عمرو»); a SHARED شيخ dropped
 (لا نختلق), a name whose homonyms share all شيوخ = the ②b floor. Writes `data/qaida.json` + a readable digest. Core
-`derive_rules(rijal, teachers, df, names)` is unit-tested (distinctive→rule, shared→floor); +2 tests, **532 green**. **READ-ONLY
-PROPOSAL, NOT auto-loaded** — the disciplined next step is: user runs it → we review the proposed rules (probe a sample) → wire
-the trusted subset into `qaida.py` (a gated loader) and MEASURE with `audit_isnad` (W/S must stay flat). Docs: التقنية قواعد card,
-tool list. **WAITING ON THE USER: `python -m scripts.derive_qaida`** (needs `rijal.jsonl` + `documented_network.json` + `audit.json`
-a_ranked on disk) → send `qaida.json` + the digest → we pick which rules to trust.
+`derive_rules(rijal, teachers, df, names)` is unit-tested; **READ-ONLY PROPOSAL, NOT auto-loaded**.
+**★ FIRST RUN MEASURED (user, 2026-06-19, rijal 21086 · network yes): 287/400 names got a قاعدة, 107 floor — but TOO NOISY
+to wire raw.** Two failures found by decomposing `qaida.json`: (1) **RECALL MISS** — حماد·هشام·سليمان (hand-curated!) fell to the
+FLOOR: the strict «distinctive across ALL homonyms» dies when many OBSCURE namesakes + a noisy network overlap the famous pair's
+شيوخ; (2) **63% of rules carry JUNK markers** (637 tokens like «احد/بدري/راء/والمد») — bio/ضبط leaked into the network NODE NAMES.
+**REFINED (`derive_rules`):** compute distinctiveness over the **PROMINENT homonyms only** (`prominence` freq from the graph —
+the men the chains actually cite; recovers حماد/هشام by dropping obscure namesakes, AND cuts the «عبد الله/محمد» >6-homonym noise),
++ a `_MARKER_STOP` ضبط/bio stoplist. +1 test, **535 green**. **WAITING ON THE USER: re-run `python -m scripts.derive_qaida`** →
+send the new `qaida.json` digest → we pick the trusted subset to wire into `qaida.py` + MEASURE with `audit_isnad` (W/S flat).
 
 **★ (2026-06-17) A.3 — سير أعلام النبلاء EXTRACTOR (10906) BUILT & WIRED.** Post-Six-Books محدّثون coverage source
 (الأصم-class late narrators, 5th–8th centuries). Follows the jarh_extract/lisan_extract prose pattern: body-parsing
