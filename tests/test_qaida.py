@@ -25,3 +25,14 @@ def test_held_when_not_a_discriminator_or_not_bare():
     assert resolve_qaida("سفيان", "شعبة") is None             # شعبة doesn't discriminate
     assert resolve_qaida("سفيان بن عيينة", "الأعمش") is None  # already specified, not a bare homonym
     assert resolve_qaida("مالك", "نافع") is None              # no qā'ida for this name
+
+
+def test_yahya_sulayman_khalid():
+    assert resolve_qaida("يحيى بن سعيد", "شعبة") == "يحيى بن سعيد القطان"
+    assert resolve_qaida("يحيى بن سعيد", "عبيد الله بن عمر") == "يحيى بن سعيد القطان"
+    assert resolve_qaida("يحيى بن سعيد", "سعيد بن المسيب") == "يحيى بن سعيد الأنصاري"
+    assert resolve_qaida("سليمان", "أبي وائل") == "سليمان بن مهران الأعمش"
+    assert resolve_qaida("سليمان", "أبي عثمان النهدي") == "سليمان بن طرخان التيمي"
+    assert resolve_qaida("خالد", "أبي قلابة") == "خالد بن مهران الحذاء"
+    assert resolve_qaida("خالد", "يونس بن عبيد") == "خالد بن عبد الله الطحان"
+    assert resolve_qaida("يحيى بن سعيد", "رجل") is None        # no discriminator → held
