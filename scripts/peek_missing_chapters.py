@@ -93,7 +93,11 @@ def main() -> None:
     import bisect
     cats: Counter = Counter()
     rows = []
+    skipped_muqaddima = 0
     for i, (p_i, _lvl, title) in enumerate(heads):
+        if start is not None and p_i < start:    # the محقق's introduction (below the first hadith) — not a باب
+            skipped_muqaddima += 1
+            continue
         cs = chapters[i]
         if cs in present:
             continue
@@ -116,7 +120,8 @@ def main() -> None:
         rows.append((cat, p_i, heads_on_page[p_i], words, cs))
 
     print(f"book {args.book_id}: {len(heads)} headings · {len(present)} present chapters · "
-          f"{sum(cats.values())} absent")
+          f"{sum(cats.values())} absent (after skipping {skipped_muqaddima} muqaddima headings below "
+          f"the first hadith, page {start})")
     print(f"  by reason: {dict(cats)}")
     print("  (multi-head-page + has-marker = recoverable by in-page ordering · "
           "empty/short = no body to show · ancestor = a كتاب above its أبواب, expected)\n")
