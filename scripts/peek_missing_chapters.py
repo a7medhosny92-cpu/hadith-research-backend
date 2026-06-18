@@ -23,8 +23,8 @@ import sqlite3
 from collections import Counter
 
 from app.config import get_settings
-from app.parsing.hadith_extract import _detect_marker, _first_text_page
-from app.parsing.html_clean import clean_block, remove_footnote_refs, split_footnotes
+from app.parsing.hadith_extract import _aligned, _detect_marker, _first_text_page, _HEAD_SENTINEL
+from app.parsing.html_clean import clean_block, clean_block_marked, extract_titles, remove_footnote_refs, split_footnotes
 
 
 def _head_chapters(headings: list) -> list[tuple[int, int, str]]:
@@ -83,6 +83,20 @@ def main() -> None:
     pgs.sort()
     heads_on_page = Counter(p for p, _l, _t in heads)
 
+    # Replicate the parser's per-page in-page-ordering decision: does each page's title spans align
+    # (count + folded text) with its indexed headings? If NOT, the fix fell back to the page-level باب,
+    # so an earlier باب with a hadith is mis-filed and goes missing → an «align-fail» (the fixable kind,
+    # via more robust matching). If aligned yet still absent → the باب is تعليق-only on a shared page.
+    raw_by_pg = {p.get("pg", 0): p for p in data.get("pages", [])}
+    titles_at: dict[int, list[str]] = {p: [t for q, _l, t in heads if q == p] for p in heads_on_page}
+
+    def _aligned_at(pg: int) -> bool | None:
+        page = raw_by_pg.get(pg)
+        if page is None or len(titles_at.get(pg, [])) < 2:
+            return None
+        _, spans = clean_block_marked(split_footnotes(page.get("text") or "")[0], _HEAD_SENTINEL)
+        return _aligned(spans, titles_at[pg])
+
     # ancestors of present chapters (a كتاب above ones that have hadith)
     ancestors = set()
     for sc in present:
@@ -110,24 +124,27 @@ def main() -> None:
         block = " ".join(pg_text.get(pp, "") for pp in pgs[lo:hi_])
         body = remove_footnote_refs(block).replace(title, " ", 1).strip()
         words = len([w for w in body.split() if any("ء" <= c <= "ي" for c in w)])
+        spans_here = len(extract_titles((raw_by_pg.get(p_i) or {}).get("text") or ""))
         if heads_on_page[p_i] > 1:
-            cat = "multi-head-page"
+            al = _aligned_at(p_i)
+            cat = "mh:align-fail" if al is False else "mh:aligned"   # aligned-but-absent = تعليق-only/shared
         elif marker.search(block):
             cat = "has-marker"
         else:
             cat = "empty/short"
         cats[cat] += 1
-        rows.append((cat, p_i, heads_on_page[p_i], words, cs))
+        rows.append((cat, p_i, f"{heads_on_page[p_i]}h/{spans_here}s", words, cs))
 
     print(f"book {args.book_id}: {len(heads)} headings · {len(present)} present chapters · "
           f"{sum(cats.values())} absent (after skipping {skipped_muqaddima} muqaddima headings below "
           f"the first hadith, page {start})")
     print(f"  by reason: {dict(cats)}")
-    print("  (multi-head-page + has-marker = recoverable by in-page ordering · "
-          "empty/short = no body to show · ancestor = a كتاب above its أبواب, expected)\n")
-    print(f"{'reason':>16}  {'page':>6}  {'#heads':>6}  {'words':>5}   chapter")
+    print("  (mh:align-fail = title spans don't match the indexed headings on the page → the in-page fix "
+          "fell back, a باب-with-hadith is mis-filed (FIXABLE) · mh:aligned = aligned yet absent = تعليق-only "
+          "on a shared page · has-marker/empty-short/ancestor as before. «Nh/Ms» = N headings, M title spans)\n")
+    print(f"{'reason':>16}  {'page':>6}  {'h/s':>7}  {'words':>5}   chapter")
     for cat, pg, nh, words, cs in rows[: args.limit]:
-        print(f"{cat:>16}  {pg:>6}  {nh:>6}  {words:>5}   «{cs}»")
+        print(f"{cat:>16}  {pg:>6}  {nh:>7}  {words:>5}   «{cs}»")
     if len(rows) > args.limit:
         print(f"… (+{len(rows) - args.limit} more)")
 
