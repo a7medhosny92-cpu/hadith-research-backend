@@ -60,32 +60,41 @@ def audit(rijal: RijalIndex, nodes: list[tuple[int, str, int]],
     DISTINCT Companions, their chain POSITIONS (freq), how many are only-الإصابة coverage, and the
     subset that narrate DIRECTLY from the Prophet (``terminal_ids`` = students of the Prophet node)."""
     distinct = coverage_only = positions = term_distinct = term_positions = 0
+    terminal_total = 0
     total_positions = sum(f for _, _, f in nodes)
     top: list[tuple[str, int, bool]] = []   # (canonical name, freq, only-coverage)
+    unrecognized: list[tuple[str, int]] = []  # terminal nodes (narrate «عن النبي ﷺ») NOT graded صحابي
     for nid, name, freq in nodes:
         if nid in prophet_ids:
             continue
+        is_term = nid in terminal_ids
+        terminal_total += is_term
         entry = _companion(rijal, name)
         if entry is None:
+            if is_term:                      # narrates from the Prophet but unidentified — a missed
+                unrecognized.append((name, freq))   # Companion (bare/variant) or a تابعي mursal
             continue
         distinct += 1
         positions += freq
         cov = from_companion_dictionary(entry)
         coverage_only += cov
         top.append((entry.name, freq, bool(cov)))
-        if nid in terminal_ids:
+        if is_term:
             term_distinct += 1
             term_positions += freq
     top.sort(key=lambda x: -x[1])
+    unrecognized.sort(key=lambda x: -x[1])
     return {
         "distinct": distinct,
         "in_taqrib_kashif": distinct - coverage_only,
         "coverage_only": coverage_only,
         "positions": positions,
         "total_positions": total_positions,
+        "terminal_total": terminal_total,
         "terminal_distinct": term_distinct,
         "terminal_positions": term_positions,
         "top": top,
+        "unrecognized": unrecognized,
     }
 
 
@@ -134,11 +143,17 @@ def main() -> None:
     print(f"\n— Companions by CHAIN POSITION (freq-weighted) —")
     print(f"  صحابي positions           : {res['positions']:>7}   "
           f"({_pct(res['positions'], tot)} of all {tot} chain positions)")
-    print(f"\n— TERMINAL Companions (narrate directly «عن النبي ﷺ») —")
-    print(f"  distinct                  : {res['terminal_distinct']:>6}   ← the classical «الصحابة الرواة»")
-    print(f"  positions                 : {res['terminal_positions']:>7}   ({_pct(res['terminal_positions'], tot)})")
+    term_total, term_ok = res["terminal_total"], res["terminal_distinct"]
+    print(f"\n— TERMINAL nodes (narrate directly «عن النبي ﷺ») —")
+    print(f"  total                     : {term_total:>6}   (every node that narrates from the Prophet)")
+    print(f"  recognized as صحابي       : {term_ok:>6}   ← the classical «الصحابة الرواة» ({_pct(term_ok, term_total)})")
+    print(f"  NOT recognized            : {term_total - term_ok:>6}   ← missed Companions (bare/variant) or تابعون mursal")
+    print(f"  positions (recognized)    : {res['terminal_positions']:>7}   ({_pct(res['terminal_positions'], tot)})")
     print(f"\n— top transmitters (المكثرون, by frequency) —")
     for name, freq, _cov in res["top"][:20]:
+        print(f"   {freq:>6}×  {name}")
+    print(f"\n— top UNRECOGNIZED terminals (a missed Companion, or a تابعي narrating mursal) —")
+    for name, freq in res["unrecognized"][:20]:
         print(f"   {freq:>6}×  {name}")
 
     report = {
@@ -146,8 +161,9 @@ def main() -> None:
         "chain_nodes": len(nodes),
         "rijal_entries": len(records),
         "base_sahaba": base_sahaba,
-        **{k: v for k, v in res.items() if k != "top"},
+        **{k: v for k, v in res.items() if k not in ("top", "unrecognized")},
         "top": [{"name": nm, "freq": f, "coverage_only": c} for nm, f, c in res["top"][: args.cap]],
+        "unrecognized": [{"name": nm, "freq": f} for nm, f in res["unrecognized"][: args.cap]],
     }
     out = settings.data_dir / "companions.json"
     out.write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
