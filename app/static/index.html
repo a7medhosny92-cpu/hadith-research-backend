@@ -156,6 +156,11 @@
     padding:8px 4px;border-bottom:1px solid var(--line);font-size:1.08rem}
   .rawi-pick{cursor:pointer;border-radius:8px;padding:8px 8px}
   .rawi-pick:hover{background:var(--bg)}
+  /* a clickable narrator INSIDE a chain → opens his راوٍ card; a صحابي is shown in green */
+  .rawi-link{cursor:pointer;border-bottom:1px dashed var(--gold);color:inherit}
+  .rawi-link:hover{color:var(--accent2);border-bottom-style:solid}
+  .rawi-link.sahabi{color:#15643f;font-weight:700;border-bottom-color:#9cc3ad}
+  .rawi-link.sahabi:hover{color:#0e4f31}
   .rawi-summary{margin-top:10px;color:#3a3328;line-height:2.1;font-size:1.08rem}
   .var-row{border-bottom:1px solid var(--line)}
   .var-row .rawi-item{border-bottom:none}
@@ -1379,7 +1384,7 @@ function renderIsnad(d){
       : g
         ? `<span class="grade ${rijalClass(g)}" title="${esc((rij.verdict || '') + (rij.source ? ' — ' + rij.source : ''))}">${esc(g)}</span>${srcTag(rij)}${amb}`
         : `<span class="simbadge">غير معروف في القاعدة</span>`;
-    html += `<div class="rawi-item"><span>${i + 1}. ${esc(n.name)} ${isnadVia(n.via)}</span>${badge}</div>`;
+    html += `<div class="rawi-item"><span>${i + 1}. ${chainName(n)} ${isnadVia(n.via)}</span>${badge}</div>`;
   });
   html += `</div>`;
   // 4) continuity, link by link
@@ -1401,6 +1406,32 @@ function renderIsnad(d){
   results.innerHTML = html;
 }
 
+// A narrator INSIDE a chain (the «سلسلة الرواة» list): clickable — opens his راوٍ card — and shown
+// GREEN when he is a صحابي (a Companion of the Prophet). The Prophet ﷺ (the source) and an unnamed
+// راوٍ (مبهم) are plain text, not navigable.
+function chainName(n){
+  if(n.is_prophet || isProphet(n.name) || n.mubham) return esc(n.name);
+  const sah = n.rijal && /صحاب/.test(n.rijal.grade || "") ? " sahabi" : "";
+  return `<span class="rawi-link${sah}" data-pick="${esc(n.name)}" role="button" tabindex="0">${esc(n.name)}</span>`;
+}
+// Open a narrator's راوٍ card from a chain, snapshotting the current view so «◀ رجوع» returns to the
+// exact chain (works from search / الإسناد / التدقيق — the listener is delegated on `results`).
+function openRawiFromChain(name){
+  const m = mode, html = results.innerHTML;
+  q.value = name;
+  document.querySelector('.modes button[data-mode="narrator"]').click();   // → راوٍ (clears viewBack)
+  viewBack = () => _restoreView(m, html);
+  run();
+}
+function _restoreView(m, html){
+  mode = m; viewBack = null;
+  document.querySelectorAll(".modes button").forEach(x => x.classList.toggle("active", x.dataset.mode === m));
+  go.textContent = LABELS[m]; q.placeholder = PLACEHOLDER[m];
+  const info = ["method", "arch", "tech", "audit", "conflicts", "matn", "browse", "books"].includes(m);
+  q.style.display = info ? "none" : ""; go.style.display = info ? "none" : "";
+  results.innerHTML = html;
+}
+
 // Compact «الحكم على الإسناد» for a hadith card (lazy-loaded from /verify-isnad when the
 // isnad is unfolded) — the same engine as the الإسناد tab: verdict + each راوٍ graded.
 function chainVerdictHtml(d){
@@ -1419,7 +1450,7 @@ function chainVerdictHtml(d){
       : n.mubham ? `<span class="grade g-daif" title="راوٍ لم يُسمَّ — جهالةُ عين">راوٍ مبهم</span>`
       : g ? `<span class="grade ${rijalClass(g)}" title="${esc((rij.verdict || '') + (rij.source ? ' — ' + rij.source : ''))}">${esc(g)}</span>${srcTag(rij)}`
           : `<span class="simbadge">غير معروف في القاعدة</span>`;
-    html += `<div class="rawi-item"><span>${i + 1}. ${esc(n.name)} ${isnadVia(n.via)}</span>${badge}</div>`;
+    html += `<div class="rawi-item"><span>${i + 1}. ${chainName(n)} ${isnadVia(n.via)}</span>${badge}</div>`;
   });
   if(cont && cont.note) html += `<div class="rawi-summary">${esc(cont.note)}</div>`;
   if(r && r.disclaimer) html += `<div class="note" style="margin-top:6px">${esc(r.disclaimer)}</div>`;
@@ -2004,6 +2035,12 @@ results.addEventListener("click", e => {
   q.value = pick.getAttribute("data-pick");
   viewBack = () => { viewBack = outerBack; if(dCand) results.innerHTML = renderCandidates(dCand); };
   run();
+});
+
+// A narrator name inside a chain (search verdict / الإسناد / التدقيق) → open his راوٍ card.
+results.addEventListener("click", e => {
+  const rl = e.target.closest(".rawi-link");
+  if(rl) openRawiFromChain(rl.getAttribute("data-pick"));
 });
 
 // The global «◀ رجوع» (راوٍ / candidate cards): replay the saved view-back thunk.
