@@ -77,6 +77,14 @@ _SPEECH = re.compile(
 _ANNA_WORD = re.compile(
     r"(?<=[\s،؛:])(?:%s)(?=\s)" % "|".join(flexible_word(w) for w in ("أن", "أنه", "أنها"))
 )
+# A circumstantial/temporal STORY opening — «بَيْنَمَا/بَيْنَا … إذْ …» or «لَمَّا [حدث] قال …» — whose
+# whole scene is the matn but would otherwise be split at an inner «قال», leaving the setup («بينما
+# رسولُ الله ﷺ …»، «لمّا مات إبراهيمُ …») mis-filed in the isnad. Confirmed by a chain «قال» right
+# before it («[راوٍ] قال: بينما/لمّا …») or, for بينما, by a following «إذ».
+_SCENE = re.compile(
+    r"(?<=[\s،؛:])(?:%s)(?=\s)" % "|".join(flexible_word(w) for w in ("بينما", "بينا", "لما"))
+)
+_IDH = re.compile(r"(?<=[\s،؛:])(?:%s)(?=\s)" % "|".join(flexible_word(w) for w in ("إذ", "اذ")))
 # Same «أنّ/أنّه/أنّها» token, but tolerating a trailing comma/semicolon/colon as well as a space
 # («… أبي هريرة أنّه، رأى النبيّ ﷺ…») — used ONLY by the late matn-recovery fallback below, so the
 # story-detection that reads _ANNA_WORD keeps its stricter whitespace boundary.
@@ -110,6 +118,19 @@ _AUTHORITY = re.compile(
 )
 
 
+# «أنّ [راوٍ] قال: قال رسولُ الله ﷺ …» — a marfūʿ ATTRIBUTION (the narrator quotes the Prophet), NOT a
+# scene: the matn is the Prophet's words, taken by the normal «قال …:» split. The tell is the doubled
+# standalone «قال[:] قال [رسول الله/النبي]» — both bare (a story's reply is «فقال/وقال», prefixed, and
+# excluded by the (?<![ء-ي]) boundary), so a real story «أنّ رجلًا … فقال … فقال النبيّ» is untouched.
+_MARFU_ATTR = re.compile(
+    r"(?<![ء-ي])(?:%s)\s*[:،]?\s*(?<![ء-ي])(?:%s)\s+(?:%s|%s|%s)" % (
+        flexible_word("قال"), flexible_word("قال"),
+        flexible_word("رسول") + r"\s+" + flexible_word("الله"),
+        flexible_word("النبي"), flexible_word("النبى"),
+    )
+)
+
+
 def _story_start(lead: str) -> int | None:
     """Index in ``lead`` where a post-chain *story* matn begins, or ``None``.
 
@@ -122,7 +143,26 @@ def _story_start(lead: str) -> int | None:
         tail = lead[m.start():]
         if (_TRANSMIT.search(lead[:m.start()])     # the «أنّ» comes AFTER the chain
                 and not _TRANSMIT.search(tail)      # …and what follows is narration, not a nested chain
+                and not _MARFU_ATTR.search(tail[:120])  # …not «أنّ [راوٍ] قال: قال رسول الله ﷺ …» (attribution)
                 and len(_SPEECH.findall(tail)) >= 2):  # …with ≥2 spoken turns — a real story
+            return m.start()
+    return None
+
+
+def _scene_start(lead: str) -> int | None:
+    """Index where a circumstantial/temporal story opens after the chain — «[راوٍ] قال: بَيْنَمَا/لمّا
+    …», or a «بَيْنَمَا … إذْ …» frame — or ``None``.
+
+    The opener must come AFTER chain material (so one inside a narrator's note isn't taken) AND be
+    introduced by a chain «قال» right before it (the «قال: scene» that begins the matn — distinguishing
+    «[راوٍ] قال: لمّا …» from the Prophet's own «قال رسولُ الله ﷺ: لمّا …», where the matn starts after
+    the authority's قال); a «بَيْنَمَا … إذْ …» frame also qualifies without a leading «قال»."""
+    for m in _SCENE.finditer(lead):
+        if not _TRANSMIT.search(lead[:m.start()]):
+            continue
+        introduced = _SAY.search(lead[max(0, m.start() - 14):m.start()])
+        is_bayna = strip_diacritics(m.group(0)).startswith("بين")
+        if introduced or (is_bayna and _IDH.search(lead[m.start():])):
             return m.start()
     return None
 
@@ -244,16 +284,26 @@ def _split_isnad_matn(text: str) -> tuple[str, str, str]:
             if _EDITORIAL.search(bare) or _REF_PREP.search(bare) or len(gap) > _MAX_NARRATION_GAP:
                 break
             end = close_i
-        # …and if that first quote sits INSIDE a story (a post-chain «أنّ …» with ≥2 spoken
-        # turns ahead of it), the matn really begins at the «أنّ», not at the quote.
-        story = _story_start(text[:start])
-        if story is not None:
-            start = story
+        # …and if that first quote sits INSIDE a story — a post-chain «أنّ …» with ≥2 spoken turns, or
+        # a temporal «بَيْنَمَا … إذْ …» / «قال: لمّا …» scene — the matn really begins at that opening,
+        # not at the quote, so the scene's setup isn't mis-filed as isnad. Take the EARLIEST opening.
+        for opening in (_story_start(text[:start]), _scene_start(text[:start])):
+            if opening is not None:
+                start = min(start, opening)
         matn = _WS.sub(" ", _QUOTE_CHARS.sub(" ", text[start:end + 1])).strip(_STRIP)
         if matn:                       # a real quoted matn
             return text[:start].strip(_STRIP), matn, "quote"
         # else: a stray/unmatched quote (e.g. a trailing ") — ignore it and fall through to the
         # phrase strategies, which run on the full text (still holding the real matn).
+
+    # A temporal scene «[راوٍ] قال: بَيْنَمَا/لمّا …» whose speech carries no quote: the whole scene is
+    # the matn, but the last-«قال» split below would drop its setup into the isnad. _scene_start fires
+    # only when a chain «قال» introduces it directly, so a «بينما/لمّا» MID-matn isn't taken for the start.
+    scene = _scene_start(text)
+    if scene is not None:
+        body = _WS.sub(" ", _QUOTE_CHARS.sub(" ", text[scene:])).strip(_STRIP)
+        if len(body) >= _MIN_MATN:
+            return text[:scene].strip(_STRIP), body, "phrase"
 
     intros = list(_INTRO.finditer(text))
     if intros:

@@ -170,3 +170,37 @@ def test_dual_qala_does_not_split_leaving_the_route_in_the_matn():
     # the plural «قالوا:» as a genuine matn-introducer must still split
     _, m2, _ = split_isnad_matn("حدثنا فلان عن أصحابه قالوا: نهى رسول الله ﷺ عن بيع الغرر")
     assert m2 == "نهى رسول الله ﷺ عن بيع الغرر"
+
+
+def test_scene_opening_stays_in_the_matn_bayna_idh():
+    # «… قال: بينما رسول الله ﷺ … إذ قال لأصحابه: "متن"» — the «بينما … إذ» scene is the matn, not the
+    # isnad. The inner «قال لأصحابه» must NOT become the boundary (البخاري 6649).
+    isnad, matn, _ = split_isnad_matn(
+        "حدثني عبد الله بن مسعود ﷺ قال: بينما رسول الله ﷺ مضيف ظهره إلى قبة من أدم، "
+        'إذ قال لأصحابه: "أترضون أن تكونوا ربع أهل الجنة؟"')
+    assert matn.startswith("بينما رسول الله") and "أترضون" in matn
+    assert "بينما" not in isnad
+
+
+def test_temporal_lamma_opening_stays_in_the_matn():
+    # «… عن النبي ﷺ قال: لما مات إبراهيم قال: إن له مرضعا في الجنة» — «لمّا [حدث] قال» is the matn
+    # opening; the last-«قال» split must not drop it into the isnad (البخاري 3261).
+    isnad, matn, _ = split_isnad_matn(
+        "حدثنا شعبة، قال: سمعت البراء ﷺ، عن النبي ﷺ قال: لما مات إبراهيم قال: إن له مرضعا في الجنة")
+    assert matn.startswith("لما مات إبراهيم") and "إن له مرضعا" in matn
+    # a «لمّا» that is the PROPHET's own words (after «قال رسول الله ﷺ:») must NOT trigger the scene
+    # split — «لما» stays in the matn and is never pushed into the isnad.
+    isnad2, m2, _ = split_isnad_matn(
+        "حدثنا فلان، عن أبيه، قال: قال رسول الله ﷺ: لما خلق الله الخلق كتب كتابا")
+    assert "لما خلق الله" in m2 and "كتب كتابا" in m2 and "لما" not in isnad2
+
+
+def test_marfu_attribution_is_not_taken_for_a_story():
+    # «… عن أبي المتوكل، أنّ أبا سعيد الخدري ﷺ قال: قال رسول الله ﷺ: "المتن"» — «أنّ [صحابيّ] قال: قال
+    # رسولُ الله» is a marfūʿ ATTRIBUTION, not a scene: the matn is the Prophet's words, the صحابيّ link
+    # stays in the isnad (البخاري 6543).
+    isnad, matn, _ = split_isnad_matn(
+        "حدثنا سعيد، عن قتادة، عن أبي المتوكل الناجي، أن أبا سعيد الخدري ﷺ قال: "
+        'قال رسول الله ﷺ: "يخلص المؤمنون من النار فيحبسون على قنطرة"')
+    assert matn.startswith("يخلص المؤمنون")
+    assert "أبا سعيد" in isnad and "أبا سعيد" not in matn      # the صحابيّ stayed in the chain
