@@ -188,6 +188,17 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★ (2026-06-17) A.3 — سير أعلام النبلاء EXTRACTOR (10906) BUILT & WIRED.** Post-Six-Books محدّثون coverage source
+(الأصم-class late narrators, 5th–8th centuries). Follows the jarh_extract/lisan_extract prose pattern: body-parsing
+via rijal_extract._BOUNDARY (line-start «N -»), network from «حدّث عن/عنه» markers, grade = weakest cited جرح/تعديل
+verdict else «غير معروف» (coverage semantics). ✅ **DONE:** (1) `app/parsing/sair_extract.py` (103 lines, reuses jarh
+helpers); (2) `catalog.py` RIJAL_PROSE_BOOKS += 10906; (3) `build_rijal.py` import + merge_source add-only + _PROSE
+appraisals loop; (4) `build_graph.py` _NETWORK_SOURCES += 10906 (شيوخ/تلاميذ to resolver); (5) `tests/test_sair_extract.py`
+(19 tests, **482 green**). On branch `claude/festive-heisenberg-gybt4g`. **NEXT:** User rebuilds (`build_rijal --no-download`
++ `build_graph` + `audit_isnad`) → measure A drop (expect ~1500 from الأصم-class resolution via network) + W/S flat/better.
+**Decision record (user, 2026-06-17):** deferred الطبقات (step 3) — hard body-parse format, low ROI vs the high-value
+#2 (double-opinion) + #7 (علّة/شذوذ) shipped; سير chosen for A.3 coverage gap (post-Six-Books شيوخ).
+
 **★ (2026-06-17) ROADMAP #7 STRUCTURAL علّة/شذوذ — STARTED (the user's «1+2+3», step 2).** New `app/qa/illal.py`
 `detect_structural_illal(takhrij)`: reads the SHAPE of the طرق `analyze_narrations` already gathers and emits HINTS
 (`{type, severity, note}`, never a verdict — «قرائنُ للنظر، لا حُكمٌ»): **تفرّد/غرابة** (single Companion / no متابع),

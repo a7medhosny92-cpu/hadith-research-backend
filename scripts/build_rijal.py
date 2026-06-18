@@ -34,6 +34,7 @@ from app.parsing.jarh_extract import parse_jarh_file
 from app.parsing.rijal_extract import parse_rijal_file
 from app.parsing.tahdhib_extract import parse_tahdhib_file
 from app.parsing.lisan_extract import LISAN_BOOK_ID, parse_lisan_file
+from app.parsing.sair_extract import SAIR_BOOK_ID, parse_sair_file
 from app.parsing.thiqat_extract import THIQAT_BOOK_ID, parse_thiqat_file
 from app.rijal.dedup import CorpusCompany, collapse_duplicates
 from app.rijal.grades import classify
@@ -251,6 +252,14 @@ def main() -> None:
         result, added, _ = merge_source(result, parse_lisan_file(lisan_path), fill_gaps=False)
         print(f"  merged لسان الميزان (ابن حجر): +{added} men")
 
+    # سير أعلام النبلاء (الذهبي) — post-Six-Books محدّثون (الأصم-class), the A.3 coverage gap.
+    # ADD-ONLY: a confident match to an existing man is left untouched (تقريب stays the standard);
+    # only genuinely-new men are added. Network (شيوخ/تلاميذ) feeds build_graph._NETWORK_SOURCES.
+    sair_path = books_dir / f"{SAIR_BOOK_ID}.json"
+    if sair_path.exists():
+        result, added, _ = merge_source(result, parse_sair_file(sair_path), fill_gaps=False)
+        print(f"  merged سير أعلام النبلاء: +{added} late narrators (الأصم-class)")
+
     # optional: fold in the LLM-extracted رجال (scripts.build_rijal_llm) — better grades and the
     # death/kunya the terse regex drops. Gated on the file, so the pipeline is unchanged without it.
     llm_rijal = settings.data_dir / "rijal_llm.jsonl"
@@ -284,8 +293,9 @@ def main() -> None:
     # to the matching rijal entry — gated on the downloaded book, the grade itself is unchanged. Run
     # AFTER the dedup so the appraisals land on the final, collapsed entries.
     _PROSE = {2170: (parse_jarh_file, "الجرح والتعديل"), 3722: (parse_tahdhib_file, "تهذيب الكمال"),
-              THIQAT_BOOK_ID: (parse_thiqat_file, "الثقات"), LISAN_BOOK_ID: (parse_lisan_file, "لسان الميزان")}
-    for book_id, (parser, book_name) in _PROSE.items():    # الجرح · تهذيب الكمال · الثقات · لسان الميزان
+              THIQAT_BOOK_ID: (parse_thiqat_file, "الثقات"), LISAN_BOOK_ID: (parse_lisan_file, "لسان الميزان"),
+              SAIR_BOOK_ID: (parse_sair_file, "سير أعلام النبلاء")}
+    for book_id, (parser, book_name) in _PROSE.items():    # الجرح · تهذيب الكمال · الثقات · لسان · سير
         bp = books_dir / f"{book_id}.json"
         if not bp.exists():
             continue
