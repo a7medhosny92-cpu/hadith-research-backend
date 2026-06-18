@@ -161,6 +161,10 @@
   .rawi-link:hover{color:var(--accent2);border-bottom-style:solid}
   .rawi-link.sahabi{color:#15643f;font-weight:700;border-bottom-color:#9cc3ad}
   .rawi-link.sahabi:hover{color:#0e4f31}
+  /* «🕸 الشبكة» button on a راوٍ card → open his graph */
+  .net-jump{background:var(--card);color:var(--accent2);border:1px solid var(--line);border-radius:8px;
+    padding:3px 11px;font-size:.85rem;cursor:pointer;font-family:inherit;margin-inline-start:8px;vertical-align:middle}
+  .net-jump:hover{border-color:var(--accent);background:#f0f7f3;color:var(--accent2)}
   .rawi-summary{margin-top:10px;color:#3a3328;line-height:2.1;font-size:1.08rem}
   .var-row{border-bottom:1px solid var(--line)}
   .var-row .rawi-item{border-bottom:none}
@@ -498,7 +502,7 @@ engineSel.addEventListener("change", syncEngineUI);
 
 document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
   mode = b.dataset.mode;
-  viewBack = null;                          // switching tabs starts a fresh view → no «رجوع» trail
+  navStack = [];                            // switching tabs starts a fresh view → no «رجوع» trail
   document.querySelectorAll(".modes button").forEach(x => x.classList.toggle("active", x === b));
   go.textContent = LABELS[mode];
   q.placeholder = PLACEHOLDER[mode];
@@ -520,8 +524,8 @@ document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
     q.focus();
   }
 });
-go.onclick = () => { viewBack = null; run(); };          // an explicit search starts a fresh view
-q.addEventListener("keydown", e => { if (e.key === "Enter"){ viewBack = null; run(); } });
+go.onclick = () => { navStack = []; run(); };            // an explicit search starts a fresh view
+q.addEventListener("keydown", e => { if (e.key === "Enter"){ navStack = []; run(); } });
 
 function esc(s){ const d = document.createElement("div"); d.textContent = (s==null?"":s);
   return d.innerHTML.replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }   // also safe in attributes
@@ -960,9 +964,10 @@ function rawiList(title, arr){
 // A global one-step «◀ رجوع» for the راوٍ tab: a thunk that re-renders the view you came FROM (the
 // browse list, or the «مشترك» candidates), shown atop the narrator/candidate card. Cleared on a fresh
 // search or a tab switch, so it only appears when there is genuinely a place to step back to.
-let viewBack = null;
+let navStack = [];       // a STACK of «◀ رجوع» thunks — each restores the view you came from, so
+                         // chain → راوٍ → شبكة → … unwinds one step at a time
 let lastCand = null;     // the last «مشترك» payload, so a chosen candidate can step back to the list
-function backBar(){ return viewBack ? `<button class="gbl-back">◀ رجوع</button>` : ""; }
+function backBar(){ return navStack.length ? `<button class="gbl-back">◀ رجوع</button>` : ""; }
 
 function renderCandidates(d){
   lastCand = d;
@@ -985,7 +990,8 @@ function renderNarrator(d){
     : v ? `<span class="grade ${rijalClass(v)}">${esc(v)}</span>` : "";
   const save = saveChip({kind:"narrator", title:d.name, body:d.summary || "",
     meta:{grade:d.grade, sources:d.sources}});
-  let html = backBar() + `<div class="card"><div class="rawi-name">${esc(d.name)} ${badge} ${save}</div>`;
+  const netBtn = isProphet(d.name) ? "" : `<button class="net-jump" data-nav="${esc(d.name)}">🕸 الشبكة</button>`;
+  let html = backBar() + `<div class="card"><div class="rawi-name">${esc(d.name)} ${badge} ${save} ${netBtn}</div>`;
   if(d.summary) html += `<div class="rawi-summary">${esc(d.summary)}</div>`;
   html += rijalAttribution(d.grade);
   html += rijalAppraisals(d.grade);
@@ -1087,8 +1093,8 @@ results.addEventListener("click", e => {
   const pk = e.target.closest(".br-pick");
   if(pk){
     q.value = pk.getAttribute("data-pick");
-    document.querySelector('.modes button[data-mode="narrator"]').click();  // open the راوٍ card (clears viewBack)
-    viewBack = () => document.querySelector('.modes button[data-mode="browse"]').click();  // «رجوع» → the list
+    document.querySelector('.modes button[data-mode="narrator"]').click();  // open the راوٍ card (clears navStack)
+    navStack.push(() => document.querySelector('.modes button[data-mode="browse"]').click());  // «رجوع» → the list
     run();
   }
 });
@@ -1317,7 +1323,10 @@ function renderNetwork(d){
   }
   info += `</div>`;
 
-  const back = netHistory.length > 1 ? `<button class="net-back">◀ رجوع</button>` : "";
+  // «رجوع» (gbl-back) leaves the graph back to the chain/راوٍ you came from; «السابق» (net-back) steps
+  // back through the graph's own navigation history.
+  const back = (navStack.length ? `<button class="gbl-back">◀ رجوع</button>` : "")
+    + (netHistory.length > 1 ? `<button class="net-back">◀ السابق</button>` : "");
   const legend = `<div class="net-legend">`
     + `<span><i style="background:#1f7a52"></i>ثقة فأعلى</span>`
     + `<span><i style="background:#a87d27"></i>صدوق/حسن</span>`
@@ -1414,17 +1423,29 @@ function chainName(n){
   const sah = n.rijal && /صحاب/.test(n.rijal.grade || "") ? " sahabi" : "";
   return `<span class="rawi-link${sah}" data-pick="${esc(n.name)}" role="button" tabindex="0">${esc(n.name)}</span>`;
 }
-// Open a narrator's راوٍ card from a chain, snapshotting the current view so «◀ رجوع» returns to the
-// exact chain (works from search / الإسناد / التدقيق — the listener is delegated on `results`).
+// Open a narrator's راوٍ card from a chain, pushing the current view so «◀ رجوع» returns to the exact
+// chain (works from search / الإسناد / التدقيق — the listener is delegated on `results`).
 function openRawiFromChain(name){
-  const m = mode, html = results.innerHTML;
+  const snap = _snapshot();
   q.value = name;
-  document.querySelector('.modes button[data-mode="narrator"]').click();   // → راوٍ (clears viewBack)
-  viewBack = () => _restoreView(m, html);
+  document.querySelector('.modes button[data-mode="narrator"]').click();   // → راوٍ (clears navStack)
+  navStack.push(snap);
   run();
 }
+// Open a narrator's network GRAPH (الشبكة) — same one-step-back behaviour.
+function openNetFromChain(name){
+  const snap = _snapshot();
+  q.value = name;
+  document.querySelector('.modes button[data-mode="network"]').click();    // → الشبكة (clears navStack)
+  navStack.push(snap);
+  navigateNet(name);
+}
+function _snapshot(){
+  const m = mode, html = results.innerHTML;
+  return () => _restoreView(m, html);
+}
 function _restoreView(m, html){
-  mode = m; viewBack = null;
+  mode = m;
   document.querySelectorAll(".modes button").forEach(x => x.classList.toggle("active", x.dataset.mode === m));
   go.textContent = LABELS[m]; q.placeholder = PLACEHOLDER[m];
   const info = ["method", "arch", "tech", "audit", "conflicts", "matn", "browse", "books"].includes(m);
@@ -1440,9 +1461,11 @@ const _CONN_WORDS = ["عن", "حدثنا", "حدثني", "أخبرنا", "أخب
                      "سمعت", "وحدثنا", "وحدثني", "وأخبرنا", "وعن", "قال"];
 // The displayed isnad keeps its tashkeel, so «عَنْ» / «حَدَّثَنَا» must match THROUGH the diacritics —
 // build each connector with optional harakat allowed between its letters.
+// `(?=\s)` (lookahead, not a consumed space) so two ADJACENT connectors («قَالَ حَدَّثَنَا») both
+// split — the first mustn't eat the space the second needs.
 const _ISNAD_CONN = new RegExp("((?:^|\\s)(?:"
   + _CONN_WORDS.map(w => w.split("").join(_HARAKA) + _HARAKA).join("|")
-  + ")\\s|\\sح" + _HARAKA + "\\s)");
+  + ")(?=\\s)|\\sح" + _HARAKA + "(?=\\s))");
 const _RAWI_STOP = new Set(["بن", "ابن", "ابو", "ابي", "ابا", "ام", "عبد", "مولى", "رجل", "وهو", "عند"]);
 function _normRawi(s){ return (s || "").replace(/[ً-ْٰ]/g, "").replace(/[إأآ]/g, "ا"); }
 function _segIsSahabi(seg, names){
@@ -2069,9 +2092,9 @@ results.addEventListener("click", e => {
 results.addEventListener("click", e => {
   const pick = e.target.closest(".rawi-pick");
   if(!pick) return;
-  const dCand = lastCand, outerBack = viewBack;
+  const dCand = lastCand;
   q.value = pick.getAttribute("data-pick");
-  viewBack = () => { viewBack = outerBack; if(dCand) results.innerHTML = renderCandidates(dCand); };
+  navStack.push(() => { if(dCand) results.innerHTML = renderCandidates(dCand); });  // «رجوع» → the list
   run();
 });
 
@@ -2081,10 +2104,15 @@ results.addEventListener("click", e => {
   if(rl) openRawiFromChain(rl.getAttribute("data-pick"));
 });
 
-// The global «◀ رجوع» (راوٍ / candidate cards): replay the saved view-back thunk.
+// The global «◀ رجوع» (راوٍ / candidate / network cards): pop one step off the back-stack.
 results.addEventListener("click", e => {
   if(!e.target.closest(".gbl-back")) return;
-  const f = viewBack; viewBack = null; if(f) f();
+  const f = navStack.pop(); if(f) f();
+});
+// A «🕸 الشبكة» button (on a راوٍ card) → open that narrator's graph.
+results.addEventListener("click", e => {
+  const nj = e.target.closest(".net-jump");
+  if(nj) openNetFromChain(nj.getAttribute("data-nav"));
 });
 
 // «تتبّع تخريجه ⟶» on a hadith card → jump to the تخريج tab and trace that matn.
