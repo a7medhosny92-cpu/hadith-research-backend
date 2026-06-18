@@ -202,6 +202,19 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★ (2026-06-19) BUKHĀRĪ #3475 WRONG «ضعيف» FIXED (user screenshot «da sistemare»).** صحيح البخاري #3475
+(«… عن ابن مسعود قال: سمعتُ رجلاً قرأ، وسمعتُ النبيﷺ يقرأ خلافها …») was graded **ضعيف** because the STORY
+ابن مسعود tells leaked into the isnad: «سمعتُ رجلاً قرأ» was parsed as a راوٍ **مبهم** «رجلا» (→ false جهالة عين →
+ضعيف) and pushed ابن مسعود mid-chain (false **S** flag). FIX (`isnad.py` segmenter): a سماع verb whose object is an
+INDEFINITE مبهم («رجلاً/امرأةً») NOT continued by a transmission/Companion cue is a narrated SCENE (the matn), not a
+راوٍ مبهم — `_mubham_continues(nxt)` keeps a real «حدّثني رجلٌ عن/قال» or «رجلٌ من أصحاب النبي» (uses `_VIA` − `_QIRAA`,
+so «حدّثتني» keeps but the قراءة «قرأ» = the man's recitation does not). The chain now ends at the terminal صحابي
+ابن مسعود → «رجاله كلهم ثقات» (صحيح), no مبهم, no S. **LIVE on the next `audit_isnad`/verify ALONE (no rebuild** — it
+fires on the stored isnad text). +2 tests, **534 green**, node --check clean. Docs: التقنية analyze_isnad card. NB the
+stored isnad-FIELD still shows the story text (cosmetic; the matn «كلاكما محسن» was already correct) — a parse-side
+`split_isnad_matn` mirror would clean the display on a re-parse (optional follow-up).
+
+
 **★★ (2026-06-18, CURRENT SESSION) branch `claude/festive-heisenberg-gybt4g`, 529 tests green.** Two arcs landed earlier
 this session (already squash-merged, branch realigned to main `9b55c7c`), then the أبو هريرة wrong-verdict fix below:
 - **THE «الكتب» LIBRARY-NAVIGATOR completed** — in-page chapter positioning (`clean_block_marked` sentinels ↔ indexed

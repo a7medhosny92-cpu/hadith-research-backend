@@ -47,6 +47,27 @@ def test_anna_with_non_prophet_subject_ends_the_chain():
     assert names == ["ابن عمر"]
 
 
+def test_samaa_of_an_indefinite_man_doing_an_action_is_a_scene_not_a_mubham():
+    # صحيح البخاري 3475: «… عن ابن مسعود قال: سمعتُ رجلاً قرأ، وسمعتُ النبيﷺ يقرأ خلافها …» — the
+    # story ابن مسعود tells is the MATN; «رجلاً قرأ» must NOT become a راوٍ مبهم (a false جهالة that
+    # graded a Bukhārī chain of ثقات «ضعيف»). The isnad ends at the terminal Companion.
+    ch = ("حدثنا آدم حدثنا شعبة حدثنا عبد الملك بن ميسرة قال سمعت النزال بن سبرة الهلالي "
+          "عن ابن مسعود قال سمعت رجلا قرأ وسمعت النبي صلى الله عليه وسلم يقرأ خلافها فجئت به النبي")
+    a = analyze_isnad(ch)
+    names = [n["name"] for n in a.narrators]
+    assert names == ["آدم", "شعبة", "عبد الملك بن ميسرة", "النزال بن سبرة الهلالي", "ابن مسعود"]
+    assert not any(n.get("mubham") for n in a.narrators)        # no false راوٍ مبهم → no false ضعيف
+
+
+def test_real_unnamed_narrators_are_still_kept_as_mubham():
+    # the guard: a genuine إبهام «حدّثني رجلٌ قال/عن …» (a true جهالة) stays a راوٍ مبهم; only a plain
+    # action «سمعتُ رجلاً قرأ» is a scene. An unnamed Companion «رجلٌ من أصحاب النبيﷺ» is also kept.
+    assert any(n.get("mubham") for n in analyze_isnad("حدثنا وكيع حدثني رجل قال حدثنا الأعمش").narrators)
+    assert any(n.get("mubham") for n in analyze_isnad("حدثنا وكيع حدثني رجل عن أبيه عن جده").narrators)
+    comp = [n["name"] for n in analyze_isnad("حدثنا فلان عن رجل من أصحاب النبي صلى الله عليه وسلم قال نهانا").narrators]
+    assert "رجل من أصحاب النبي صلى الله عليه وسلم" in comp
+
+
 def test_detects_tahwil_with_waw_connectors():
     a = analyze_isnad("حدثنا أبو بكر، حدثنا غندر، عن شعبة ح وحدثنا محمد، عن منصور")
     assert a.has_tahwil

@@ -133,6 +133,25 @@ class IsnadAnalysis:
 _MUBHAM_BARE = {"رجل", "رجلا", "امراه", "امراة", "شيخ", "فلان", "علان"}
 _MUBHAM_PHRASE = re.compile(r"بعض|لم يسم|عمن")
 
+# After «سمعتُ رجلاً …», a bare مبهم is a real isnad link only when what follows is a transmission or
+# Companion/lineage cue («رجلاً من أصحاب النبي»، «حدّثني رجلٌ عن أبيه»، «حدّثني رجلٌ قال»). A PLAIN action
+# («سمعتُ رجلاً قرأ / صلّى») is a narrated SCENE — the matn — not a راوٍ مبهم (else a story turns a
+# Bukhārī chain of ثقات into «ضعيف» on a false جهالة). The قراءة verbs (قرأ/قرئ) are NOT a keep-cue —
+# «رجلاً قرأ» is the man's recitation, not him reading TO someone. See `_mubham_continues`.
+_MUBHAM_KEEP = {"من", "بن", "ابن", "مولى", "قال", "يحدث", "يحدثنا", "يخبر"}
+
+
+def _mubham_continues(nxt: str) -> bool:
+    """True when a bare مبهم continues the ISNAD (a transmission/Companion cue follows) rather than
+    opening a narrated scene; ``nxt`` is the folded next token. A transmission verb (حدّثني/أخبرني/
+    عن…) or a lineage/Companion cue (من/بن/قال) keeps it; the قراءة verbs (قرأ/قرئ — the man's own
+    recitation, not him reading TO someone) do NOT — «سمعتُ رجلاً قرأ» is a scene (the matn)."""
+    if not nxt:
+        return False
+    base = nxt[1:] if nxt[:1] == "و" else nxt
+    return (base in _MUBHAM_KEEP or base in _MATN_ANNA
+            or (base in _VIA and base not in _QIRAA))
+
 
 def _is_mubham(name: str) -> bool:
     """Is this an *unnamed* narrator (إبهام) — a genuine جهالة, not merely unknown to us?"""
@@ -323,6 +342,12 @@ def analyze_isnad(
         # next token isn't part of the eulogy, the matn has begun
         if buf and folded not in _EULOGY and is_prophet(" ".join(buf)):
             flush()
+            break
+        # «سمعتُ رجلاً قرأ» — a سماع whose object is an INDEFINITE مبهم, NOT continued by a transmission/
+        # Companion cue, is a narrated scene (the matn), not a راوٍ مبهم: «سمعتُ رجلاً من أصحاب النبي»
+        # / «حدّثني رجلٌ قال» stay, but «رجلاً قرأ/صلّى» ends the isnad here (no false جهالة → no false ضعيف).
+        if via == "سماع" and not buf and folded in _MUBHAM_BARE and not _mubham_continues(nxt):
+            flush()            # buf is empty → no narrator added; the story (matn) begins here
             break
         if folded in _SKIP:
             continue
