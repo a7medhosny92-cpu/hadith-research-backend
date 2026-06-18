@@ -375,4 +375,16 @@ def _split_isnad_matn(text: str) -> tuple[str, str, str]:
                 return text[:av.start()].strip(_STRIP), full, "authority"
             return text[:a.end()].strip(_STRIP), body, "authority"
 
+    # A route led by a transmission verb with a BARE-COLON body — «حدّثنا [راوٍ]: <body>» (no «قال»/
+    # «أنّ»/authority, so every strategy above missed it) — the colon after the route introduces the
+    # matn («حدّثنا سليمان الشيبانيُّ: وأنا حائض أناوله الخمرة»). Split at the first colon whose body is
+    # plausible (≥ _MIN_MATN, not itself another chain). A last resort, gated on a route-led text.
+    if _CHAIN_AHEAD.match(text):
+        ci = text.find(":")
+        if ci != -1:
+            after = text[ci + 1:].strip(_STRIP)
+            if (len(after) >= _MIN_MATN and not _CHAIN_AHEAD.match(after)
+                    and not _TRANSMIT.search(after[:30])):
+                return text[:ci].strip(_STRIP), _WS.sub(" ", _QUOTE_CHARS.sub(" ", after)).strip(_STRIP), "phrase"
+
     return text.strip(_STRIP), "", "none"

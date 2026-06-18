@@ -241,3 +241,15 @@ def test_prohibition_verb_before_the_authority_stays_in_the_matn():
     _, m2, _ = split_isnad_matn(
         'حَدَّثَنَا فلان عن الزهري، عن النبيِّ ﷺ: "إذا استأذنت امرأة أحدكم فلا يمنعها"')
     assert "إذا استأذنت امرأة" in m2 and "نهى" not in m2
+
+
+def test_route_with_a_bare_colon_body_is_split_at_the_colon():
+    # «حدّثنا [شيخ] قال: حدّثنا [راوٍ]: <body>» — a secondary route whose body follows a BARE colon
+    # (no «قال»/«أنّ»/authority), so the re-peel's inner split found no body and left the whole route in
+    # the matn. The colon after the route is the boundary (audit RULE 4 residual, البخاري 523).
+    isnad, matn, _ = split_isnad_matn(
+        "حَدَّثَنَا فُلَانٌ قَالَ: حَدَّثَنَا سُلَيْمَانُ الشَّيْبَانِيُّ: وَأَنَا حَائِضٌ أُنَاوِلُهُ الْخُمْرَةَ")
+    assert matn.startswith("وَأَنَا حَائِضٌ") and "سُلَيْمَانُ" not in matn
+    assert "الشَّيْبَانِيُّ" in isnad
+    # a route with NO body (a back-reference «مثله») stays matn-less — the colon split needs a real body
+    assert split_isnad_matn("حدثنا فلان عن علان عن النبي ﷺ: مثله")[1] in ("", "مثله")
