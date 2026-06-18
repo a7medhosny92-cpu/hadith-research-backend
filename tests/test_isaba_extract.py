@@ -2,8 +2,17 @@
 
 from __future__ import annotations
 
-from app.parsing.isaba_extract import iter_isaba
+from app.parsing.isaba_extract import _clean_name, iter_isaba
 from scripts.build_rijal import merge_source
+
+
+def test_clean_name_drops_truncated_dangling_tail():
+    # «عبد الله بن عبد» (a صحابي heading cut short) ended on a bare theophoric «عبد» → it became a
+    # magnet matching every «عبد الله بن عبد …» citation; drop it. A complete name / a real bare
+    # Companion (سعد بن معاذ) is kept.
+    assert _clean_name("عبد الله بن عبد") is None
+    assert _clean_name("عبد الله بن عبد الرحمن الأنصاري") == "عبد الله بن عبد الرحمن الأنصاري"
+    assert _clean_name("سعد بن معاذ") == "سعد بن معاذ"
 
 
 def _h(title: str, page: int = 1, level: int = 3) -> dict:

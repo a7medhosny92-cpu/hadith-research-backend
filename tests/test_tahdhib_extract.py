@@ -38,6 +38,17 @@ def test_parse_entry_rejects_a_too_short_body():
     assert parse_entry(1, "خ م") is None
 
 
+def test_parse_entry_skips_the_author_and_late_biographees():
+    # al-Mizzī himself (the AUTHOR, ت742) and «أبا الحجاج المزي» (ت734) leaked in as رجال entries
+    # (with panegyric «الإمام … محدث الشام» mis-read as a grade). A «X الدين» honorific OR a death
+    # past ~400h marks a non-narrator — no Six-Books transmitter is either.
+    assert parse_entry(1, "جمال الدين أبو الحجاج يوسف المزي الإمام محدث الشام. مات سنة ٧٤٢.") is None
+    assert parse_entry(1, "أبو الحجاج المزي الحافظ. مات سنة ٧٣٤.") is None
+    # a genuine third-century narrator with a normal death year is still kept
+    r = parse_entry(1, "خ م: محمد بن بشار بندار. روى عن: غندر. مات سنة ٢٥٢.")
+    assert r is not None and r["name"].startswith("محمد بن بشار")
+
+
 def test_muqaddima_skip_lands_on_the_dense_rumuz_run():
     # the محقق's ~200-page intro carries non-rumūz numbered points; the dictionary proper is a
     # dense run of rumūz-bearing entries. The skip jumps over the intro to that run.

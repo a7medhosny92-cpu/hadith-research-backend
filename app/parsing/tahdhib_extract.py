@@ -68,6 +68,13 @@ _GRADE_WORDS = ("ثقة", "ثبت", "حافظ", "صدوق", "لا بأس", "لي
 # Where the تلاميذ list ends and the appraisals / death notice begin.
 _TAL_END = re.compile(r"(?:%s)\b" % _alt("قال", "وقال", "مات", "توفي", "توفى", "روى له", "قلت"))
 _WS = re.compile(r"\s+")
+# A 5th-century-or-later death notice — in words (أربع…تسعمائة) or digits (سنة 4xx–9xx). No Six-Books
+# transmitter dies that late; this marks a non-narrator biographee. (_death_year caps at the early
+# centuries and returns None for these, so the AUTHOR al-Mizzī's ت742/734 needs its own marker.)
+_LATE_FIGURE = re.compile(
+    r"(?:أربع|خمس|ست|سبع|ثمان|تسع)\s*م[ئا]ة"
+    r"|سنة\s*\D{0,10}[٤-٩4-9][٠-٩0-9]{2}"
+)
 
 
 def book_main_text(data: dict) -> str:
@@ -131,6 +138,12 @@ def parse_entry(number: int | None, body: str) -> dict | None:
     books = [t for t in rumuz.split() if t in _BOOKS]
     name = _NAME_END.split(rest.strip(" ،."), 1)[0].strip(" ،.")
     if len(name) < 3:
+        return None
+    # Skip a NON-narrator: al-Mizzī (the AUTHOR himself) and other late biographees the book/muqaddima
+    # describes. A Six-Books transmitter never carries an «X الدين» honorific (a 5th-c.+ laqab) nor dies
+    # in the 5th c.+ — so «جمال الدين أبو الحجاج … المزي» (ت742) and «أبا الحجاج المزي» (ت734) leaked in
+    # as رجال entries (with panegyric «الإمام … محدث الشام» mis-read as a grade). These markers drop them.
+    if "الدين" in name.split() or _LATE_FIGURE.search(body):
         return None
     record: dict = {"number": number, "books": books, "name": name}
     kunya = _KUNYA.search(name)

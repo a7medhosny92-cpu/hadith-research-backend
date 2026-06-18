@@ -29,6 +29,8 @@ import re
 from pathlib import Path
 from typing import Iterator
 
+from app.parsing.normalize import normalize_for_search
+
 ISABA_BOOK_ID = 9767
 _SOURCE = "الإصابة في تمييز الصحابة (رقم 9767)"
 
@@ -55,6 +57,10 @@ _MUBHAM_LEAD = {
     "رجل", "امرأة", "غلام", "جارية", "مولى", "مولاة", "خادم", "ابن", "ابنة", "بنت",
     "أخو", "أخت", "عم", "عمة", "خال", "خالة", "جد", "جدة", "والد", "والدة", "زوج", "زوجة",
 }
+# A name ENDING on a dangling theophoric/particle is truncated — no real name ends on a bare «عبد»
+# (عبد needs its second half: الله/الرحمن…) nor on «بن/أبو/ابن…». «عبد الله بن عبد» (a صحابي heading
+# cut short) became a magnet that resolved every «عبد الله بن عبد …» citation to itself (11k+ ×).
+_DANGLING_TAIL = {normalize_for_search(w) for w in ("عبد", "بن", "ابن", "أبو", "أبي", "أبا", "أم", "ذو", "ذي", "آل")}
 
 
 def _clean_name(raw: str) -> str | None:
@@ -67,6 +73,9 @@ def _clean_name(raw: str) -> str | None:
     if len(tokens) < 2:                      # a one-word entry would over-match every namesake
         return None
     if tokens[0] in _MUBHAM_LEAD:
+        return None
+    norm = normalize_for_search(name).split()
+    if norm and norm[-1] in _DANGLING_TAIL:  # «عبد الله بن عبد» — truncated theophoric/particle tail
         return None
     return name
 
