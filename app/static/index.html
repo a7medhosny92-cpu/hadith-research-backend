@@ -1484,8 +1484,9 @@ function clickableIsnadString(isnad, sahabiNames){
     if(i % 2 === 1) return esc(p);                 // a connector (عن / حدثنا / ح) — plain text
     const seg = p.trim().replace(/^[،,.:؛]+|[،,.:؛]+$/g, "").trim();   // a narrator run, edge punctuation dropped
     if(!seg) return esc(p);
-    const sah = _segIsSahabi(seg, sahabiNames) ? " sahabi" : "";
-    return `<span class="rawi-link${sah}" data-pick="${esc(seg)}" role="button" tabindex="0">${esc(seg)}</span>`;
+    const lead = (p.match(/^\s*/) || [""])[0];        // keep the space the connector's lookahead left, so
+    const sah = _segIsSahabi(seg, sahabiNames) ? " sahabi" : "";   // «عن» doesn't stick to «معاوية»
+    return `${lead}<span class="rawi-link${sah}" data-pick="${esc(seg)}" role="button" tabindex="0">${esc(seg)}</span>`;
   }).join("");
 }
 function _sahabiOf(d){
