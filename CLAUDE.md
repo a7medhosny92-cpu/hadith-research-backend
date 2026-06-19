@@ -217,6 +217,13 @@ route_starts`) skipped it. FIX (`analyze_isnad`): the قاعدة needs only the 
 correctly stays OFF (its adjacent i-1 is the SIBLING, not B's تلميذ — شعبة is at i-2); canon builds company respecting route_starts
 (uses الشعبي, not the sibling); the joint resolver uses `shaykh=resolved[i+1] if (i+1) not in route_starts`, `tilmidh=None` for a
 route_start. So «A وB عن الشيخ» = two routes, each resolved by ITS شيخ. **540 green**, node --check clean. Docs: التقنية قواعد card.
+**★ «verify ALL cases» (user) → `scripts.peek_conarrators` (read-only).** The AUDIT fuses co-narrators (`split_conarrators=False`),
+so it can't measure this class; the new diagnostic scans every chain **with** `split_conarrators=True` and reports each route-start
+narrator (waw co-narrator / ح) as **resolved** by its شيخ (the win) · **held** «مشترك»/«غير معروف» (a قاعدة candidate) · **graded**.
+**WAITING ON THE USER: `python -m scripts.peek_conarrators`** → the TOP HELD route-start names = the review queue (add a قاعدة or
+confirm honest homonymy); the resolved count = the «two chains» win. NB residual not yet handled: the FIRST co-narrator A in
+«A وB عن الشيخ» reaches the shared شيخ only at i+2 (its i+1 is the SIBLING B) — the قاعدة looks at i+1, so A (if ambiguous) stays
+held; distinguishing waw-siblings from ح-routes (so A skips to the shared شيخ) is the deeper follow-up if peek_conarrators shows many.
 
 
 **★ (2026-06-19) «أبيه» KINSHIP A-CLASS REDUCED (the user's «risolvi»).** «أبيه» was the #1 a_ranked item (2835): «X بن Y عن
