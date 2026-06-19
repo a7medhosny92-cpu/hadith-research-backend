@@ -19,6 +19,8 @@ Each answer is meant to surface, for a hadith:
 > _Applicazione per approfondire, studiare e verificare gli hadith in arabo classico,
 > con le spiegazioni dei sapienti (شروح)._
 
+![The launch window — a single-file RTL UI (also a native desktop window): search/ask/takhrij/isnad over the corpus, every result with its درجة and citation, and a bottom-line «الحكم على الإسناد»](docs/app.png)
+
 ## Architecture (7 layers)
 
 ```
