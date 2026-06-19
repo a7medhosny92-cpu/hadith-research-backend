@@ -53,3 +53,17 @@ def test_zayd_ibn_waqid_is_the_dimashqi_by_his_shami_shaykh():
     for sh in ("بسر بن عبيد الله", "مكحول", "مغيث بن سمي", "حرام بن حكيم", "خالد بن عبد الله بن حسين"):
         assert resolve_qaida("زيد بن واقد", sh) == "زيد بن واقد القرشي الدمشقي"
     assert resolve_qaida("زيد بن واقد", "أيوب السختياني") is None   # a non-Shami شيخ → held, never guessed
+
+
+def test_yunus_and_hajjaj_by_shaykh():
+    # يونس: الأيليُّ عن الزهري · العبديُّ عن الحسن/ابن سيرين · السبيعيُّ عن أبيه أبي إسحاق
+    assert resolve_qaida("يونس", "الزهري") == "يونس بن يزيد الأيلي"
+    assert resolve_qaida("يونس", "ابن شهاب الزهري") == "يونس بن يزيد الأيلي"
+    assert resolve_qaida("يونس", "الحسن البصري") == "يونس بن عبيد بن دينار العبدي"
+    assert resolve_qaida("يونس", "محمد بن سيرين") == "يونس بن عبيد بن دينار العبدي"
+    assert resolve_qaida("يونس", "أبي إسحاق السبيعي") == "يونس بن أبي إسحاق السبيعي"
+    assert resolve_qaida("يونس", "عكرمة") is None                  # not a discriminator → held
+    # حجاج بن محمد المصيصيُّ الأعور عن ابن جريج/شعبة (the famous «حجاج»); ابن أرطاة (عن عطاء) left held
+    assert resolve_qaida("حجاج", "ابن جريج") == "حجاج بن محمد المصيصي"
+    assert resolve_qaida("حجاج", "شعبة") == "حجاج بن محمد المصيصي"
+    assert resolve_qaida("حجاج", "عطاء بن أبي رباح") is None

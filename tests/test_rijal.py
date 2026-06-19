@@ -232,6 +232,17 @@ def test_ibn_abi_hilal_shuhra_resolves_to_saeed_not_the_buried_kadhab():
     assert not m.ambiguous     # the buried كذاب is not even in the homonym set
 
 
+def test_ibn_abi_umar_shuhra_is_the_adani_shaykh_of_muslim():
+    # «ابن أبي عمر» = محمد بن يحيى بن أبي عمر العدني (شيخ مسلم, ثقة) — جدُّه أبو عمر; the bare folds to
+    # «أبو عمر» and otherwise grabs an unrelated «أبو عمر» kunya (the ضعيف العطاردي). Redirected.
+    rij = RijalIndex([
+        {"name": "محمد بن يحيى بن أبي عمر العدني المكي", "grade": "ثقة"},
+        {"name": "أحمد بن عبد الجبار العطاردي أبو عمر الكوفي", "grade": "ضعيف"},
+    ])
+    m = rij.lookup("ابن أبي عمر")
+    assert m is not None and m.entry.name.startswith("محمد بن يحيى بن أبي عمر") and m.entry.category == "ثقة"
+
+
 def test_a_bare_grave_namesake_does_not_sink_a_fuller_trustworthy_one():
     # «إسحاق بن عمر» [متروك] (a bare, truncated entry) must NOT confidently grade a chain «ضعيف جدًا»
     # when a fuller, trustworthy «إسحاق بن عمر بن سليط الهذلي» also fits the bare citation — hold instead.

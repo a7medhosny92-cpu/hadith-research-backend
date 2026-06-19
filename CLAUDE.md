@@ -202,6 +202,21 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★ (2026-06-19) A+B STARTED (user «B e A partiamo»). REVERT CONFIRMED + new قواعد/shuhra (the peek_conarrators held queue).**
+**Revert #272 measured (user): W 703 · S 269 (BEST EVER) · A 46006 — ابن شهاب GONE from A (=الزهري resolves), ابن الهاد 0 in S, زيد
+بن واقد + ابن أبي هلال GONE from W; W top all GENUINE متروك.** The +13 W vs 690 = the depth-revert un-masking real متروك (benign).
+**B (سير coverage) = DONE, no rewrite needed:** `peek_sair_coverage` → `sair_extract` (heading-based) parses **5053 records / 87%**
+(vs the old 7% `_BOUNDARY`), **258 LATE (الأصم-class)**; the base gains only +93 because سير is add-only (most already covered). So
+the residual «غير معروف» held shaykhs are a MATCHING issue (shuhra/قاعدة = A), not extraction. Minor note: some سير وفاة wrong (حفص
+بن غياث «ت266») — add-only, harmless. **A (قواعد + shuhra) from the held queue, probed:** +**يونس** قاعدة (عن الزهري=الأيلي · عن
+الحسن/ابن سيرين=ابن عبيد العبدي · عن أبي إسحاق=السبيعي — the classical يونس/الزهري mis-ID) · +**حجاج** قاعدة (عن ابن جريج/شعبة=المصيصي
+الأعور ثقة; the bare «حجاج» was mis-resolving to a junk «ابن الحجاج الطائي مجهول») · +**`_SHUHRA` «ابن أبي عمر» → محمد بن يحيى بن أبي
+عمر العدني** (شيخ مسلم، ثقة — the bare folded to «أبو عمر» and grabbed the ضعيف العطاردي). **يزيد SKIPPED** (120 homonyms but
+`grade_agreed` — all-ثقة محسوم, harmless floor, لا نختلق). All NARROW (قاعدة/`_SHUHRA`, NOT the core matcher — the #269 lesson). +3
+tests, **543 green**, node --check clean. **LIVE on the next `audit_isnad` (no rebuild)** → expect A down (يونس/حجاج/ابن أبي عمر
+positions resolve), W/S flat. Docs: التقنية قواعد + shuhra cards.
+
+
 **★★ (2026-06-19) DEPTH-PREFERENCE #269 REVERTED — it broke deep-ancestor SHUHRAS (the user measured W 690 · S 383 · A 47761).**
 #269 made «ابن X» prefer X as the IMMEDIATE father by nasab depth — RIGHT for ابن أبي هلال (سعيد, shallow) but WRONG for the many
 «ابن X» that are a shuhra by a DEEP ancestor: **«ابن شهاب» = الزهري** (شهاب the great-grandfather) → A **+1371** (الزهري stopped
