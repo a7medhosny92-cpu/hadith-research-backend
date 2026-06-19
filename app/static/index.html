@@ -1037,7 +1037,7 @@ function renderNarrator(d){
 
 // Browse (الرواة): a navigable index of EVERY graded narrator — pick a letter or a درجة, or type
 // to filter by name, then click a man to open his راوٍ card. Lets the user explore the رجال
-// without searching. Server-paged (/narrators) since the base is ~20k men; «المزيد» appends.
+// without searching. Server-paged (/narrators) since the base is ~21k men; «المزيد» appends.
 const browseState = {letter:null, grade:null, q:"", offset:0, limit:60, total:0};
 const AR_LETTERS = "ابتثجحخدذرزسشصضطظعغفقكلمنهوي".split("");
 let _brTimer = null;
@@ -1798,7 +1798,7 @@ const ARCHITECTURE = [
   {h:"٢) التحليل", p:[
     "النصُّ يأتي صفحاتٍ غير مُهيكلة؛ فنستخرج الأحاديث (بعلامات • [رقم] أو «رقم -»)، ونفصل الإسناد عن المتن، ونلتقط الحكم والباب، ونربط الشروح بالأرقام، ونبني تراجم الرجال من «تقريب التهذيب» و«الكاشف» (بأسمائهم وكُناهم وألقابهم)، ونوحّد صيغَ اسم الراوي الواحد لتجتمع في عقدةٍ واحدةٍ في الشبكة، ونفصل الراويَين المعطوفَين بالواو («الزهري وهشام» = رجلان لا عقدةٌ واحدة)، ونميّز الشخصَ من صلة القرابة (نحلُّ «أبيه/جده» وسائرَ صلات القرابة إلى الشخص الحقيقيّ من النسب، وإلّا أبقينا الصِّلةَ بعقدةٍ موسومةٍ «والد فلان» مرتبطةٍ به فلا يضيع الرابط). ونطبّع الحروف العربية للمطابقة."]},
   {h:"٣) الفهارس", p:[
-    "فهرسٌ لفظيّ (FTS) للمطابقة الحرفية، وفهرسٌ دلاليّ (متّجهات) للمعنى، وشبكةُ الرواة (شيوخ/تلاميذ من الأسانيد، تُبنى على تمريرتين: الأولى تَدمج المؤكَّد وتتعلّم صحبةَ كلّ راوٍ، والثانية تَحلّ المشترك بالسياق)، وشبكةٌ موثّقةٌ مُوجَّهة (شيخ → تلاميذه) مستخرَجةٌ من كتب الرجال للتمييز بالشيخ والتلميذ، وقاعدةُ درجات الرجال (نحو 20 ألف راوٍ مع كتب التغطية)."]},
+    "فهرسٌ لفظيّ (FTS) للمطابقة الحرفية، وفهرسٌ دلاليّ (متّجهات) للمعنى، وشبكةُ الرواة (شيوخ/تلاميذ من الأسانيد، تُبنى على تمريرتين: الأولى تَدمج المؤكَّد وتتعلّم صحبةَ كلّ راوٍ، والثانية تَحلّ المشترك بالسياق)، وشبكةٌ موثّقةٌ مُوجَّهة (شيخ → تلاميذه) مستخرَجةٌ من كتب الرجال للتمييز بالشيخ والتلميذ، وقاعدةُ درجات الرجال (نحو ٢١ ألف راوٍ مع كتب التغطية)."]},
   {h:"٤) الاسترجاع الهجين", p:[
     "يدمج اللفظيّ والدلاليّ بترتيبٍ تبادليّ (RRF) مع مرشّحات (الكتاب، الدرجة) — فتجد الحديث بلفظه أو بمعناه."]},
   {h:"٥) علوم الحديث", p:[
@@ -1844,7 +1844,7 @@ const TECH = [
     "app/rijal — narrators: index (RijalIndex: matching), graph (NarratorGraph: the network), canon (Canonicalizer: unification), grades (classify + RANKS), and a curated seed.jsonl.",
     "app/qa — hadith sciences: isnad, rulings (verdicts and ʿilal), takhrij, answer (grounded answering), dossier (aggregated cards), intent, llm.",
     "app/search — retrieval: index (HadithIndex/SharhIndex over FTS5), vectors (VectorIndex), embeddings (Embedder), hybrid (HybridSearcher: RRF fusion), grouping (report clustering).",
-    "app/routers — endpoints; app/main + app/config (settings); scripts/ — build tools; tests/ — ~450 tests."]},
+    "app/routers — endpoints; app/main + app/config (settings); scripts/ — build tools; tests/ — ~550 tests."]},
   {h:"Processing pipeline — scripts", p:[
     "scripts.ingest: download books from turath.io (rate limit, retry, resume via manifest.json) → data/raw/turath/{id}.json.",
     "scripts.parse: parse pages into structured JSONL (matn/isnad/grade/bab + sharh linking) → data/processed/*.jsonl and sharh/.",
@@ -1919,7 +1919,7 @@ const TECH = [
     "Fetching: turath_rate_per_sec (4), turath_max_retries (4), hadith_category_ids (6,7,8,9,10,26)."]},
   {h:"Build and tests", p:[
     "scripts.update: 1) checkout main 2) pull 3) deps 4) ingest 5) parse 6) index 7) build_graph 8) build_rijal — then folds in the optional LLM extraction (build_rijal_llm, gated on a configured engine) and runs the three review reports (audit_isnad, audit_matn, audit_conflicts) plus the incremental embedding. Every step is idempotent and resumable, and a build replaces the file atomically.",
-    "Testing: python -m pytest (~425 tests). CI: pytest + a UI syntax check (node --check) via GitHub Actions."]},
+    "Testing: python -m pytest (~550 tests). CI: pytest + a UI syntax check (node --check) via GitHub Actions."]},
   {h:"Maintaining the reference pages", p:[
     "Three pages stay in sync with the code on every update: «Methodology» (where each datum comes from and why it is trustworthy), «Architecture» (the overview), and «Technical» (this one — the full implementation detail).",
     "Rule: any change in behaviour or structure is accompanied by updating whatever these pages need, so they stay a living reference that never goes stale."]},

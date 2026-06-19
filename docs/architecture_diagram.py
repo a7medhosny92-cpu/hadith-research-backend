@@ -108,7 +108,7 @@ gx0, gy0, gx1, gy1 = 40, 224, W - 40, 612
 box(gx0, gy0, gx1, gy1, "#fdf8ec", "#c79a3a", 3, 18)
 star(gx1 - 30, gy0 + 28, 11)
 A(gx1 - 50, gy0 + 12, "القاعدة الرجالية القانونية: رجلٌ واحدٌ لكلّ راوٍ بلا تكرار", arb(25), "#6f5320")
-L(gx0 + 22, gy0 + 16, "rijal.jsonl   ·   ~19.566 narratori   ·   removable ~1", la(15), "#9a8244")
+L(gx0 + 22, gy0 + 16, "rijal.jsonl   ·   ~21.085 narratori   ·   removable ~1", la(15), "#9a8244")
 
 # 2a — sources (right)
 sx1 = gx1 - 26
@@ -171,8 +171,9 @@ ly0, ly1 = 640, 812
 box(40, ly0, W - 40, ly1, "#f1ecf8", "#7a5aa8", 2, 16)
 A(W - 62, ly0 + 12, "سُلّم التمييز وقت الحكم", arb(23), "#4a3670")
 L(62, ly0 + 18, "tamyiz al-muhmal  ·  analyze_isnad  ·  ogni gradino scatta dove il precedente lascia il nome invariato", la(13), "#7a6aa0")
-rungs = [("المهمل", "1 · muhmal"), ("الرفقة", "2 · canon company"), ("الشبكة الموثّقة", "3 · joint resolver"),
-         ("البحث المباشر", "4 · lookup +prominence"), ("الطبقة والموضع", "5 · position"), ("بوابة الدرجة", "6 · grade gate")]
+rungs = [("القاعدة بالشيخ", "1 · qaida"), ("المهمل", "2 · muhmal"), ("الرفقة", "3 · canon"),
+         ("الشبكة الموثّقة", "4 · joint resolver"), ("البحث المباشر", "5 · lookup +shuhra"),
+         ("الطبقة والموضع", "6 · position"), ("بوابة الدرجة", "7 · grade gate")]
 rn = len(rungs)
 rgap = 16
 rbw = (W - 80 - rgap * rn) / rn
@@ -180,8 +181,8 @@ rx = 56
 ry0, ry1 = ly0 + 58, ly1 - 22
 for i, (t, cap) in enumerate(rungs):
     box(rx, ry0, rx + rbw, ry1, "#ffffff", "#7a5aa8", 1, 10)
-    Ac(rx + rbw / 2, ry0 + 18, t, arb(20), "#3b2c5e")
-    Lc(rx + rbw / 2, ry1 - 30, cap, lab(13.5), "#7a5aa8")
+    Ac(rx + rbw / 2, ry0 + 20, t, arb(18), "#3b2c5e")
+    Lc(rx + rbw / 2, ry1 - 30, cap, lab(13), "#7a5aa8")
     if i < rn - 1:
         arrow(rx + rbw + 2, (ry0 + ry1) / 2, rx + rbw + rgap - 2, (ry0 + ry1) / 2, "#7a5aa8")
     rx += rbw + rgap
@@ -190,9 +191,9 @@ for i, (t, cap) in enumerate(rungs):
 uy0, uy1 = 840, 1000
 box(40, uy0, W - 40, uy1, "#eef1f4", "#7c848f", 2, 16)
 A(W - 62, uy0 + 12, "الواجهة: خادمٌ وواجهةٌ في ملفٍّ واحد", arb(22), "#2b3540")
-L(62, uy0 + 18, "FastAPI + single-file RTL UI  ·  11 endpoint  ·  7 tab azione + 4 tab documentazione", la(13), "#7c848f")
-action = ["بحث", "سؤال", "تخريج", "راوٍ", "الشبكة", "الإسناد", "دفتري", "الرواة"]
-docs = ["التدقيق", "المنهجية", "البنية", "التقنية", "تدقيق المتون", "تعارض الرجال"]
+L(62, uy0 + 18, "FastAPI + single-file RTL UI  ·  ~16 endpoint  ·  9 tab azione + 6 tab documentazione", la(13), "#7c848f")
+action = ["بحث", "سؤال", "تخريج", "راوٍ", "الشبكة", "الإسناد", "الكتب", "الرواة", "دفتري"]
+docs = ["التدقيق", "تدقيق المتون", "تعارض الرجال", "المنهجية", "البنية", "التقنية"]
 
 
 def chips(items, y, col, bg):

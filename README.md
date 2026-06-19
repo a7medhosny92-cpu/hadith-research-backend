@@ -29,20 +29,25 @@ data/raw/turath/*.json
    │  [2] Parsing     app/parsing/     HTML → متن · إسناد · grade · شرح · citation
    ▼
 data/processed/*.jsonl
-   │  [3] Indexing    scripts/         index · embed · build_graph
+   │  [3] Indexing    scripts/         index · embed · build_graph · build_rijal · audit
    ▼
- ┌── Local indexes (sqlite; PostgreSQL + pgvector in production) ──────────────┐
- │  FTS5 hadith · FTS5 شروح · dense vectors · narrator graph · rijal gradings  │
- └─────────────────────────────────────────────────────────────────────────────┘
+ ┌── Local indexes (sqlite; PostgreSQL + pgvector in production) ──────────────────┐
+ │  FTS5 hadith · FTS5 شروح · dense vectors · narrator graph · documented network  │
+ │  canonical rijal base (~21k narrators, no doublings) + self-audits              │
+ └──────────────────────────────────────────────────────────────────────────────────┘
    │  [4] Retrieval   app/search/      lexical · semantic · hybrid (RRF fusion)
    │  [5] Sciences    app/qa/ · app/rijal/
-   │        answer (RAG) · takhrij (صيغ · صحابي · أخرجه) · isnad · rulings (أحكام) · rijal graph
+   │        answer (RAG) · takhrij (صيغ · صحابي · أخرجه) · isnad verdict (الحكم على الإسناد)
+   │        rijal identification (تمييز المهمل: قواعد بالشيخ · network · prominence)
+   │        self-audits (التدقيق · تدقيق المتون · تعارض الرجال) · علّة/شذوذ hints
    │  [6] LLM engine  app/qa/llm.py    off / local (Ollama) / remote (Claude) — via LiteLLM
-   ▼
- [7] FastAPI  app/main.py   →  /search · /hadith · /ask · /takhrij · /verify-isnad · /narrator · /notebook
-        │
-        └─ /app  →  static UI ⟷ native desktop window
-                    modes: بحث · سؤال · تخريج · راوٍ · الإسناد · دفتري · المنهجية · البنية
+   ▼                  (also build-time FAITHFUL extraction: scripts.build_rijal_llm)
+ [7] FastAPI  app/main.py   →  /search · /hadith · /ask · /takhrij · /verify-isnad
+        │              /narrator · /narrators · /books · /sharh-books · /notebook
+        │              /audit · /matn-audit · /conflicts · /coverage · /sources
+        └─ /app  →  static single-file RTL UI ⟷ native desktop window.  Tabs:
+            action  بحث · سؤال · تخريج · راوٍ · الإسناد · الشبكة · الكتب · الرواة · دفتري
+            study   التدقيق · تدقيق المتون · تعارض الرجال · المنهجية · البنية · التقنية
 ```
 
 The chain is the same everywhere: the system **retrieves and cites**, it never
@@ -64,13 +69,15 @@ brains or providers.
 | **Search** — lexical FTS (uncapped) · semantic · **hybrid (RRF)** | `/search?mode=` | ✅ |
 | **Ask (RAG)** — top hadith + **full شرح** + **rulings (أحكام)**, cited; LLM switch off/local/remote | `/ask?engine=` | ✅ |
 | **Takhrij** — *every* narration → variants (صيغ: بلفظه/بنحوه/بمعناه) · grouped by **Companion** · «أخرجه» · chains shown | `/takhrij` | ✅ |
-| **Isnad** — structure (سماع/عنعنة/تحويل), per-narrator grade, **continuity (اتصال)**, and a single bottom-line **verdict «الحكم على الإسناد»** (rijal + اتصال + عنعنة, with disclaimer) | `/verify-isnad` | ✅ |
-| **Narrator network (علم الرجال)** — شيوخ/تلاميذ from the chains, weighted; gradings (curated seed + full **تقريب التهذيب**, ~8.8k narrators, built by `scripts.build_rijal`) | `/narrator` | ✅ |
-| **Scholars' rulings (أحكام)** — ordered by طبقة, divergence flagged, «حسن صحيح» resolved by the number of chains | in `/ask`,`/takhrij` | ✅ |
+| **Isnad** — structure (سماع/عنعنة/تحويل), **narrator identification** (تمييز المهمل: a homonym is fixed by his شيخ via curated قواعد, the documented network, الرفقة, then prominence), per-narrator grade, **continuity (اتصال)**, and a single bottom-line **verdict «الحكم على الإسناد»** (rijal + اتصال + عنعنة, with disclaimer) | `/verify-isnad` | ✅ |
+| **Narrator base & network (علم الرجال)** — a **canonical base, one record per man, no doublings** (~21k narrators: تقريب + الكاشف authority, folded with الإصابة · الثقات · لسان · سير coverage, deduped by `dedup.collapse_duplicates`); شيوخ/تلاميذ from the chains, weighted; built by `scripts.build_rijal` (+ optional faithful LLM extraction) | `/narrator` · `/narrators` | ✅ |
+| **Library navigator (الكتب)** — browse the corpus structurally: collections → their كتب/أبواب → the hadiths under each, with «كتاب ← باب» nesting and per-book search; شروح browsable too | `/books` · `/sharh-books` | ✅ |
+| **Self-audits** — the system rescans its own output: **«التدقيق»** flags suspect isnad verdicts (متروك/كذاب/صحابي-mid-chain/مشترك), **«تدقيق المتون»** flags suspect texts, **«تعارض الرجال»** catches a grave-vs-trustworthy name collision | `/audit` · `/matn-audit` · `/conflicts` | ✅ |
+| **Coverage report** — how much of the chains the base covers (identified · مشترك · uncovered), weighted by chain position | `/coverage` | ✅ |
+| **Scholars' rulings (أحكام)** — ordered by طبقة, divergence flagged, «حسن صحيح» resolved by the number of chains; structural **علّة/شذوذ hints** on the gathered طرق | in `/ask`,`/takhrij` | ✅ |
 | Scholars' explanations (شروح) linked per hadith & quoted with attribution | in `/ask` | ✅ |
 | **Study notebook (دفتري)** — save any hadith / narrator / answer / isnad with a note; persists across rebuilds | `/notebook` | ✅ |
-| **Methodology (المنهجية)** — an in-app page explaining, for **every datum**, its source, how it is derived, its advantages and its limits | in `/app` | ✅ |
-| **Architecture (البنية)** — an in-app page: how the app is built (the 7 layers), where it can improve, and its limits. Kept in sync with the code | in `/app` | ✅ |
+| **Reference pages** — in-app, kept in sync with the code: **المنهجية** (every datum: its source, derivation, advantages, limits), **البنية** (how the app is built), **التقنية** (the exact implementation: modules, scripts, data files, endpoints) | in `/app` | ✅ |
 
 **Dev vs production.** Everything above runs **today** on your machine with a light
 stack: parsing is pure-stdlib and the indexes are **sqlite** — FTS5 for lexical
@@ -183,7 +190,11 @@ uvicorn app.main:app --reload
 | `GET /ask?q=…` | the most relevant hadith + grade + the **scholars' شرح**, the **scholars' rulings (أحكام)** on it ordered by era (صحّحه/ضعّفه…, divergence surfaced), cited (add `&engine=local\|remote` and optionally `&model=<any litellm id>` to synthesise with an LLM) |
 | `GET /takhrij?hadith_id=…` (or `q=…`) | **every** narration of the same report (lexical+semantic recall), grouped **by Companion (الصحابي)** then into distinct wordings (صيغ) labelled بلفظه/بنحوه/بمعناه — each Companion with an «أخرجه» summary, every chain shown |
 | `GET /verify-isnad?hadith_id=…` (or `isnad=…`) | parse the **chain of narrators**, flag سماع/عنعنة/تحويل, **grade each narrator** (رجال), check each link's **continuity (اتصال)** against the narrator network, and return a single bottom-line **verdict «الحكم على الإسناد»** that fuses the weakest-link grade + الاتصال + عنعنة (a study verdict on the apparent state of the men, not a full تصحيح — needs النظر في العلّة والشذوذ) |
-| `GET /narrator?name=…` | a narrator's place in the network (شبكة الرواة): his **شيوخ** (narrates from) and **تلاميذ** (narrate from him), weighted, plus his grade |
+| `GET /narrator?name=…` | a narrator's place in the network (شبكة الرواة): his **شيوخ** (narrates from) and **تلاميذ** (narrate from him), weighted, plus his grade and the critics' أقوال الأئمة |
+| `GET /narrators?letter=&grade=&q=` | **browse all narrators (الرواة)** — paged, with letter + درجة facets (powers the in-app browse tab) |
+| `GET /books` · `/books/{id}/chapters` · `/books/{id}/hadiths` | **library navigator (الكتب)** — collections → كتب/أبواب → the hadiths under each; `/sharh-books*` browses the commentaries |
+| `GET /audit` · `/matn-audit` · `/conflicts` | the **self-audits**: suspect isnad verdicts (التدقيق), suspect texts (تدقيق المتون), grave-vs-trustworthy name collisions (تعارض الرجال) — each example opens the case |
+| `GET /coverage` | how much of the chains the رجال base **covers** (identified · مشترك · uncovered), weighted by chain position |
 | `GET/POST/PATCH/DELETE /notebook` | your **study notebook (دفتري)**: save a hadith / narrator / answer / isnad with a personal note + tags, search them, edit, delete — stored in `data/notebook.db`, **never touched by index rebuilds** |
 | `GET /sources` | the books the app draws on (collections · شروح · rijal) with their **editions** (read from the downloaded files) — powers the books list on the «المنهجية» page |
 
@@ -240,21 +251,33 @@ It is deliberately conservative — a study verdict on the *apparent* state of t
 and the connection, **not a full تصحيح** (which also needs النظر في العلّة والشذوذ) and
 not a fatwa.
 
-**Full coverage (تقريب التهذيب + الكاشف).** Quality scales with how many narrators are
-graded. `scripts.build_rijal` downloads **تقريب التهذيب** (Ibn Ḥajar — one terse verdict
-per narrator, ~8.8k men covering the Six Books) as the **authority**, then folds in
-**الكاشف** (al-Dhahabī) as a second terse source that only **fills the narrators تقريب
-left ungraded** and **adds any it lacks** — never duplicating a man (so no false مشترك).
-It writes `data/rijal.jsonl`, which `/verify-isnad` **auto-loads on the next start** (no
-env var needed). With it in place, verdicts become decisive instead of «يُتوقَّف فيه».
-It runs automatically as the last step of `scripts.update` / `update.bat`, or on its own:
+**The canonical narrator base (~21k men, no doublings).** Quality scales with how many
+narrators are graded *and* with identifying the right man. `scripts.build_rijal` builds
+**one record per narrator** from **تقريب التهذيب** (Ibn Ḥajar — the terse authority over the
+Six Books) + **الكاشف** (al-Dhahabī, second opinion), then folds in coverage sources only to
+*fill gaps*, never to duplicate a man: **الإصابة** (Companions), **الثقات** (men outside the
+Six Books), **لسان الميزان** (the criticised), **سير أعلام النبلاء** (later narrators), plus
+the multi-critic **أقوال الأئمة** from **تهذيب الكمال / الجرح والتعديل**. A dedup engine
+(`app/rijal/dedup.py`) collapses the same man written two ways (تقريب↔الكاشف, a كنية vs an
+ism-led name, a deep-lineage نسب match) under طبقة/grade guards — so the base carries **no
+false «مشترك»**. It writes `data/rijal.jsonl`, which `/verify-isnad` **auto-loads on the next
+start**. It runs as the last steps of `scripts.update` / `update.bat` (build_graph → build_rijal
+→ audit), or on its own:
 
 ```bash
-python -m scripts.build_rijal            # download تقريب + extract + write data/rijal.jsonl
-# or grade still more narrators by merging a hand-made JSONL:
-python -m scripts.build_rijal --input narrators.jsonl
-# or point RIJAL_PATH at any رجال JSONL to override auto-discovery.
+python -m scripts.build_rijal                       # build/refresh data/rijal.jsonl
+python -m scripts.build_rijal --input narrators.jsonl   # merge a hand-made JSONL too
+python -m scripts.build_rijal_llm --mode rijal|chains   # optional FAITHFUL LLM extraction
+# read-only diagnostics: scripts.audit_isnad · audit_coverage · probe_name · peek_name_chains
 ```
+
+**Identifying the man, not just grading a name (تمييز المهمل).** A chain rarely spells a
+narrator out, so the verdict identifies him **from the chain before grading**: a homonym is
+fixed by his **شيخ** through curated **قواعد** («سفيان عن الأعمش» = الثوري), the **documented
+شيخ→تلميذ network** (تهذيب/الجرح/الثقات), the surrounding **company (الرفقة)**, then a
+**prominence** prior — and when the text genuinely cannot decide, the node is **held «مشترك»,
+never guessed** (لا نختلق). The whole corpus is then **re-audited** (`/audit`, `/conflicts`,
+`/coverage`) so every improvement is measured.
 
 ## Data source, attribution & ethics
 
