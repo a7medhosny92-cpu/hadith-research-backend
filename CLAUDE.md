@@ -207,6 +207,17 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★★ (2026-06-19) #281 — the (C) DESCRIPTOR-SHUHRA batch (user «fai tutto», stop the per-fix loop).** Continuing the coverage (C)
+class (famous men with a name-form mismatch), all VERIFIED in-container against the uploaded rijal, all NARROW `_SHUHRA` (the #269
+lesson), safe-on-failure: **نافع مولى عبد الله بن عمر** (287×, the «مولى X» descriptor) → نافع أبو عبد الله المدني (الثبت) · **أبو
+كامل الجحدري** (65×, kunya+nisba) → فضيل بن حسين (ثقة شيخ مسلم) · **أبو داود الطيالسي** (108×) → سليمان بن داود الطيالسي (ثقة حافظ —
+safe-on-failure, guaranteed in تقريب). **★ A test caught a real collision: the SEED names نافع «نافع مولى ابن عمر»**, so a 3-token
+«نافع مولى ابن عمر» redirect key clashed with canon's re-lookup of the seed canonical → dropped نافع to unknown. Fix: redirect ONLY
+the 5-token «نافع مولى عبد الله بن عمر» (the actual 287 gap); the 3-token form is the seed's own name. **SKIPPED (not guessed, would
+need build-time): سمي مولى أبي بكر** (base «سمي» → a مجهول namesake, the real ثقة سمي absent/mis-graded) · **أبو سعيد مولى بني هاشم**
+(target resolves مجهول) · **أبو النضر** (honest ambiguity — هاشم بن القاسم vs إسحاق بن إبراهيم, both real). +1 test, **550 green**, node
+--check clean. So the coverage (C) class is now: «ال» article (#280) + these 3 descriptors DONE; residual (C) = the SKIP list (build-time).
+
 **★★ (2026-06-19) BATCH #274–#280 MEASURED + the «ال»-ARTICLE COVERAGE FIX (#280) — ONE audit pending.** The user ran the
 consolidated `audit_isnad` post-#274–#278: **W 703→696 · S 269→265 · A 45524→44687** — all three down, NO regression; the
 Sahihayn W is now CLEAN except «عبد الله بن واقد» (الحراني متروك confidently picked over the ثقة الهروي/مقبول العدوي — the probe

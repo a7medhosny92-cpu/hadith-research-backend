@@ -126,6 +126,24 @@ def test_al_article_query_matches_a_base_entry_without_the_article_multitoken_on
     assert rij.lookup("معتمر بن سليمان").entry.name.startswith("معتمر")
 
 
+def test_descriptor_shuhra_redirects_mawla_and_kunya_nisba_famous_men():
+    # FAMOUS men the chains cite by a descriptor the base name lacks (coverage gaps): «نافع مولى
+    # عبد الله بن عمر» (the ثبت, base «نافع أبو عبد الله المدني»), «أبو كامل الجحدري» (= فضيل بن حسين,
+    # base lists ism+nasab). The closed _SHUHRA redirect → his canonical name; a bare «نافع» is untouched.
+    rij = RijalIndex([
+        {"name": "نافع أبو عبد الله المدني", "grade": "ثقة"},        # نافع مولى ابن عمر
+        {"name": "نافع بن جبير بن مطعم النوفلي", "grade": "ثقة"},     # a different نافع
+        {"name": "فضيل بن حسين بن طلحة الجحدري أبو كامل", "grade": "ثقة"},
+    ])
+    assert rij.lookup("نافع مولى عبد الله بن عمر").entry.name == "نافع أبو عبد الله المدني"
+    assert rij.lookup("أبو كامل الجحدري").entry.name.startswith("فضيل")
+    # a bare «نافع» stays ambiguous (NOT forced to the مولى-ابن-عمر man) — the redirect is the EXACT descriptor only
+    m = rij.lookup("نافع")
+    assert m is None or m.ambiguous
+    # safe-on-failure: a redirect whose target isn't in the base yields no match (no harm), never a wrong man
+    assert rij.lookup("أبو داود الطيالسي") is None
+
+
 def test_ibn_jurayj_shuhra_resolves_to_the_man_known_by_his_grandfather():
     # «ابن جريج» IS عبد الملك بن عبد العزيز بن جريج — universally cited by his GRANDFATHER جريج. The
     # token matcher drops «ابن» and reads a bare «جريج», a non-leading partial of every man carrying
