@@ -202,6 +202,19 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★★ (2026-06-19) DEPTH-PREFERENCE #269 REVERTED — it broke deep-ancestor SHUHRAS (the user measured W 690 · S 383 · A 47761).**
+#269 made «ابن X» prefer X as the IMMEDIATE father by nasab depth — RIGHT for ابن أبي هلال (سعيد, shallow) but WRONG for the many
+«ابن X» that are a shuhra by a DEEP ancestor: **«ابن شهاب» = الزهري** (شهاب the great-grandfather) → A **+1371** (الزهري stopped
+resolving!), **«ابن الهاد» = يزيد بن الهاد** (الهاد deep) → resolved to the shallower عبد الله بن شداد (صحابي) → S **+86**. Depth alone
+can't tell which generation is the famous man (ابن شهاب deep, ابن أبي هلال shallow). **FIX: reverted index.py to the pre-#269 state**
+(`git checkout f487451 -- app/rijal/index.py` — kept the #266 kunyas, removed `_nasab_level` + the depth in `_score_entry`/`_lookup`/
+`candidates`) and fixed ابن أبي هلال the NARROW, safe way instead: a `_SHUHRA` redirect **«ابن أبي هلال» → «سعيد بن أبي هلال الليثي»**
+(صدوق, روى له الجماعة — not the كذاب يعقوب بن الوليد). Verified: ابن شهاب→الزهري, ابن الهاد held/يزيد, ابن أبي هلال→سعيد. +test (replaced
+the depth test), **543 green**. **LIVE on the next `audit_isnad` → S/A back to ~279/~46073, W stays ~690 (the two W fixes hold).**
+**LESSON: a core-matcher scoring change is HIGH-RISK — `audit_isnad` is the only ground truth; prefer a narrow `_SHUHRA` redirect.**
+NB أبو ذر/أبو الدرداء (#266) are NOT in the S-top → they did NOT regress (the kunya redirects are fine).
+
+
 **★ (2026-06-19) W open-case #1 FIXED: «ابن أبي هلال» buried-ancestor (the user's «procedi»).** «ابن أبي هلال» (19× W, كذاب)
 matched **يعقوب بن الوليد بن عبد الله بن أبي هلال (كذاب)** — أبي هلال is his GREAT-grandfather (buried), not the immediate father.
 The real men are سعيد بن أبي هلال (صدوق) / عبد الرحمن بن أبي هلال (ثقة). FIX (`index._score_entry` + `_lookup`/`candidates`): a «ابن X»
