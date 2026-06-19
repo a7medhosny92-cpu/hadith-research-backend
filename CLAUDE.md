@@ -205,11 +205,13 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
 **★ (2026-06-19) BATCH of curated shuhra/قواعد (user «lavora da professionista, non far perdere tempo tra una modifica e l'altra»
 → stop the per-fix audit ping-pong; ONE batch, measure once).** From the held `peek_conarrators` queue + `a_ranked`, all NARROW
 (`_SHUHRA`/قاعدة, never the core matcher — the #269 lesson), safe-on-failure (a target that doesn't resolve → «غير معروف», no harm):
-**`_SHUHRA`** +«ابن وهب»→عبد الله بن وهب (a_ranked ~1383) · +«أبو سعيد الأشج»→عبد الله بن سعيد الأشج (شيخ الجماعة) · +«أبو معاوية»→
-محمد بن خازم الضرير (صاحب الأعمش) · +«أبو نعيم»→الفضل بن دكين (شيخ البخاري). **قاعدة** +«أبو/أبي إسحاق» (both kunya forms keyed) عن
-البراء/الأسود/أبي بردة/علقمة/عمرو بن ميمون = عمرو بن عبد الله السبيعي (a_ranked ~1048; vs الشيباني عن الشعبي، الفزاري عن الأوزاعي). +6
-tests, **546 green**. **LIVE on the next `audit_isnad` ALONE — user measures ONCE** (expect A down a few thousand: ابن وهب/أبي إسحاق/
-أبو معاوية/أبو نعيم positions resolve; W/S flat). **NEW WORKFLOW (user-mandated): batch all fixes, ONE measurement — no audit between.**
+**`_SHUHRA`** +«أبو سعيد الأشج»→عبد الله بن سعيد الأشج (شيخ الجماعة) · +«أبو معاوية»→محمد بن خازم الضرير (صاحب الأعمش) · +«أبو نعيم»→
+الفضل بن دكين (شيخ البخاري). **قاعدة** +«أبو/أبي إسحاق» (both kunya forms keyed) عن البراء/الأسود/أبي بردة/علقمة/عمرو بن ميمون = عمرو
+بن عبد الله السبيعي (a_ranked ~1048; vs الشيباني عن الشعبي، الفزاري عن الأوزاعي). **★ «ابن وهب» TRIED then REVERTED — `probe_name`
+(run FIRST, before the slow audit) caught it: the target «عبد الله بن وهب المصري» lost to a bare صحابيّ «عبد الله بن وهب» that
+CONTAINS-matches any «عبد الله بن وهب …» query → would have graded it صحابيّ (S blow-up). Left held «مشترك» (harmless). LESSON:
+`probe_name` is the fast pre-check before committing a shuhra/قاعدة batch.** +5 tests, **547 green**. **LIVE — measure ONCE.**
+**NEW WORKFLOW (user-mandated): batch all fixes, probe-check the targets, ONE `audit_isnad` measurement — no audit between fixes.**
 
 
 **★ (2026-06-19) البخاري/مسلم W/S FILTER (user «verifica W in البخاري e مسلم») — 2 shuhra fixes + 2 chains pending.** A متروك/كذاب in

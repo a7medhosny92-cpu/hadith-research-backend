@@ -258,15 +258,14 @@ def test_ibn_abi_khalaf_shuhra_is_the_thiqa_shaykh_of_muslim():
 
 
 def test_common_shuhra_redirects_resolve_the_prolific_man():
-    # bare shuhras that otherwise tie «مشترك»: ابن وهب = عبد الله بن وهب · أبو سعيد الأشج = عبد الله بن
-    # سعيد الأشج · أبو معاوية = الضرير · أبو نعيم = الفضل بن دكين.
+    # bare shuhras that otherwise tie «مشترك»: أبو سعيد الأشج = عبد الله بن سعيد الأشج · أبو معاوية =
+    # الضرير · أبو نعيم = الفضل بن دكين. («ابن وهب» is NOT redirected — a bare صحابيّ «عبد الله بن وهب»
+    # contains-matches any target, so a redirect would mis-grade it صحابيّ; left held.)
     rij = RijalIndex([
-        {"name": "عبد الله بن وهب القرشي المصري", "grade": "ثقة"},
         {"name": "عبد الله بن سعيد الأشج الكندي", "grade": "ثقة"},
         {"name": "محمد بن خازم الضرير أبو معاوية", "grade": "ثقة"},
         {"name": "الفضل بن دكين أبو نعيم", "grade": "ثقة"},
     ])
-    assert rij.lookup("ابن وهب").entry.name.startswith("عبد الله بن وهب")
     assert rij.lookup("أبو سعيد الأشج").entry.name.startswith("عبد الله بن سعيد الأشج")
     assert rij.lookup("أبو معاوية").entry.name.startswith("محمد بن خازم")
     assert rij.lookup("أبو نعيم").entry.name.startswith("الفضل بن دكين")
