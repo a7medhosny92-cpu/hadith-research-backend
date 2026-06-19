@@ -207,6 +207,28 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★★ (2026-06-19) BATCH #274–#280 MEASURED + the «ال»-ARTICLE COVERAGE FIX (#280) — ONE audit pending.** The user ran the
+consolidated `audit_isnad` post-#274–#278: **W 703→696 · S 269→265 · A 45524→44687** — all three down, NO regression; the
+Sahihayn W is now CLEAN except «عبد الله بن واقد» (الحراني متروك confidently picked over the ثقة الهروي/مقبول العدوي — the probe
+proved it fixable: needs a قاعدة بالشيخ from the real chains → built **`scripts.peek_name_chains`** (#279) to dump التلميذ→[name]→شيخ;
+WAITING on the user to run it for «عبد الله بن واقد»). Then the user ran **`audit_coverage`**: the base covers **91.0% of chain
+POSITIONS** (82.4% identified + 8.6% ambiguous), 35% of distinct narrators. The uncovered 9% decomposes into THREE classes:
+**(A) late الأصم-class محدّثون** (أبو العباس محمد بن يعقوب الأصم 1242× · علي بن حمشاذ 387 · ابن بالويه 256 — al-Hakim/al-Bayhaqi's
+own شيوخ, post-Six-Books → needs a late source like سير; LOW verdict-value, they're the collectors' trusted teachers) · **(B) dirty
+parsing nodes** (عبد 780 truncation · اللفظ له 331 editorial · «ابن الحجاج الطائي أرسل حديثا وهو» 377 bio-leak · وأنا أسمع/أنا أسمع
+178 قراءة حال · «X جميع/كلاهما/كلهم» aggregators · والد X kinship — cleanup, needs a rebuild) · **(C) MATCHING gaps on FAMOUS men**
+— the high-value, cheap class. **★ #280 (this turn): the «ال»-ARTICLE GAP (verified in-container).** A prolific man cited WITH the
+article — «المعتمر بن سليمان»/«الحجاج بن أرطاة»/«المعمر بن راشد» — MISSED his base entry stored WITHOUT it (تقريب: معتمر/حجاج/معمر) —
+the flip side of the #190 asymmetric «ال» fold (which only strips ال from entries that HAVE it). FIX (`index._al_strip_query` + a
+fallback in `lookup`): when the literal query MISSES **and** is MULTI-token, strip «ال» from the leading ism and re-look-up — multi-token
+ONLY (the nasab disambiguates, so a bare «الحسن» is NEVER broadened into the «حسن» pool — the #189/#190 hazard) and fallback-on-miss
+ONLY (it can NEVER regress a working match — it only recovers an uncovered narrator). Verified: المعتمر بن سليمان→معتمر ثقة · الحجاج
+بن أرطاة→حجاج صدوق · المعمر بن راشد→معمر ثقة; every bare «الحسن/المعتمر/الزهري» UNCHANGED. +1 test, **549 green**, node --check clean.
+NB the other (C) sub-gaps left for later: «نافع مولى عبد الله بن عمر» 287 (the «مولى X» descriptor) · «أبو داود الطيالسي» (kunya+nisba).
+**NEXT MEASUREMENT (ONE audit): `git pull` → `audit_isnad`** → expect A/coverage to improve (المعتمر/الحجاج/المعمر… resolve), W/S
+flat (the recovered men are mostly ثقة/صدوق, and the fallback can't regress). Optionally re-run `audit_coverage` to see the (C) drop.
+Then: «عبد الله بن واقد» قاعدة (via `peek_name_chains`) to close the last Sahihayn W.
+
 **★★ (2026-06-19) THE WHOLE BATCH #274–#278 IS MERGED TO MAIN — ONE measurement pending.** Squash-merged + branch realigned:
 #274 (shuhra «ابن أبي خلف»→القطيعي · «ابن أبي عمر المكي»→العدني) · #275 (قاعدة «هشام بن يزيد عن أنس» = هشام بن زيد بن أنس — so the
 «هشام بن يزيد STILL OPEN» note below is STALE/closed) · #276 (shuhra أبو سعيد الأشج/أبو معاوية/أبو نعيم + قاعدة أبو إسحاق السبيعي) ·

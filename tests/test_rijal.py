@@ -105,6 +105,27 @@ def test_ibn_X_patronymic_does_not_match_the_eponym_named_X():
     assert rij.lookup("عمر بن الخطاب") is not None
 
 
+def test_al_article_query_matches_a_base_entry_without_the_article_multitoken_only():
+    # A prolific man cited WITH the article — «المعتمر بن سليمان»، «الحجاج بن أرطاة»، «المعمر بن راشد»
+    # — must reach his base entry stored WITHOUT it (تقريب: «معتمر/حجاج/معمر»). The fallback fires
+    # ONLY on a literal miss and ONLY when the query is multi-token (the nasab disambiguates), so a
+    # bare «الحسن» is NEVER broadened into the «حسن» pool (the #189/#190 hazard).
+    rij = RijalIndex([
+        {"name": "معتمر بن سليمان التيمي", "grade": "ثقة"},
+        {"name": "حجاج بن أرطاة النخعي", "grade": "صدوق"},
+        {"name": "حسن بن صالح بن حي", "grade": "ثقة"},          # a «حسن» pool member (no ال)
+        {"name": "الحسن البصري", "grade": "ثقة"},               # the famous الحسن (stored WITH ال)
+    ])
+    assert rij.lookup("المعتمر بن سليمان").entry.name.startswith("معتمر")   # recovered (ال-stripped)
+    assert rij.lookup("الحجاج بن أرطاة").entry.name.startswith("حجاج")       # recovered
+    # the GUARD: a bare «الحسن» (single token) must NOT fall back into the «حسن» pool —
+    # it stays the literal الحسن (here الحسن البصري), never حسن بن صالح.
+    m = rij.lookup("الحسن")
+    assert m is not None and m.entry.name == "الحسن البصري"
+    # and the literal «معتمر بن سليمان» (no article) is of course unaffected
+    assert rij.lookup("معتمر بن سليمان").entry.name.startswith("معتمر")
+
+
 def test_ibn_jurayj_shuhra_resolves_to_the_man_known_by_his_grandfather():
     # «ابن جريج» IS عبد الملك بن عبد العزيز بن جريج — universally cited by his GRANDFATHER جريج. The
     # token matcher drops «ابن» and reads a bare «جريج», a non-leading partial of every man carrying

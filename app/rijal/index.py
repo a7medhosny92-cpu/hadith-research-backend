@@ -63,6 +63,18 @@ def _al_variant(seq: list[str]) -> list[str] | None:
     return None
 
 
+def _al_strip_query(name: str) -> str | None:
+    """A query «المعتمر بن سليمان» whose leading ism carries «ال» but the base entry has none
+    («معتمر بن سليمان» في التقريب). Returns the name with «ال» stripped from the leading ism — but ONLY
+    when the query is MULTI-token, so the nasab disambiguates and a bare «الحسن» is NEVER broadened into
+    the «حسن» pool (the #189/#190 hazard). Used as a fallback in :meth:`lookup` only when the literal
+    query MISSES, so it can never regress a working match — it only recovers an uncovered narrator."""
+    seq = _clean_seq(name)
+    if len(seq) >= 2 and (av := _al_variant(seq)) is not None:
+        return " ".join(av)
+    return None
+
+
 def _clean_seq(name: str) -> list[str]:
     """Folded name tokens **in order**, honorifics/connectors dropped. A token repeated NON-adjacently
     (a distant ancestor) is dropped, but an ADJACENT repeat is KEPT: «معاذ بن معاذ» (ism = father's
@@ -527,7 +539,10 @@ class RijalIndex:
         """Best narrator match, or ``None`` (memoised — the same name recurs across chains)."""
         key = (name, min_overlap)
         if key not in self._cache:
-            self._cache[key] = self._lookup(name, min_overlap=min_overlap)
+            m = self._lookup(name, min_overlap=min_overlap)
+            if m is None and (alt := _al_strip_query(name)) is not None:
+                m = self._lookup(alt, min_overlap=min_overlap)   # «المعتمر بن سليمان» → «معتمر بن سليمان»
+            self._cache[key] = m
         return self._cache[key]
 
     def _lookup(self, name: str, *, min_overlap: float = 0.6) -> RijalMatch | None:
