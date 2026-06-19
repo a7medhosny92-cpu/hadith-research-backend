@@ -207,6 +207,21 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★ (2026-06-19) THE COVERAGE RESIDUALS (A·B·سمي) — user «procedi con tutti e tre».** Decomposed the three on the data I have,
+did the ACTIONABLE part, was honest about the data-gap part: **(B) «عبد» 780 truncation NOW DROPPED** — it was NOT fixed (only
+«اللفظ له»/«وأنا أسمع» were, via `_is_editorial_node`/`_SKIP`); added `_is_junk_node` (editorial OR a bare «عبد»/«عبيد» = the
+«servant-of» half split from «عبد الله/الرحمن») → dropped at segmentation in the GRAPH path (split_conarrators=True), verified it
+cleans the node + keeps «عبد الله بن وهب». **NEEDS the next `build_graph` to clear the 780 from the graph/coverage** (like اللفظ له/
+وأنا أسمع). +1 test. **(سمي) + (A-الأصم): two DOCUMENTARY safe-on-failure `_SHUHRA` redirects** — «سمي مولى أبي بكر» → «سمي مولى
+أبي بكر بن عبد الرحمن» (الثقة، لا اليماني المجهول) · «أبو العباس محمد بن يعقوب» → «محمد بن يعقوب الأصم» (شيخ الحاكم). VERIFIED on the
+Jun-11 base: both NO MATCH (safe-on-failure, no mis-resolution) → they resolve ONLY if the man is in the CURRENT 21k base. **HONEST
+on the rest of (A):** علي بن حمشاذ/ابن بالويه/محمد بن صالح بن هانئ… are cited with their FULL name → uncovered because **the base does
+NOT CONTAIN them** (no source has them) = a pure DATA gap, NOT a matching gap → no code/redirect can fix a missing man; the real cure
+is a verified late source (تاريخ الإسلام/بغداد download, or a better سير extraction) — and they are LOW verdict-value (held «غير معروف»
+= the conservative right answer, the collectors' own trusted شيوخ). سمي's ثقة is likewise MISSING from the Jun-11 base (a build-time
+extraction drop) — the redirect is the safe attempt; if it stays uncovered next audit, it's confirmed build-time. **551 green**, node
+--check clean. **NEXT: `update.bat`/`build_graph` → «عبد» gone from coverage; `audit_isnad`/`audit_coverage` → سمي/الأصم resolve IFF in base.**
+
 **★★ (2026-06-19) #280/#281 MEASURED + THE LAST ṢAḤĪḤAYN W CLOSED via a قاعدة بالتلميذ (#283-rijal).** The user ran the
 consolidated audit/coverage/peek. **audit_isnad: W 696 (flat) · S 262 (−3) · A 44780 (+93 noise).** **coverage: positions
 91.0%→91.4%, uncovered 9.0%→8.6% (−1942 positions)** — ✓✓ المعتمر/الحجاج/المعمر/نافع/أبو كامل/أبو داود ALL GONE from the top

@@ -310,6 +310,8 @@ def test_object_pronoun_verb_closes_the_shaykh_not_glued():
     ("حدثنا١ سفيان١ عن عمرو٢ عن جابر١", "سفيان"),                      # footnote-digit glue is stripped
     # al-Bukhārī's تعليق «… عن الزهري وقال الليث: حدّثني …» — «وقال الليث» must NOT glue onto الزهري
     ("حدثنا قتيبة عن مالك عن الزهري وقال الليث حدثني عقيل عن عروة", "الزهري"),
+    # a bare «عبد» (the «servant-of» half split from its divine name) is a TRUNCATION → dropped, not a node
+    ("حدثنا قتيبة وعبد عن مالك عن نافع عن ابن عمر", "مالك"),
 ])
 def test_segmentation_leaves_no_corrupt_nodes(isnad, expect_node):
     """The boundary rules found by scripts.audit_nodes: every finalised node is a clean name."""

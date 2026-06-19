@@ -236,11 +236,19 @@ def _chain_assessment(matches: list["RijalMatch | None"], total: int, mubham: in
 # so dropping it cleans the graph/coverage AND connects the real adjacent narrators. «أبو الشيخ» (الشيخ
 # not leading) is safe — only a node that STARTS with «اللفظ»/«الشيخ» is dropped.
 _EDITORIAL_NODE = {normalize_for_search(w) for w in ("اللفظ", "الشيخ")}
+# A whole node that is ONLY «عبد»/«عبيد» is a TRUNCATION — the «servant-of» half of «عبد الله/الرحمن»
+# split from its divine name (a parse artifact); it can never be a narrator, so dropping it cleans the
+# graph/coverage. «عبد الله بن وهب» (≥2 tokens) is NOT a truncation and is kept.
+_TRUNCATION_NODE = {normalize_for_search(w) for w in ("عبد", "عبيد")}
 
 
-def _is_editorial_node(name: str) -> bool:
+def _is_junk_node(name: str) -> bool:
     folded = [f for f in (normalize_for_search(t) for t in name.split()) if f]
-    return bool(folded) and folded[0] in _EDITORIAL_NODE
+    if not folded:
+        return False
+    if folded[0] in _EDITORIAL_NODE:                          # «واللفظ له» / «الشيخ …»
+        return True
+    return len(folded) == 1 and folded[0] in _TRUNCATION_NODE  # bare «عبد»/«عبيد» truncation
 
 
 def analyze_isnad(
@@ -263,8 +271,8 @@ def analyze_isnad(
     def flush() -> bool:
         nonlocal pending_break
         name = " ".join(buf).strip(" -،")
-        if name and not _is_editorial_node(name):     # «واللفظ له» / «الشيخ …» — an editorial interjection,
-            narrators.append(Narrator(name=name, via=via or "—"))   # not a narrator; drop so it isn't a node
+        if name and not _is_junk_node(name):           # «واللفظ له» / «الشيخ …» editorial, or a bare «عبد»
+            narrators.append(Narrator(name=name, via=via or "—"))   # truncation — not a narrator; drop the node
             if pending_break:
                 route_starts.add(len(narrators) - 1)
                 pending_break = False
