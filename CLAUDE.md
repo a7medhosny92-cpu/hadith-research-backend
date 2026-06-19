@@ -202,6 +202,16 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★ (2026-06-19) BATCH of curated shuhra/قواعد (user «lavora da professionista, non far perdere tempo tra una modifica e l'altra»
+→ stop the per-fix audit ping-pong; ONE batch, measure once).** From the held `peek_conarrators` queue + `a_ranked`, all NARROW
+(`_SHUHRA`/قاعدة, never the core matcher — the #269 lesson), safe-on-failure (a target that doesn't resolve → «غير معروف», no harm):
+**`_SHUHRA`** +«ابن وهب»→عبد الله بن وهب (a_ranked ~1383) · +«أبو سعيد الأشج»→عبد الله بن سعيد الأشج (شيخ الجماعة) · +«أبو معاوية»→
+محمد بن خازم الضرير (صاحب الأعمش) · +«أبو نعيم»→الفضل بن دكين (شيخ البخاري). **قاعدة** +«أبو/أبي إسحاق» (both kunya forms keyed) عن
+البراء/الأسود/أبي بردة/علقمة/عمرو بن ميمون = عمرو بن عبد الله السبيعي (a_ranked ~1048; vs الشيباني عن الشعبي، الفزاري عن الأوزاعي). +6
+tests, **546 green**. **LIVE on the next `audit_isnad` ALONE — user measures ONCE** (expect A down a few thousand: ابن وهب/أبي إسحاق/
+أبو معاوية/أبو نعيم positions resolve; W/S flat). **NEW WORKFLOW (user-mandated): batch all fixes, ONE measurement — no audit between.**
+
+
 **★ (2026-06-19) البخاري/مسلم W/S FILTER (user «verifica W in البخاري e مسلم») — 2 shuhra fixes + 2 chains pending.** A متروك/كذاب in
 the Sahihayn ≈ a mis-grade (they have none). The user's filter on `cases.W`/`cases.S` by collection found, beyond the already-fixed
 (أبو عامر العقدي مسيلمة #264, زيد بن واقد #270): **(1) «ابن أبي خلف» (مسلم 10,56) → كذاب** = محمد بن أحمد بن أبي خلف القطيعي (ثقة، شيخ

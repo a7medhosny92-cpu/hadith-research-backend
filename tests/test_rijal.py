@@ -257,6 +257,21 @@ def test_ibn_abi_khalaf_shuhra_is_the_thiqa_shaykh_of_muslim():
     assert m is not None and m.entry.name.startswith("محمد بن أحمد بن أبي خلف") and m.entry.category == "ثقة"
 
 
+def test_common_shuhra_redirects_resolve_the_prolific_man():
+    # bare shuhras that otherwise tie «مشترك»: ابن وهب = عبد الله بن وهب · أبو سعيد الأشج = عبد الله بن
+    # سعيد الأشج · أبو معاوية = الضرير · أبو نعيم = الفضل بن دكين.
+    rij = RijalIndex([
+        {"name": "عبد الله بن وهب القرشي المصري", "grade": "ثقة"},
+        {"name": "عبد الله بن سعيد الأشج الكندي", "grade": "ثقة"},
+        {"name": "محمد بن خازم الضرير أبو معاوية", "grade": "ثقة"},
+        {"name": "الفضل بن دكين أبو نعيم", "grade": "ثقة"},
+    ])
+    assert rij.lookup("ابن وهب").entry.name.startswith("عبد الله بن وهب")
+    assert rij.lookup("أبو سعيد الأشج").entry.name.startswith("عبد الله بن سعيد الأشج")
+    assert rij.lookup("أبو معاوية").entry.name.startswith("محمد بن خازم")
+    assert rij.lookup("أبو نعيم").entry.name.startswith("الفضل بن دكين")
+
+
 def test_a_bare_grave_namesake_does_not_sink_a_fuller_trustworthy_one():
     # «إسحاق بن عمر» [متروك] (a bare, truncated entry) must NOT confidently grade a chain «ضعيف جدًا»
     # when a fuller, trustworthy «إسحاق بن عمر بن سليط الهذلي» also fits the bare citation — hold instead.

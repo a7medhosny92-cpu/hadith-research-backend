@@ -70,3 +70,7 @@ def test_yunus_and_hajjaj_by_shaykh():
     # «شعبة عن هشام بن يزيد عن أنس» = هشام بن زيد بن أنس (شيخ مسلم), not the متروك أبو المقدام
     assert resolve_qaida("هشام بن يزيد", "أنس بن مالك") == "هشام بن زيد بن أنس"
     assert resolve_qaida("هشام بن يزيد", "الحسن") is None        # not عن أنس → held
+    # أبو/أبي إسحاق السبيعي عن صحابة الكوفة (vs الشيباني عن الشعبي, الفزاري عن الأوزاعي)
+    assert resolve_qaida("أبي إسحاق", "البراء بن عازب") == "عمرو بن عبد الله السبيعي"
+    assert resolve_qaida("أبو إسحاق", "أبي بردة") == "عمرو بن عبد الله السبيعي"   # both kunya forms
+    assert resolve_qaida("أبي إسحاق", "الأوزاعي") is None        # not السبيعي's شيخ → held
