@@ -202,6 +202,16 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★ (2026-06-19) «أبيه» KINSHIP A-CLASS REDUCED (the user's «risolvi»).** «أبيه» was the #1 a_ranked item (2835): «X بن Y عن
+أبيه» resolved to the bare father ism «Y», then ambiguous among homonyms («معاوية بن قرة عن أبيه» → bare «قرة» = قرة بن خالد /
+قرة بن إياس). FIX (`analyze_isnad` kin pre-pass): EXPAND the son (the anchor) to his full رجال nasab via `rijal.lookup`
+(«معاوية بن قرة» → «معاوية بن قرة بن إياس المزني») when it resolves uniquely-and-fuller, then name the father «قرة بن إياس» =
+ism + grandfather (one nasab level, NOT the whole suffix — the suffix carries the SON's nisba «البصري» and re-matches the buried
+son; «قرة بن إياس» is a LEADING run of the father's entry → matches قرة بن إياس, beats قرة بن خالد). **LIVE on the next
+`audit_isnad` ALONE (no rebuild — kin runs on the stored isnad via the live matcher).** +1 test, **537 green**. Docs: التقنية
+graph kinship card. NB this only resolves فathers the base knows WITH a grandfather (معاوية بن قرة بن إياس); a son whose entry
+is bare «X بن Y» still yields a bare ambiguous father (the residual floor — but those candidates AGREE on grade = محسوم/harmless).
+
 **★ (2026-06-19) audit.json DECOMPOSED (user ran `audit_isnad` post-أبو هريرة, rijal 21086 · 84767 chains): W 755 · S 299 · A 46617.**
 ✓✓ **أبو هريرة GONE from a_ranked** (was ~6174 #1 → the `_KUNYA_COMPANION` redirect worked). **S 299 = BEST EVER** (was 458; the
 تابعي override + أبو هريرة + positional anchor). **A flat (46839→46617)** because أبو هريرة's −6174 was offset by the base growth

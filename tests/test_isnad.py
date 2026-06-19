@@ -94,6 +94,24 @@ def test_kinship_reference_resolves_to_the_ancestor():
     assert abih.get("rijal") is not None             # and it's graded, not «غير معروف»
 
 
+def test_kinship_father_disambiguated_by_the_sons_full_identity():
+    """«معاوية بن قرة عن أبيه» gives only a bare «قرة» (قرة بن خالد / قرة بن إياس → مشترك); expanding the
+    SON to his full رجال nasab «معاوية بن قرة بن إياس المزني» names the father «قرة بن إياس» uniquely —
+    matching the father (not the buried son, and not the wrong namesake)."""
+    from app.rijal import RijalIndex
+    rijal = RijalIndex([
+        {"name": "معاوية بن قرة بن إياس المزني البصري", "grade": "ثقة"},
+        {"name": "قرة بن إياس بن هلال المزني", "grade": "ثقة"},
+        {"name": "قرة بن خالد السدوسي البصري", "grade": "صدوق"},   # the wrong قرة
+        {"name": "وكيع بن الجراح", "grade": "ثقة"},
+    ])
+    a = analyze_isnad("حدثنا وكيع عن معاوية بن قرة عن أبيه عن النبي صلى الله عليه وسلم", rijal=rijal)
+    abih = next(n for n in a.narrators if "أبيه" in n["name"])
+    assert abih.get("resolved") == "قرة بن إياس"
+    rij = abih["rijal"]
+    assert rij is not None and rij["name"].startswith("قرة بن إياس") and not rij["ambiguous"]
+
+
 def test_collective_adverb_dropped_from_co_narrators():
     """«… جميعاً / كلاهما» closes a co-narrator group and must not glue onto the last name."""
     names = [n["name"] for n in analyze_isnad("حدثنا أبو بكر بن أبي شيبة جميعا عن وكيع").narrators]

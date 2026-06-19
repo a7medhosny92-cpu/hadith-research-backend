@@ -410,7 +410,23 @@ def analyze_isnad(
         if appos:
             kin_resolved[i] = appos
         elif _anchor and degree:
+            # disambiguate the ancestor by EXPANDING the anchor (the son) to his full رجال identity
+            # first: «معاوية بن قرة عن أبيه» alone yields a bare «قرة» (قرة بن خالد / قرة بن إياس →
+            # مشترك), but the son's full nasab «معاوية بن قرة بن إياس المزني» names the father. We take
+            # the father's ism + HIS father (one more nasab level), NOT the whole suffix — «قرة بن إياس»
+            # is a LEADING run of the father's entry (so it matches قرة بن إياس, not the buried son, and
+            # still beats قرة بن خالد), whereas «قرة بن إياس المزني البصري» carries the SON's nisba and
+            # re-matches the son.
             named = _ancestor_from_nasab(_anchor, degree)
+            if rijal is not None:
+                m = rijal.lookup(_anchor)
+                if (m is not None and not m.ambiguous
+                        and len(_clean_tokens(m.entry.name)) > len(_clean_tokens(_anchor))):
+                    full = _ancestor_from_nasab(m.entry.name, degree).split()
+                    if len(full) >= 3 and normalize_for_search(full[1]) in ("بن", "ابن"):
+                        named = " ".join(full[:3])          # «قرة بن إياس»
+                    elif full:
+                        named = full[0]
             if named:
                 kin_resolved[i] = named
 
