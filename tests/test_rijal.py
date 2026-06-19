@@ -202,6 +202,24 @@ def test_bare_kunya_abu_hurayra_resolves_to_the_companion_not_an_obscure_namesak
     assert w is not None and w.entry.name.startswith("محمد بن أيوب")
 
 
+def test_bare_kunya_abu_dharr_and_abu_darda_resolve_to_the_companions():
+    # «أبو ذر» means the Companion جندب بن جنادة الغفاري (not the تابعي عمر بن ذر الكوفي nor the late
+    # أبو ذر الهروي); «أبو الدرداء» means عويمر الأنصاري (not the late عبد العزيز بن منيب المروزي).
+    rij = RijalIndex([
+        {"name": "عمر بن ذر الهمداني المرهبي أبو ذر الكوفي", "grade": "ثقة"},
+        {"name": "جندب بن جنادة الغفاري", "grade": "صحابي"},
+        {"name": "أبو ذر الهروي عبد بن أحمد", "grade": "ثقة"},
+        {"name": "عبد العزيز بن منيب أبو الدرداء المروزي", "grade": "صدوق"},
+        {"name": "عويمر بن زيد بن قيس الأنصاري أبو الدرداء", "grade": "صحابي"},
+    ])
+    assert rij.lookup("أبو ذر").entry.name.startswith("جندب بن جنادة")
+    assert rij.lookup("أبي ذر").entry.category == "صحابي"
+    assert rij.lookup("أبو الدرداء").entry.name.startswith("عويمر بن زيد")
+    # a nisba-carrying kunya / the ism form is NOT redirected
+    assert rij.lookup("أبو ذر الهروي").entry.name.startswith("أبو ذر الهروي")
+    assert rij.lookup("عمر بن ذر").entry.name.startswith("عمر بن ذر")
+
+
 def test_a_bare_grave_namesake_does_not_sink_a_fuller_trustworthy_one():
     # «إسحاق بن عمر» [متروك] (a bare, truncated entry) must NOT confidently grade a chain «ضعيف جدًا»
     # when a fuller, trustworthy «إسحاق بن عمر بن سليط الهذلي» also fits the bare citation — hold instead.

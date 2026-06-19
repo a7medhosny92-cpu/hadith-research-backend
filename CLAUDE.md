@@ -272,8 +272,11 @@ consulted in `_resolve_shuhra` beside `_SHUHRA` — a bare «أبو هريرة»
 التقنية lookup card (+_KUNYA_COMPANION). **Effective on the next `audit_isnad` ALONE (live matcher, no rebuild)** → expect A to
 drop ~6000 (the «أبو هريرة» positions resolve to one صحابي), W/S flat (صح. is terminal). **RESIDUALS noted, not chased here:** the
 dedup duplicate («أبو هريرة الدوسي» ثقة vs «عبد الرحمن بن صخر الدوسي» صحابي) + the واثلة parse artifact are build-time issues.
-**NEXT:** extend `_KUNYA_COMPANION` to other المكثرون cited by bare kunya (أبو سعيد الخدري · أبو موسى · أبو ذر · أبو الدرداء…) —
-but PROBE each first (confirm the canonical entry name + that bare-kunya genuinely mis-resolves) before adding.
+**★ (2026-06-19) `_KUNYA_COMPANION` EXTENDED (user probed the المكثرون):** +**«أبو ذر» → جندب بن جنادة الغفاري** (the probe showed bare
+«أبو ذر» mis-resolved to the تابعي عمر بن ذر الكوفي ثقة) + **«أبو الدرداء» → عويمر بن زيد الأنصاري** (mis-resolved to the late عبد العزيز
+بن منيب المروزي صدوق). **EXCLUDED (probe-verified, لا نختلق): «أبو سعيد»** = genuine homonymy (111 men incl. الحسن البصري/القطان —
+NOT redirected) · **«أبو موسى»** = POSITION-dependent (the شيخ محمد بن المثنى الزمن ثقة at chain-head vs الأشعري terminal — a redirect
+would break the شيخ case; the terminal-صحابي guard already promotes الأشعري). +1 test, **538 green**. Live on the next `audit_isnad`.
 
 **★ (2026-06-18) ②b HONEST-DOUBT NODE — DONE (the user's «è un nodo con solo le identità possibili»).** When the شيخ/التلميذ
 company genuinely cannot split a homonym (candidates SHARE company), the node is now PRESENTED as a documented doubt, not
