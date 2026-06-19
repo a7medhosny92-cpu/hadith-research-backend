@@ -473,6 +473,15 @@ def analyze_isnad(
                     if q:
                         name = q
                         record["resolved"] = name
+                # قاعدةٌ بالتلميذ — the dual, for the chain's END where there is no شيخ to key on: a
+                # homonym fixed by WHO narrates FROM him (the previous man, i-1, on the same route).
+                # «عبد الله بن واقد» المرويُّ عنه عبد اللهِ بنِ أبي بكر = العدويُّ المدنيُّ، لا الحرّانيُّ المتروك.
+                if name == narrator.name and i > 0 and i not in route_starts:
+                    from app.rijal.qaida import resolve_qaida_by_tilmidh
+                    q = resolve_qaida_by_tilmidh(name, narrators[i - 1].name)
+                    if q:
+                        name = q
+                        record["resolved"] = name
                 if muhmal and 0 < i < len(narrators) - 1 and same_route:
                     from app.rijal.muhmal import resolve as _resolve_muhmal
                     name = _resolve_muhmal(name, narrators[i - 1].name, narrators[i + 1].name, muhmal)

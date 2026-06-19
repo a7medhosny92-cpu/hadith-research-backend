@@ -143,3 +143,35 @@ def resolve_qaida(name: str, shaykh: str) -> str | None:
             if (m in toks) if " " not in m else (m in sh):
                 return full
     return None
+
+
+def _ck(s: str) -> frozenset[str]:
+    """Cleaned token set for matching a تلميذ: folded, kunya-unified, «بن»/«ابن» dropped — so
+    «عبد الله بن أبي بكر» ≡ «عبد الله ابن أبي بكر»."""
+    return frozenset(t for t in fold_kunya(normalize_for_search(s).split()) if t not in ("بن", "ابن"))
+
+
+# تمييز المهمل بالتلميذ — the DUAL of the شيخ rule: a homonym fixed by WHO narrates FROM him (the
+# previous man on the route), for the chain's END where there is no شيخ to key on. «عبد الله بن واقد»
+# narrated from BY عبد الله بن أبي بكر (المدنيّ الثقة ت135) is the early العدويّ المدنيّ (مقبول، حفيدُ
+# ابن عمر) — NEVER the جزريّ الحرّانيّ المتروك (ت210، طبقةً يستحيل أن يروي عنه ابنُ أبي بكر). The 7 other
+# «عبد الله بن واقد» chains (تلميذ بقية/المقرئ/المصيصي… → from الثوري/عكرمة/ابن عجلان) ARE the متروك, kept.
+_QAIDA_TILMIDH: dict[str, list[tuple[frozenset[str], str]]] = {
+    _f("عبد الله بن واقد"): [
+        (_ck("عبد الله بن أبي بكر"), "عبد الله بن واقد بن عبد الله بن عمر"),
+    ],
+}
+
+
+def resolve_qaida_by_tilmidh(name: str, tilmidh: str) -> str | None:
+    """Resolve a homonym cited as the bare ``name`` by his ``tilmidh`` (the man who narrates FROM
+    him — the previous link). The dual of :func:`resolve_qaida`, for the chain's END where there is
+    no شيخ to key on. Returns the full canonical name, or ``None``."""
+    rules = _QAIDA_TILMIDH.get(_f(name).strip())
+    if not rules:
+        return None
+    toks = _ck(tilmidh)
+    for marker, full in rules:
+        if marker <= toks:
+            return full
+    return None

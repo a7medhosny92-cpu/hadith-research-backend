@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.rijal.qaida import resolve_qaida
+from app.rijal.qaida import resolve_qaida, resolve_qaida_by_tilmidh
 
 
 def test_sufyan_by_shaykh():
@@ -84,3 +84,16 @@ def test_kunya_cases_fold_so_all_three_forms_and_marker_cases_match():
     assert resolve_qaida("أبا إسحاق", "أبو بردة") == "عمرو بن عبد الله السبيعي"
     # the أُبَيّ-بن exception holds: «أبي» before «بن» stays a name, never folds to a kunya
     assert resolve_qaida("سفيان", "أبي بن كعب") is None
+
+
+def test_abdullah_ibn_waqid_is_distinguished_by_his_tilmidh_not_the_shaykh():
+    # at the chain's END there is no شيخ to key on: «عبد الله بن واقد» narrated from BY عبد الله بن
+    # أبي بكر (المدنيّ ت135) is the early العدويّ المدنيّ, NEVER the جزريّ الحرّانيّ المتروك (ت210).
+    for tl in ("عبد الله بن أبي بكر", "عبد الله ابن أبي بكر",
+               "عبد الله بن أبي بكر بن محمد بن عمرو بن حزم"):
+        assert resolve_qaida_by_tilmidh("عبد الله بن واقد", tl) == "عبد الله بن واقد بن عبد الله بن عمر"
+    # the OTHER chains (the genuine متروك الحراني, narrated from by بقية/المقرئ/المصيصي) are untouched
+    for tl in ("بقية", "محمد بن كثير المصيصي", "عبد الله بن يزيد المقرئ"):
+        assert resolve_qaida_by_tilmidh("عبد الله بن واقد", tl) is None
+    # it fires only for the named homonym, never another man who shares the أبو بكر تلميذ
+    assert resolve_qaida_by_tilmidh("سفيان", "عبد الله بن أبي بكر") is None

@@ -207,6 +207,21 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★★ (2026-06-19) #280/#281 MEASURED + THE LAST ṢAḤĪḤAYN W CLOSED via a قاعدة بالتلميذ (#283-rijal).** The user ran the
+consolidated audit/coverage/peek. **audit_isnad: W 696 (flat) · S 262 (−3) · A 44780 (+93 noise).** **coverage: positions
+91.0%→91.4%, uncovered 9.0%→8.6% (−1942 positions)** — ✓✓ المعتمر/الحجاج/المعمر/نافع/أبو كامل/أبو داود ALL GONE from the top
+uncovered (the (C) class #280/#281 worked, W/S flat). Top uncovered now = (A) الأصم-class late (أبو العباس الأصم 1242…) + (B)
+dirty (عبد 780 · اللفظ له 331 · وأنا أسمع 114 — #271-fixed, awaits a build_graph). **★ peek «عبد الله بن واقد» (the proven method)
+DECISIVE: 7/9 are CORRECTLY متروك** (the الحراني أبو قتادة, narrating from الثوري/عكرمة بن عمار/ابن عجلان/ابن خثيم — his real
+late شيوخ; cited by بقية/المقرئ/المصيصي). NOT a systemic bug. **Only موطأ #7 + مسلم #28** are suspect: there عبد الله بن واقد is
+**آخر السند** and the تلميذ is **عبد الله بن أبي بكر** (مدني ت135) → he CAN'T be the الحراني (ت210, طبقة-impossible). Being terminal
+(no شيخ), a قاعدة بالشيخ can't fire → built the DUAL: **`resolve_qaida_by_tilmidh` (+`_QAIDA_TILMIDH`, `_ck` بن/ابن-folded)** =
+تمييز بالتلميذ (fix a homonym by WHO narrates FROM him). «عبد الله بن واقد» ⟵ عبد الله بن أبي بكر ⇒ «عبد الله بن واقد بن عبد الله بن
+عمر» (العدوي المدني، مقبول) — verified it resolves over the متروك; the 7 الحراني chains (other تلاميذ) untouched. Wired into
+`analyze_isnad` after the شيخ-قاعدة (fires when `i not in route_starts`, i>0). **LIVE on the next `audit_isnad` ALONE (no rebuild)**
+→ موطأ #7 + مسلم #28 become مقبول (chain حسن) → **the Ṣaḥīḥayn W is now FULLY clean.** +1 test, **551 green**, node --check clean.
+NB the general «late متروك can't be an early مدني's شيخ» = a طبقة/death-year anachronism; the تلميذ-قاعدة is the narrow, safe cut.
+
 **★★ (2026-06-19) #281 — the (C) DESCRIPTOR-SHUHRA batch (user «fai tutto», stop the per-fix loop).** Continuing the coverage (C)
 class (famous men with a name-form mismatch), all VERIFIED in-container against the uploaded rijal, all NARROW `_SHUHRA` (the #269
 lesson), safe-on-failure: **نافع مولى عبد الله بن عمر** (287×, the «مولى X» descriptor) → نافع أبو عبد الله المدني (الثبت) · **أبو
