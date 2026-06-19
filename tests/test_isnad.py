@@ -458,6 +458,25 @@ def test_qaida_resolves_a_homonym_by_its_shaykh():
     assert held.get("resolved") is None and held["rijal"]["ambiguous"]
 
 
+def test_qaida_fires_for_a_waw_co_narrator():
+    """صحيح البخاري #10: «شعبة عن عبد الله بن أبي السفر وإسماعيل عن الشعبي» — إسماعيل is a waw
+    co-narrator (a route-start, its tie to عبد الله is sibling), but his شيخ الشعبي is on the same
+    route, so the قاعدة «إسماعيل عن الشعبي = إسماعيل بن أبي خالد» must still fire (was held «مجهول»)."""
+    from app.rijal.index import RijalIndex
+    idx = RijalIndex([
+        {"name": "شعبة بن الحجاج", "grade": "ثقة"},
+        {"name": "عبد الله بن أبي السفر", "grade": "ثقة"},
+        {"name": "إسماعيل بن أبي خالد البجلي", "grade": "ثقة"},
+        {"name": "إسماعيل بن مسلم المكي", "grade": "ضعيف"},      # a namesake → bare إسماعيل is ambiguous
+        {"name": "عامر الشعبي", "grade": "ثقة"},
+    ])
+    a = analyze_isnad("حدثنا آدم عن شعبة عن عبد الله بن أبي السفر وإسماعيل عن الشعبي عن أنس",
+                      rijal=idx, split_conarrators=True)
+    ism = next(n for n in a.narrators if n["name"] == "إسماعيل")
+    assert ism.get("route_start") and ism.get("resolved") == "إسماعيل بن أبي خالد"
+    assert ism["rijal"]["grade"] == "ثقة" and not ism["rijal"]["ambiguous"]
+
+
 def test_ambiguous_node_documents_its_possible_identities_with_grades():
     """The ②b honest-doubt node: when the شيخ/التلميذ company cannot split a homonym, the node carries
     its few possible identities + each درجة — محسوم الدرجة (all agree → الحكم لا يتغيّر) when the grades

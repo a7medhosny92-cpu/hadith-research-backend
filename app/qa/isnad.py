@@ -460,8 +460,11 @@ def analyze_isnad(
                 same_route = i not in route_starts and (i + 1) not in route_starts
                 # قواعد التمييز — the classical, deterministic disambiguation by the شيخ (the next man on
                 # the route): «سفيان عن الأعمش» = الثوري. Curated & high-confidence, so it runs BEFORE the
-                # graph levers (muhmal/canon, whose `name == narrator.name` guards then skip the man).
-                if name == narrator.name and (i + 1) < len(narrators) and same_route:
+                # graph levers (muhmal/canon, whose `name == narrator.name` guards then skip the man). It
+                # needs only the ШYKH link (i → i+1) valid: a waw co-narrator «A وB عن الشيخ» makes B a
+                # route-start (its tie to A is sibling, not تلميذ-شيخ), yet B → الشيخ holds — so «إسماعيل
+                # عن الشعبي» (= ابن أبي خالد) still fires though إسماعيل begins a new route.
+                if name == narrator.name and (i + 1) < len(narrators) and (i + 1) not in route_starts:
                     from app.rijal.qaida import resolve_qaida
                     q = resolve_qaida(name, narrators[i + 1].name)
                     if q:

@@ -92,6 +92,18 @@ class TestParseEntry:
         assert rec["number"] == 1
         assert rec["grade"] == "ثقة"
 
+    def test_reported_speech_is_not_a_jarh(self) -> None:
+        """سير is biographical prose: a dialogue «قال له: ما يسمونك إلا الكذّاب» (a taunt) must NOT grade
+        نفيع أبو رافع الصائغ (ثقة) «كذّاب» — only a terse critic verdict counts; the rest is «غير معروف»."""
+        body = ("نفيع أبو رافع الصائغ المدني روى عن أبي بكر وعنه الزهري "
+                "قال له: ما يسمونك إلا الكذاب. مات سنة مئة")
+        assert parse_entry(1, body, heading_name="نفيع أبو رافع الصائغ")["grade"] == "غير معروف"
+        body2 = "صدقة بن عبد الله الدمشقي قال له رجل: وبالكوفة جئت تسمع؟ أما إنك لا تلقى فيها إلا كذاب"
+        assert parse_entry(2, body2, heading_name="صدقة بن عبد الله الدمشقي")["grade"] == "غير معروف"
+        # …but a real terse verdict is still read
+        assert parse_entry(3, "فلان بن فلان روى عن مالك. قال أبو حاتم: ضعيف.",
+                           heading_name="فلان بن فلان")["grade"].startswith("ضعيف")
+
     def test_extract_kunya(self) -> None:
         """Extract كنية from name."""
         body = "أبو هريرة عبد الرحمن بن صخر الدوسي. قال ابن معين: ثقة."

@@ -63,6 +63,12 @@ _NAME_END = re.compile(
 )
 _JUNK_HEAD = ("باب", "كتاب", "فصل", "ذكر", "مقدمة", "فأما", "وأما", "أخوه", "وابنه", "ابنه")
 _PAGE_SLACK = 4  # search a name a few chars before the page start (heading may sit on the prior line)
+# سير is biographical PROSE peppered with stories/dialogue, so `_verdicts` captures a SPEECH «قال له: …»
+# whose body is a narrated taunt, not a جرح — «ما يسمونك إلا الكذّاب»، «جئتَ تسمعُ؟ … لا تلقى إلا كذّاب»
+# graded نفيع أبو رافع الصائغ (ثقة) and صدقة (ضعيف) «كذّاب». A captured verdict carrying a 2nd-person /
+# question / vocative marker is reported speech (a scene), dropped before grading; a terse critic verdict
+# («ضعيف»، «كذّبه أبو حاتم»، «ثقة») has none and is kept → coverage falls back to «غير معروف», never a false كذّاب.
+_NARRATIVE = re.compile(r"يسمونك|يسمّونك|إنك|انك|أنت|انت|جئت|تسمع|سمعتَ|يا\s|؟")
 
 
 def _clean_name(raw: str) -> str | None:
@@ -189,7 +195,7 @@ def parse_entry(number: int | None, body: str, heading_name: str | None = None) 
     # Network, verdicts, death year.
     shuyukh = _names(_block_between(body, _SHU_SAIR, _TAL_SAIR, _NET_END))
     talamidh = _names(_block_between(body, _TAL_SAIR, _NET_END))
-    verdicts = _verdicts(body)
+    verdicts = [v for v in _verdicts(body) if not _NARRATIVE.search(v)]   # drop reported-speech «scenes»
     record: dict = {"number": number, "name": name, "grade": _grade_from(verdicts), "source": _SOURCE}
     kunya = _KUNYA.search(name)
     if kunya:

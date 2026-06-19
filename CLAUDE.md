@@ -202,6 +202,23 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★ (2026-06-19) TWO USER-REPORTED FIXES: سير dialogue-leak (W root) + قاعدة across a waw co-narrator (البخاري #10).**
+**(1) سير dialogue-leak ROOT.** The W mis-grades «أبو رافع الصائغ» (نفيع، تابعيّ **ثقة**!) → كذاب and «صدقة الدمشقي» (ضعيف) → كذاب
+came from **سير أعلام النبلاء (10906)** — `sair_extract`'s `_verdicts` captured a SPEECH «قال له: ‹story›» whose body is a narrated
+taunt («ما يسمونك إلا الكذّاب»، «جئتَ تسمعُ؟ … لا تلقى إلا كذّاب»). FIX: a `_NARRATIVE` filter drops a captured verdict carrying a
+2nd-person/question/vocative marker (يسمونك/إنك/جئت/تسمع/؟/يا) before grading → coverage falls back to «غير معروف», never a false
+كذّاب; a terse critic verdict («قال أبو حاتم: ضعيف») is kept. The الكاشف entry (نفيع ثقة) was always correct; سير added the corrupt
+duplicate. **NEEDS `build_rijal` (sair runs at build).** +1 test. **(2) قاعدة across a waw co-narrator.** صحيح البخاري #10
+(«شعبة عن عبد الله بن أبي السفر **وإسماعيل** عن الشعبي») was held **«يُتوقَّف»** — إسماعيل (= ابن أبي خالد, ثقة) read «مجهول». Cause: the
+waw co-narrator makes إسماعيل a **route_start** (its tie to عبد الله is sibling, not شيخ), and the قاعدة's `same_route` gate (`i not in
+route_starts`) skipped it. FIX (`analyze_isnad`): the قاعدة needs only the ШYKH link valid — `(i+1) not in route_starts` — since إسماعيل
+→ الشعبي holds even though إسماعيل begins a new route. Now «إسماعيل عن الشعبي» = ابن أبي خالد fires → صحيح. **LIVE on the next
+`audit_isnad` (no rebuild).** +1 test. **VERIFIED the other levers already treat a co-narrator as its own «sub-chain»:** muhmal
+correctly stays OFF (its adjacent i-1 is the SIBLING, not B's تلميذ — شعبة is at i-2); canon builds company respecting route_starts
+(uses الشعبي, not the sibling); the joint resolver uses `shaykh=resolved[i+1] if (i+1) not in route_starts`, `tilmidh=None` for a
+route_start. So «A وB عن الشيخ» = two routes, each resolved by ITS شيخ. **540 green**, node --check clean. Docs: التقنية قواعد card.
+
+
 **★ (2026-06-19) «أبيه» KINSHIP A-CLASS REDUCED (the user's «risolvi»).** «أبيه» was the #1 a_ranked item (2835): «X بن Y عن
 أبيه» resolved to the bare father ism «Y», then ambiguous among homonyms («معاوية بن قرة عن أبيه» → bare «قرة» = قرة بن خالد /
 قرة بن إياس). FIX (`analyze_isnad` kin pre-pass): EXPAND the son (the anchor) to his full رجال nasab via `rijal.lookup`
