@@ -220,6 +220,25 @@ def test_bare_kunya_abu_dharr_and_abu_darda_resolve_to_the_companions():
     assert rij.lookup("عمر بن ذر").entry.name.startswith("عمر بن ذر")
 
 
+def test_ibn_X_prefers_the_immediate_father_over_a_buried_ancestor():
+    # «ابن أبي هلال» is سعيد / عبد الرحمن بن أبي هلال (أبي هلال the IMMEDIATE father), NOT the كذاب
+    # يعقوب بن الوليد بن عبد الله بن أبي هلال (where أبي هلال is a great-grandfather) — even though the
+    # immediate-father men have longer names. The buried كذاب must not be in the homonym set.
+    rij = RijalIndex([
+        {"name": "سعيد بن أبي هلال الليثي مولاهم أبو العلاء المصري مدني الأصل", "grade": "صدوق"},
+        {"name": "عبد الرحمن بن أبي هلال العبسي الكوفي", "grade": "ثقة"},   # 2-token ism, still depth 1
+        {"name": "يعقوب بن الوليد بن عبد الله بن أبي هلال الأزدي", "grade": "كذاب"},   # buried → dropped
+    ])
+    cands = {e.name.split()[0] for e in rij.candidates("ابن أبي هلال", max_results=None)}
+    assert cands == {"سعيد", "عبد"}                       # both immediate-father men, NOT يعقوب
+    m = rij.lookup("ابن أبي هلال")
+    assert m.entry.category in ("صدوق", "ثقة") and not any(  # never the buried كذاب
+        a.startswith("يعقوب") for a in m.alternatives)
+    # a STANDALONE «عبيد بن عمير» (عبيد is an ism, not «عبيد الله») keeps عمير as the immediate father
+    from app.rijal.index import _nasab_level
+    assert _nasab_level(["عبيد", "عمير", "قتادة"], 2) == 2   # قتادة the grandfather (عبيد not collapsed)
+
+
 def test_a_bare_grave_namesake_does_not_sink_a_fuller_trustworthy_one():
     # «إسحاق بن عمر» [متروك] (a bare, truncated entry) must NOT confidently grade a chain «ضعيف جدًا»
     # when a fuller, trustworthy «إسحاق بن عمر بن سليط الهذلي» also fits the bare citation — hold instead.

@@ -202,6 +202,18 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★ (2026-06-19) W open-case #1 FIXED: «ابن أبي هلال» buried-ancestor (the user's «procedi»).** «ابن أبي هلال» (19× W, كذاب)
+matched **يعقوب بن الوليد بن عبد الله بن أبي هلال (كذاب)** — أبي هلال is his GREAT-grandfather (buried), not the immediate father.
+The real men are سعيد بن أبي هلال (صدوق) / عبد الرحمن بن أبي هلال (ثقة). FIX (`index._score_entry` + `_lookup`/`candidates`): a «ابن X»
+nasab citation prefers X as the IMMEDIATE father by **nasab DEPTH** — `_nasab_level` counts name COMPONENTS before X (a «عبد الله»/
+«عبيد الله» pair before a divine «ال…» name, and «أبو X»/«أم X», collapse to ONE level; a standalone «عبيد بن عمير» does NOT). The
+`best` partial tuple gains `depth`; `_lookup` sorts/ties on it and `candidates` keeps only the shallowest → the buried كذاب is OUT of
+the homonym set (so canon can't pick it either). `depth=0` for any non-«ابن X» query → inert elsewhere. +1 test, **541 green**, node
+--check clean. **LIVE on the next `audit_isnad` (no rebuild).** Docs: التقنية lookup card. NB **زيد بن واقد (W open-case #2) NOT
+fixed** — it's NOT a buried-ancestor but two GENUINE men (الدمشقي ثقة شيخ الأوزاعي · الستي البصري متروك), held «يُتوقَّف» in isolation;
+its W is CONTEXT-driven (canon picks the متروك in some chains). Needs the actual chains to reproduce — not a blind canon change.
+
+
 **★ (2026-06-19) TWO USER-REPORTED FIXES: سير dialogue-leak (W root) + قاعدة across a waw co-narrator (البخاري #10).**
 **(1) سير dialogue-leak ROOT.** The W mis-grades «أبو رافع الصائغ» (نفيع، تابعيّ **ثقة**!) → كذاب and «صدقة الدمشقي» (ضعيف) → كذاب
 came from **سير أعلام النبلاء (10906)** — `sair_extract`'s `_verdicts` captured a SPEECH «قال له: ‹story›» whose body is a narrated

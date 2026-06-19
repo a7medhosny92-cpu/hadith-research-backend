@@ -226,6 +226,27 @@ def _order_ok(q_seq: list[str], f_seq: list[str], shared: set[str]) -> bool:
     return [t for t in q_seq if t in shared] == [t for t in f_seq if t in shared]
 
 
+# A name component «عبد الله» / «عبيد الله» / «أبو X» / «أم X» is a single nasab unit though it is two
+# folded tokens, so a NASAB depth (how many ancestors before X in «ابن X») must collapse it: «عبد الرحمن
+# بن أبي هلال» has أبي هلال as the IMMEDIATE father (depth 1, like «سعيد بن أبي هلال»), not buried by «عبد
+# الرحمن». «عبد/عبيد» only pair with a divine «ال…» name (so a standalone ism «عبيد بن عمير» is NOT
+# collapsed); «أبو/أم» always head a kunya.
+_THEO_HEAD = {"عبد", "عبيد"}
+_KUNYA_HEAD = {"ابو", "ام"}
+
+
+def _nasab_level(seq: list[str], x_idx: int) -> int:
+    """Number of name COMPONENTS before token ``x_idx`` — the nasab depth of the ancestor starting there:
+    1 = the immediate father, ≥2 = a deeper ancestor."""
+    level = i = 0
+    while i < x_idx:
+        two = (seq[i] in _KUNYA_HEAD or (seq[i] in _THEO_HEAD and seq[i + 1].startswith("ال"))) \
+            if i + 1 < len(seq) else False
+        i += 2 if two else 1
+        level += 1
+    return level
+
+
 def _score_entry(
     query_seq: list[str], query: set[str], seqs: list[list[str]], kunya_seqs: list[list[str]],
     *, teknonym: bool = True, nasab_ref: bool = False,
@@ -244,7 +265,7 @@ def _score_entry(
     wrong: «ابن عمر» is the son عبد الله بن عمر, never عمر بن الخطاب the eponym (nor any of the 134
     men *named* عمر). Such prefix partials are dropped — X must sit non-leading (as a father)."""
     specificity = 0
-    best: tuple[int, bool, int] | None = None
+    best: tuple[int, bool, int, int] | None = None     # (cover, is_prefix, depth, form_len)
     qlen = len(query_seq)
 
     def offer(seq: list[str]) -> None:
@@ -252,8 +273,14 @@ def _score_entry(
         is_prefix = seq[:qlen] == query_seq
         if nasab_ref and is_prefix:
             return    # «ابن عمر» — عمر is the FATHER (non-leading); never the ism (the eponym)
-        cand = (len(query), is_prefix, len(seq))   # (cover, is_prefix, form_len)
-        if best is None or (cand[0], cand[1], -cand[2]) > (best[0], best[1], -best[2]):
+        # A «ابن X» nasab ref prefers X as the IMMEDIATE father over a BURIED ancestor: «ابن أبي هلال» is
+        # سعيد / عبد الرحمن بن أبي هلال (nasab depth 1), not يعقوب بن الوليد بن عبد الله بن أبي هلال (a كذاب,
+        # depth 3). `depth` is 0 (no effect) for a normal/teknonym match, so this is inert unless the
+        # citation is a «ابن X» — then a shallower X wins before the shorter-form tie-break.
+        depth = (_nasab_level(seq, seq.index(query_seq[0]))
+                 if (nasab_ref and query_seq and query_seq[0] in seq) else 0)
+        cand = (len(query), is_prefix, depth, len(seq))
+        if best is None or (cand[0], cand[1], -cand[2], -cand[3]) > (best[0], best[1], -best[2], -best[3]):
             best = cand
 
     for seq in seqs:
@@ -542,14 +569,14 @@ class RijalIndex:
         teknonym = not _is_nasab_ref(name)   # «ابن أبي X» is a descendant, not the kunya «أبو X»
 
         contained: list[tuple[int, RijalEntry]] = []                  # (specificity, entry)
-        partial: list[tuple[int, bool, int, RijalEntry]] = []         # (cover, is_prefix, len, entry)
+        partial: list[tuple[int, bool, int, int, RijalEntry]] = []    # (cover, is_prefix, depth, len, entry)
         for entry, seqs, kunya_seqs in zip(self._entries, self._form_seqs, self._kunya_seqs):
             specificity, best = _score_entry(
                 query_seq, query, seqs, kunya_seqs, teknonym=teknonym, nasab_ref=not teknonym)
             if specificity:
                 contained.append((specificity, entry))
             elif best:
-                partial.append((best[0], best[1], best[2], entry))
+                partial.append((best[0], best[1], best[2], best[3], entry))
 
         if contained:
             contained.sort(key=lambda pair: -pair[0])
@@ -564,7 +591,7 @@ class RijalIndex:
             # fuller «إسحاق بن عمر بن سليط الهذلي» [ثقة] → hold (ambiguous) so the grade-agreement gate
             # never grades the chain متروك. A lone grave (أصبغ بن نباتة — no namesake) still resolves.
             if best_e.category in _GRAVE:
-                extra += [e for _c, _p, _ln, e in partial if e.category not in _GRAVE]
+                extra += [e for _c, _p, _d, _ln, e in partial if e.category not in _GRAVE]
             alternatives = [e.name for e in extra]
             agreed = all(e.category == best_e.category for e in (best_e, *extra))
             return RijalMatch(best_e, 1.0, bool(alternatives), alternatives[:3], grade_agreed=agreed)
@@ -572,13 +599,15 @@ class RijalIndex:
         if partial:
             # cover the query most; then prefer a *prefix* form (the cited ism+nasab) over one
             # where the shared tokens only coincide deeper in the name; then the shortest.
-            partial.sort(key=lambda t: (-t[0], not t[1], t[2]))
-            top_cov, top_pref = partial[0][0], partial[0][1]
-            # ambiguous only among equally-good readings (same cover AND prefix-ness): «عدي بن
-            # حاتم» → عدي بن حاتم الطائي (the only prefix) is decisive, while «سعيد» → المسيب/جبير
-            # (both prefixes) stays مشترك. When the tied readings AGREE on the grade (الليث بن سعد
-            # of الكاشف vs تقريب — same man, both ثقة), that grade is still usable.
-            tied = [e for cov, pref, ln, e in partial if cov == top_cov and pref == top_pref]
+            partial.sort(key=lambda t: (-t[0], not t[1], t[2], t[3]))   # cover, prefix, SHALLOWER, shorter
+            top_cov, top_pref, top_dep = partial[0][0], partial[0][1], partial[0][2]
+            # ambiguous only among equally-good readings (same cover, prefix-ness AND nasab depth): «عدي بن
+            # حاتم» → عدي بن حاتم الطائي (the only prefix) is decisive; «سعيد» → المسيب/جبير (both prefixes)
+            # stays مشترك; «ابن أبي هلال» → سعيد/عبد الرحمن (depth 1), not the buried كذاب يعقوب (depth 2).
+            # When the tied readings AGREE on the grade (الليث بن سعد of الكاشف vs تقريب — same man, both
+            # ثقة), that grade is still usable.
+            tied = [e for cov, pref, dep, ln, e in partial
+                    if cov == top_cov and pref == top_pref and dep == top_dep]
             group = self._keep_trust_over_grave(
                 self._prefer_prominent(_prefer_non_coverage(tied)), tied)
             best_e = group[0]
@@ -615,14 +644,14 @@ class RijalIndex:
             return []
         teknonym = not _is_nasab_ref(name)   # «ابن أبي X» is a descendant, not the kunya «أبو X»
         contained: list[tuple[int, RijalEntry]] = []
-        partial: list[tuple[int, bool, RijalEntry]] = []
+        partial: list[tuple[int, bool, int, RijalEntry]] = []     # (cover, is_prefix, depth, entry)
         for entry, seqs, kunya_seqs in zip(self._entries, self._form_seqs, self._kunya_seqs):
             specificity, best = _score_entry(
                 query_seq, query, seqs, kunya_seqs, teknonym=teknonym, nasab_ref=not teknonym)
             if specificity:
                 contained.append((specificity, entry))
             elif best:
-                partial.append((best[0], best[1], entry))
+                partial.append((best[0], best[1], best[2], entry))
 
         out: list[RijalEntry] = []
         seen: set[str] = set()
@@ -644,10 +673,13 @@ class RijalIndex:
             # man (a containment match exists), drop the non-prefix partials: they are forms that BURY
             # the query non-leading in a longer nasab — a descendant («إبراهيم بن محمد بن … بن جحش» for
             # «محمد بن عبد الله بن جحش») or the nephew, not the man — so the full name isn't false «مشترك».
-            top_cov = max(c for c, _, _ in partial)
-            any_prefix = any(p for c, p, _ in partial if c == top_cov)
-            for c, pref, e in partial:
-                if c == top_cov and (pref or (not any_prefix and not contained)):
+            top_cov = max(c for c, _, _, _ in partial)
+            any_prefix = any(p for c, p, _, _ in partial if c == top_cov)
+            # for a «ابن X» nasab ref keep only the SHALLOWEST X (the immediate father) — drop the buried
+            # كذاب «يعقوب … بن أبي هلال» so it isn't in the homonym set the chain (canon) chooses among.
+            min_dep = min(d for c, _, d, _ in partial if c == top_cov)
+            for c, pref, dep, e in partial:
+                if c == top_cov and dep == min_dep and (pref or (not any_prefix and not contained)):
                     take(e)
         # Prefer the real narrators: an obscure الإصابة/الثقات namesake must not sit in the homonym set a
         # chain chooses among (the terminal-صحابي promotion in analyze_isnad reads this) when a real man is
