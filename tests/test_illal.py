@@ -37,6 +37,28 @@ def test_lone_bymeaning_wording_against_the_many_is_shudhudh():
     assert not any(h["type"] == "شذوذ" for h in detect_structural_illal(clean, check_raf_waqf=False))
 
 
+def test_shudhudh_is_weighed_by_grade(monkeypatch):
+    # the lone divergent wording is carried by a WEAKER راوٍ (ضعيف) than the well-attested routes
+    # (ثقات) → مخالفة الأوثق *والأكثر* = a clearer شذوذ, and the درجة is named in the note.
+    from app.qa import illal
+    from app.qa.isnad import analyze_isnad as _ai
+    from app.rijal.index import RijalIndex
+    rij = RijalIndex([
+        {"name": "مالك بن أنس", "grade": "ثقة"},
+        {"name": "سفيان بن عيينة", "grade": "ثقة"},
+        {"name": "نافع مولى ابن عمر", "grade": "ثقة"},
+        {"name": "عبد الله بن لهيعة", "grade": "ضعيف"},   # the lone route's weak link
+    ])
+    monkeypatch.setattr(illal, "analyze_isnad", lambda text: _ai(text, rijal=rij))
+    s1 = {"isnad": "حدثنا مالك عن نافع عن ابن عمر", "matn": "عن النبي ﷺ بلفظٍ مشهور"}
+    s2 = {"isnad": "حدثنا سفيان بن عيينة عن نافع عن ابن عمر", "matn": "عن النبي ﷺ بلفظٍ مشهور"}
+    weak = {"isnad": "حدثنا عبد الله بن لهيعة عن نافع عن ابن عمر", "matn": "عن النبي ﷺ بلفظٍ مخالف"}
+    tak = {"total": 4, "companions": 1, "groups": [
+        _group("عبد الله بن عمر", [_variant(3, "بلفظه", [s1, s2, s1]), _variant(1, "بمعناه", [weak])])]}
+    sh = [h for h in detect_structural_illal(tak) if h["type"] == "شذوذ"]
+    assert sh and "ضعيف" in sh[0]["note"] and "ظاهر" in sh[0]["note"]
+
+
 def test_raf_waqf_split_is_flagged_conservatively():
     marfu = {"isnad": "حدثنا أحمد عن أبي هريرة", "matn": "عن النبي ﷺ قال إنما الأعمال بالنيات"}
     mawquf = {"isnad": "حدثنا أحمد عن عمر بن الخطاب", "matn": "قال عمر إنما الأعمال بالنيات"}

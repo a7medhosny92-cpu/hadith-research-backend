@@ -103,8 +103,12 @@ Nothing else is trustworthy without these. Small, fast, no models.
    `tests/test_illal.py`. **اختلاف الوصل والإرسال** now lands too: among the مرفوع routes, those a صحابيّ
    heard (موصول, the terminal narrator is graded صحابي) vs those a تابعيّ attributes with no صحابيّ (مرسل) —
    read from the terminal narrator's grade in the same per-route `analyze_isnad` pass as رفع/وقف, conservative
-   (≥2 each side).* Remaining: a lone-ثقة-vs-أوثق شذوذ weighted by narrator grade. Always **a hint to
-   investigate**, never a verdict. *Effort: high.* *Validate:* precision on known cases.
+   (≥2 each side). **The شذوذ is now WEIGHED BY GRADE:** when the routes are parsed, a lone «بمعناه» wording
+   carried by a راوٍ weaker (lower RANKS) than the well-attested routes is مخالفةُ الأوثقِ والأكثر → «شذوذٌ
+   ظاهرٌ يُرجَّح طرحُه» with the درجة named, whereas a ثقة contradicting ثقات stays the softer «يُنظر» (زيادةُ
+   الثقةِ مختلَفٌ فيها) — the classical distinction. So #7 is now substantially complete (تفرّد · شذوذ
+   grade-weighted · اضطراب · رفع/وقف · وصل/إرسال).* Always **a hint to investigate**, never a verdict.
+   *Effort: high.* *Validate:* precision on known معلول hadith (synthetic-tested here).
 8. **Rich rijal from the verbose corpus.** *Status: **PARTLY DONE** — `appraisals.py` extracts the
    named «أقوال الأئمة» (قال ابن معين… / ذكره ابن حبان…) from الجرح/تهذيب/الثقات and shows them on the
    «راوٍ» card.* Remaining: widen the curated نقّاد list and add more prose sources. *Effort: high.*

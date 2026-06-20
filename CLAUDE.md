@@ -207,6 +207,17 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★ (2026-06-20) ROADMAP #7 — شذوذ WEIGHED BY GRADE shipped (user chose it, 567 green).** The last #7 piece: `illal.detect_structural_illal`
+rule 2 now PARSES the طرق (gated on `check_raf_waqf`) and weighs the lone «بمعناه» wording by narrator strength — `_route_weakest`
+(the weakest identified non-Prophet narrator's RANK+grade on a route) + `_variant_weakest` (a variant's strongest route by its weakest
+link). A lone wording carried by a راوٍ WEAKER (lower RANKS) than the well-attested routes = مخالفةُ الأوثقِ والأكثر → «لفظٌ تفرّد به
+راوٍ (ضعيف) … يخالف روايةَ الأوثقِ والأكثر … شذوذٌ ظاهرٌ يُرجَّح طرحُه» (درجة named); a ثقة contradicting ثقات stays the softer «يُنظر»
+(زيادةُ الثقةِ مختلَفٌ فيها). Count-only fallback when not parsing (back-compat). +1 test (567 green), ROADMAP #7 + التقنية takhrij
+card synced. So #7 is substantially complete (تفرّد · شذوذ grade-weighted · اضطراب · رفع/وقف · وصل/إرسال) — all HINTS, never verdicts;
+validate on real معلول hadith on the user's machine. **The رجال track + #7 are at a natural plateau; next levers are the GPU model
+items (#4/#5/#6, opt-in) or gated on the user's machine (the `audit_isnad` re-measure, the 1 DANGEROUS «منصور محمد»).**
+
+
 **★ (2026-06-20) ROADMAP #7 ADVANCED — اختلاف الوصل والإرسال shipped (566 green).** The user asked «cosa resta / perché non
 ci hai lavorato» → the honest answer: the session was their requests + the W bugs (which IS the backlog correctness work), and most
 of the rest is gated on the REAL corpus (measurement, turath unreachable here) or a GPU (the model items #4/#5/#6 — opt-in by design).
