@@ -7,6 +7,8 @@ candidate defects by comparing the parallel narrations التخريج already ga
 * **شذوذ في المتن** — a lone wording (one route, «بمعناه») against a well-attested one (the many).
 * **اضطراب** — heavy wording-disagreement from ONE مخرج with no راجح lafẓ.
 * **اختلاف الرفع والوقف** — the routes split on reaching the Prophet ﷺ (a classic علّة).
+* **اختلاف الوصل والإرسال** — among the مرفوع routes, some are موصولة (a صحابيّ heard the Prophet ﷺ) and
+  some مرسلة (a تابعيّ attributes to him with no صحابيّ) — the زيادة (the وصل) is weighed, a classic علّة.
 
 Every signal is a **HINT to investigate** («يُحتمل / يُنظر»), NEVER a verdict — favouring few correct
 flags over many noisy ones (the روادك «التخريج» already gives the routes; we only read their shape).
@@ -16,13 +18,6 @@ Consumes the dict :func:`app.qa.takhrij.analyze_narrations` returns.
 from __future__ import annotations
 
 from app.qa.isnad import analyze_isnad
-
-
-def _reaches_prophet(narration: dict) -> bool:
-    """Is this route مرفوع (reaches the Prophet ﷺ) — vs موقوف/مقطوع (stops at a Companion/تابعي)?
-    Read structurally from the chain+matn, no rijal needed."""
-    text = f"{narration.get('isnad', '') or ''} {narration.get('matn', '') or ''}".strip()
-    return bool(text) and analyze_isnad(text).reaches_prophet
 
 
 def detect_structural_illal(takhrij: dict, *, check_raf_waqf: bool = True) -> list[dict]:
@@ -64,15 +59,36 @@ def detect_structural_illal(takhrij: dict, *, check_raf_waqf: bool = True) -> li
                           "note": f"اختلافٌ كثيرٌ في اللفظ عن {g['companion']} ({len(variants)} صيغ) "
                                   f"دون لفظٍ راجح — يُحتمل الاضطراب."})
 
-    # 4) اختلاف الرفع والوقف — do the routes disagree on reaching the Prophet ﷺ? (conservative: a real
-    #    split, ≥2 on the minority side, so a single mis-parse doesn't flag.)
+    # 4 & 5) per-route structural pass — parse each chain ONCE (analyze_isnad), reading two splits:
+    #    رفع/وقف (does it reach the Prophet ﷺ) and, among the مرفوع, وصل/إرسال (a صحابيّ heard him, vs a
+    #    تابعيّ attributing with no صحابيّ). Conservative: ≥2 on the minority side, so a single mis-parse
+    #    or one unidentified terminal never flags.
     if check_raf_waqf:
         routes = [n for g in groups for v in (g.get("variants", []) or []) for n in (v.get("narrations", []) or [])]
         if len(routes) >= 4:
-            marfu = sum(1 for n in routes if _reaches_prophet(n))
-            mawquf = len(routes) - marfu
+            marfu = mawquf = mawsul = mursal = 0
+            for n in routes:
+                text = f"{n.get('isnad', '') or ''} {n.get('matn', '') or ''}".strip()
+                if not text:
+                    continue
+                analysis = analyze_isnad(text)
+                if not analysis.reaches_prophet:
+                    mawquf += 1
+                    continue
+                marfu += 1
+                humans = [x for x in analysis.narrators if not x.get("is_prophet")]
+                terminal = humans[-1] if humans else {}      # the last HUMAN before the Prophet ﷺ node
+                grade = (terminal.get("rijal") or {}).get("grade")
+                if grade == "صحابي":
+                    mawsul += 1                       # a Companion heard the Prophet ﷺ → موصول
+                elif grade:                           # a CONFIDENT non-Companion terminal reaching him → مرسل
+                    mursal += 1                       # (an unidentified terminal is counted as neither)
             if min(marfu, mawquf) >= 2:
                 hints.append({"type": "رفع ووقف", "severity": "warn",
                               "note": f"اختلفت الطرق في الرفع والوقف ({marfu} مرفوعة · {mawquf} موقوفة/مقطوعة) "
                                       f"— علّةٌ محتملة يُرجَّح بينها."})
+            if min(mawsul, mursal) >= 2:
+                hints.append({"type": "وصل وإرسال", "severity": "warn",
+                              "note": f"اختلفت الطرق في الوصل والإرسال ({mawsul} موصولة بصحابيّ · {mursal} مرسلة عن "
+                                      f"تابعيّ) — علّةٌ محتملة، فوصلُها زيادةٌ يُنظَر في ثبوتها أمام مَن أرسلها."})
     return hints

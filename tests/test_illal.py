@@ -49,3 +49,27 @@ def test_raf_waqf_split_is_flagged_conservatively():
     allm = {"total": 4, "companions": 1, "groups": [
         _group("أبو هريرة", [_variant(4, "بلفظه", [marfu, marfu, marfu, marfu])])]}
     assert not any(h["type"] == "رفع ووقف" for h in detect_structural_illal(allm))
+
+
+def test_wasl_irsal_split_is_flagged(monkeypatch):
+    # among the مرفوع routes: some موصولة (a صحابيّ heard the Prophet ﷺ — أبو هريرة) and some مرسلة (a
+    # تابعيّ attributes with no صحابيّ — الحسن البصري). The terminal's grade decides, so drive analyze_isnad
+    # with a small rijal that grades the two terminals (deterministic, no full base needed).
+    from app.qa import illal
+    from app.qa.isnad import analyze_isnad as _ai
+    from app.rijal.index import RijalIndex
+    rij = RijalIndex([
+        {"name": "عبد الرحمن بن صخر الدوسي", "grade": "صحابي"},   # أبو هريرة → موصول
+        {"name": "الحسن البصري", "grade": "ثقة"},                 # تابعيّ → مرسل
+        {"name": "مالك بن أنس", "grade": "ثقة"}, {"name": "حماد بن سلمة", "grade": "ثقة"}])
+    monkeypatch.setattr(illal, "analyze_isnad", lambda text: _ai(text, rijal=rij))
+    mawsul = {"isnad": "حدثنا أحمد حدثنا مالك عن أبي هريرة", "matn": "عن النبي ﷺ قال إنما الأعمال بالنيات"}
+    mursal = {"isnad": "حدثنا أحمد حدثنا حماد عن الحسن البصري", "matn": "أن النبي ﷺ قال إنما الأعمال بالنيات"}
+    tak = {"total": 4, "companions": 1, "groups": [
+        _group("أبو هريرة", [_variant(2, "بلفظه", [mawsul, mawsul]),
+                              _variant(2, "بمعناه", [mursal, mursal])])]}
+    assert any(h["type"] == "وصل وإرسال" for h in detect_structural_illal(tak))
+    # all-موصول (no مرسل) → no وصل/إرسال hint
+    allw = {"total": 4, "companions": 1, "groups": [
+        _group("أبو هريرة", [_variant(4, "بلفظه", [mawsul, mawsul, mawsul, mawsul])])]}
+    assert not any(h["type"] == "وصل وإرسال" for h in detect_structural_illal(allw))

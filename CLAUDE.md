@@ -207,6 +207,18 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★ (2026-06-20) ROADMAP #7 ADVANCED — اختلاف الوصل والإرسال shipped (566 green).** The user asked «cosa resta / perché non
+ci hai lavorato» → the honest answer: the session was their requests + the W bugs (which IS the backlog correctness work), and most
+of the rest is gated on the REAL corpus (measurement, turath unreachable here) or a GPU (the model items #4/#5/#6 — opt-in by design).
+The one HIGH-value item buildable here = the last structural-علّة signal. **`illal.detect_structural_illal` now also emits «اختلاف
+الوصل والإرسال»:** in ONE per-route `analyze_isnad` pass (merged with the رفع/وقف pass) it reads each مرفوع route's TERMINAL human
+narrator (last node with `is_prophet=False`) — graded صحابي → موصول, a confident non-صحابي → مرسل (an unidentified terminal counts as
+neither) — and flags a split conservatively (≥2 each side). A HINT, never a verdict. Removed the now-unused `_reaches_prophet` helper.
++1 test (566 green), ROADMAP #7 + التقنية takhrij card synced. Remaining #7: the grade-weighted lone-ثقة شذوذ. NB validate on real
+معلول hadith (synthetic-tested here, like the other illal rules). **The رجال track is at diminishing returns** (base 23k complete,
+Ṣaḥīḥayn W closed, coverage 94%); the forward levers are now capability-level (#7 deepening · the GPU model items · UI polish) or
+gated on the user's machine (the `audit_isnad` re-measure, more late رجال sources, the 1 DANGEROUS «منصور محمد»).
+
 **★★ (2026-06-20) THE 3 REMAINING ṢAḤĪḤAYN W — ALL CLOSED (peek/probe-driven, live, no rebuild, 565 green).** The user ran
 `peek_name_chains "إسماعيل بن أبان"` + `probe_name "مروان بن الحكم" "سفيان بن حسين"`. **Two more corrupted-grade duplicates →
 `RELIABLE_DESPITE_GRAVE` (#300 mechanism):** **مروان بن الحكم** (كذاب·محسوم, 1 candidate — but روى له الجماعة; the «كذاب» is his

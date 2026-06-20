@@ -100,8 +100,11 @@ Nothing else is trustworthy without these. Small, fast, no models.
    **اضطراب** (≥3 divergent wordings, no راجح), and **اختلاف الرفع والوقف** (the routes split on reaching
    the Prophet ﷺ — `reaches_prophet` per route, conservative ≥2 each side). Wired into `/takhrij`
    (`illal` field) and the «تخريج» tab («إشاراتٌ بنيويّةٌ للعِلّة والشذوذ — قرائنُ للنظر، لا حُكمٌ»);
-   `tests/test_illal.py`.* Remaining: وصل vs إرسال across routes, a lone-ثقة-vs-أوثق شذوذ weighted by grade.
-   Always **a hint to investigate**, never a verdict. *Effort: high.* *Validate:* precision on known cases.
+   `tests/test_illal.py`. **اختلاف الوصل والإرسال** now lands too: among the مرفوع routes, those a صحابيّ
+   heard (موصول, the terminal narrator is graded صحابي) vs those a تابعيّ attributes with no صحابيّ (مرسل) —
+   read from the terminal narrator's grade in the same per-route `analyze_isnad` pass as رفع/وقف, conservative
+   (≥2 each side).* Remaining: a lone-ثقة-vs-أوثق شذوذ weighted by narrator grade. Always **a hint to
+   investigate**, never a verdict. *Effort: high.* *Validate:* precision on known cases.
 8. **Rich rijal from the verbose corpus.** *Status: **PARTLY DONE** — `appraisals.py` extracts the
    named «أقوال الأئمة» (قال ابن معين… / ذكره ابن حبان…) from الجرح/تهذيب/الثقات and shows them on the
    «راوٍ» card.* Remaining: widen the curated نقّاد list and add more prose sources. *Effort: high.*
