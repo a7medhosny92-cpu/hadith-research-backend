@@ -207,6 +207,25 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★★ (2026-06-20) #297 MEASURED (live, no rebuild) → COVERAGE WIN, الأصم RESOLVED, STRIP SAFE.** The user re-ran the audits at
+`2d06404`. **`audit_coverage`: uncovered 7.2%→5.9% (−6,337 positions), covered 94.1%** (identified 85.3% + ambiguous 8.8%); by
+distinct narrator identified 34.6%→39.5% (+1,223). **★ الأصم (the 1242× prize) RESOLVED:** `probe_name` showed the `_SHUHRA` target
+«محمد بن يعقوب الأصم» has **0 candidates** (تاريخ الإسلام did NOT extract الأصم with the «الأصم» laqab), but the KUNYA-STRIP fired:
+«أبو العباس محمد بن يعقوب» → «محمد بن يعقوب» → **«محمد بن يعقوب بن يوسف الشيباني الحافظ» · ثقة · محسوم** (GONE from uncovered_top).
+NB the matched nisba is «الشيباني» not al-Aṣamm's «الأموي/النيسابوري» → covered as a ثقة «محمد بن يعقوب», verdict-safe but not a 100%-verified
+الأصم ID (both ثقة → الحكم unchanged). **★ `audit_isnad`: A 46168→43200 (−2968) · S 265→266 (FLAT) · W 923→1196.** Decomposed the W
+(uploaded audit.json): **100% carry a GENUINE متروك/كذاب verdict** (203 متروك · 88 متروك الحديث · 33 كذاب…); the «أبو X» in W are
+EARLY متروك cited by their real kunya shuhra (ابن أبي سبرة · أبو المقدام · أبو مالك النخعي…), NOT the late ثقة شيوخ the strip targets
+(those don't appear in W) → **the strip is SAFE (no regression)**; the +273 W = the bigger base (+2,016 entries from تاريخ الإسلام/سير,
+which add late كذّابون too) = a genuine review queue. **★ RESIDUAL uncovered (5.9%, diminishing returns):** genuine EXTRACTION gaps
+(أحمد بن جعفر القطيعي 170 · إسحاق بن إبراهيم بن عباد الصنعاني 139 — NOT in base) + kinship/editorial nodes (والد عبد الملك 133 · أبي 79
+· واللفظ له 55) + bare kunya+nisba shuhra-without-ism (أبو زكريا العنبري 111 · أبو محمد بن صاعد 119 · أبو سعيد مولى بني هاشم 104 — a
+`_SHUHRA` each, low value) + `_SHUHRA` targets missing from the base (سمي مولى أبي بكر 132). **★ ṢAḤĪḤAYN W to PROBE (pre-existing
+grave-shadow, NOT strip-induced — none have a strippable kunya/honorific): إسماعيل بن أبان (الوراق ثقة vs الغنوي متروك) · حريز بن عثمان
+(ثقة ناصبي) · معاذ بن معاذ (=العنبري ثقة?) · مروان بن الحكم** — likely a متروك namesake from the bigger base shadowing a البخاري ثقة →
+**WAITING ON THE USER: `audit_conflicts` (DANGEROUS count?) + `probe_name "إسماعيل بن أبان" "معاذ بن معاذ" "حريز بن عثمان"`.** Also still
+open: «سفيان بن حسين» 30× متروك (the #1 W name — the Wasiti is ثقة في غير الزهري; likely a build-time grade corruption).
+
 **★★ (2026-06-20) FULL REBUILD MEASURED (تاريخ الإسلام + سير IN) → COVERAGE 92.8% · the (A) الأصم RESIDUAL DIAGNOSED + a
 MATCHING FIX (#297 squash-merged, main `5623ea9`, 563 green).** The user ran the WHOLE pipeline: `build_rijal --no-download`
 (rijal **23,025** — تقريب 8655 + الكاشف 6959 + الإصابة +5564 + الثقات +4759 + **سير +1519** + **تاريخ الإسلام +2442** + لسان +72,
