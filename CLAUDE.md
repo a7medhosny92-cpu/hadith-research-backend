@@ -207,6 +207,25 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★★ (2026-06-20) THE ARABIC DOCUMENTARY + THE IN-APP BOOK READER — BOTH SHIPPED (PRs #292, #293 squash-merged, branch
+realigned to main `29c6402`, 562 green).** Two user-requested deliverables this session, beside the تاريخ الإسلام work below:
+- **The Arabic project documentary PDF** (`docs/make_project_doc.py` → `docs/مشروع_تحقيق_الحديث.pdf`, fpdf2 + uharfbuzz +
+  Noto Naskh, RTL, **4 clean pages**). The user flagged «errori di scrittura» twice: ROOT = **Noto Naskh lacks Latin letters
+  and ASCII `( ) — / + … ← ≈`** → they render as TOFU and break the RTL line. Fixed every line into proper Arabic punctuation
+  («أوّلًا/ثانيًا/ثالثًا» labels · «،/؛» for em-dashes · plain Arabic for parens/slashes/«≈»), and **replaced the Latin-heavy app
+  SCREENSHOT on the cover** (`architecture.png` — full of `parse→index.html`, `build_graph`, `dedup.py`…) with a **native, pure-
+  Arabic «سبعُ طبقات» flow diagram drawn in fpdf2** (gold step-badges ١-٧, green names, connectors — same HarfBuzz shaping as the
+  prose, zero tofu). VERIFIED page-by-page by rendering the PDF to PNG (PyMuPDF). The `_clean` sanitiser stays as a safety net.
+- **The in-app book reader «قراءة الكتب» COMPLETED — native text + search + PDF (user chose «Entrambi»).** It was PDF-in-iframe
+  only; now reads a downloaded raw book TWO ways: **native RTL text** (`GET /reader/books/{id}/pages?start=&count=` → cleaned page
+  text JSON, the instant default) **and a PDF of the range** (`/reader/books/{id}.pdf`, «تنزيل PDF» button). Plus **in-book search**
+  (`GET /reader/books/{id}/search?q=` → diacritic/hamza-folded via `normalize_for_search`, returns matching pages + a snippet from
+  the NORMALISED text → click to jump). A 15k-page book is served a slice at a time (`lru_cache`). `app/routers/reader.py` +
+  `app/parsing/book_pdf.py` + `renderReader`/`loadReaderPages`/`readerSearch` in index.html. Reference pages synced (البنية tab
+  list, التقنية API + reader card). +3 tests. NB the render test SKIPS when the font is absent (bare CI runner → `_MissingDeps`).
+**STILL PENDING (user's side): after `build_graph` finishes → `audit_coverage` + `audit_isnad`** to confirm تاريخ الإسلام closes
+the (A) الأصم-class gap (W/S flat). Also open: «سفيان بن حسين» 30× متروك = build-time grade corruption (probe done, needs the source).
+
 **★★ (2026-06-20) تاريخ الإسلام (35100) EXTRACTOR — REWRITTEN & VALIDATED: 11,012 narrators, 917 LATE الأصم-class.**
 v1 (سير «N - name» heading reuse) undercaught → 18 records (the محقق's numbered study sections). `peek_headings 35100` revealed
 why: تاريخ الإسلام has NO per-tarjama number (`indexes.numbers` empty) — the real narrators are the **LEVEL-3 headings** (≈30,864,
