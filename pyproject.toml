@@ -21,6 +21,8 @@ dependencies = [
     "pgvector>=0.3",            # vector column type for PostgreSQL
     "selectolax>=0.3",          # fast HTML parsing of turath page markup
     "pyarabic>=0.6.15",         # Arabic normalisation helpers
+    "fpdf2>=2.8",               # the in-app book reader («قراءة الكتب») renders page ranges to PDF
+    "uharfbuzz>=0.39",          # HarfBuzz Arabic shaping for fpdf2 (RTL text)
 ]
 
 [project.optional-dependencies]

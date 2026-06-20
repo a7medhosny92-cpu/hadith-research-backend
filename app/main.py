@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 
 from app import __version__
 from app.routers import (
-    admin, ask, books, dossier, health, narrators, notebook, search, sources, takhrij,
+    admin, ask, books, dossier, health, narrators, notebook, reader, search, sources, takhrij,
     verify_isnad,
 )
 
@@ -32,6 +32,7 @@ app.include_router(dossier.router)
 app.include_router(notebook.router)
 app.include_router(sources.router)
 app.include_router(books.router)
+app.include_router(reader.router)
 app.include_router(admin.router)
 
 
