@@ -154,13 +154,13 @@ Depth docs (NOT auto-loaded — open when relevant):
   `data/rijal.jsonl`) when a measurement needs them.
 - turath.io is often **unreachable from here** → can't rebuild the corpus in the container; the user
   runs heavy steps on their machine. Catalog cached at `data/raw/turath/catalog.json`.
-- **★ SHARED GOOGLE DRIVE FOLDER (the user's, persistent across sessions — CURRENT link re-given
-  2026-06-12, REPLACES the older 1CFX4… one):**
-  https://drive.google.com/drive/folders/1Jbj-bZ4FGi6Kq0HZwrzYgGYadBkDyJhP — the user drops the
-  real measurement files here (`rijal.jsonl`, `audit.json`, `matn_audit.json`, `muhmal.json`, books).
-  **Fetch them via the `Google_Drive` MCP** (`search_files` by title → `download_file_content` by id),
-  so a session can pull the latest data WITHOUT waiting for a manual chat upload. (Big files >~20 MB
-  still blow up context as base64 — prefer the small audit/rijal JSON, not the 15-30 MB raw books.)
+- **★ SHARED GOOGLE DRIVE FOLDER (the user's, persistent across sessions — link kept PRIVATE, not in
+  this public repo; ASK THE USER for the current folder link/IDs when a measurement needs a real file):**
+  the user drops the real measurement files there (`rijal.jsonl`, `audit.json`, `matn_audit.json`,
+  `muhmal.json`, books). **Fetch them via the `Google_Drive` MCP** (`search_files` by title →
+  `download_file_content` by id), so a session can pull the latest data WITHOUT waiting for a manual chat
+  upload. (Big files >~20 MB still blow up context as base64 — prefer the small audit/rijal JSON, not the
+  15-30 MB raw books.)
 
 ## Conventions (do these)
 - **Reply to the user in ITALIAN** (domain terms stay Arabic).
@@ -186,8 +186,7 @@ Depth docs (NOT auto-loaded — open when relevant):
   2026-06-12 (rijal 10.5k→9.7k, ~240→~350 tests, تهذيب/الجرح «future»→integrated, +the audit/conflict tabs,
   +endpoints /conflicts·/matn-audit, +build_rijal_llm/audit_matn/audit_conflicts, +the new split strategies).
 - **No model id / assistant identity** in commits, PRs, code, or any pushed artifact.
-- Commit/PR trailer: use the CURRENT session's trailer (the harness supplies it); latest was
-  `https://claude.ai/code/session_01XwBKkzgwN6aE2z3dBUJpcC`.
+- Commit/PR trailer: use the CURRENT session's trailer (the harness supplies it each session).
 - Don't open PRs unless asked — except the approved merge-to-main of our own fixes.
 
 ## The rijal matching model (so I don't re-derive it)
