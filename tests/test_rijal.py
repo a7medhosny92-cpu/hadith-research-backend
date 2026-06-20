@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.qa.isnad import analyze_isnad
 from app.rijal import RijalIndex, classify, load_seed
+from app.rijal.index import _honorific_strip_query
 
 
 @pytest.fixture(scope="module")
@@ -124,6 +125,24 @@ def test_al_article_query_matches_a_base_entry_without_the_article_multitoken_on
     assert m is not None and m.entry.name == "الحسن البصري"
     # and the literal «معتمر بن سليمان» (no article) is of course unaffected
     assert rij.lookup("معتمر بن سليمان").entry.name.startswith("معتمر")
+
+
+def test_honorific_strip_recovers_late_shaykhs_cited_with_a_kunya_or_a_status_word():
+    # The late محدّثون (al-Ḥākim/al-Bayhaqī's شيوخ) are cited with a LEADING kunya «أبو بكر محمد بن أحمد
+    # بن بالويه» or a TRAILING status word «علي بن حمشاذ العدل», but the base stores the ism-nasab («… أبو
+    # بكر» at the end / «… بن سختويه …»). The fallback fires ONLY on a literal miss, so it cannot regress.
+    rij = RijalIndex([
+        {"name": "محمد بن أحمد بن بالويه النيسابوري أبو بكر", "grade": "ثقة"},
+        {"name": "علي بن حمشاذ بن سختويه بن نصر النيسابوري", "grade": "ثقة"},
+        {"name": "أبو بكر الصديق", "grade": "صحابي"},          # a kunya-led name with no ism-nasab to peel
+    ])
+    assert rij.lookup("أبو بكر محمد بن أحمد بن بالويه").entry.name.startswith("محمد بن أحمد بن بالويه")
+    assert rij.lookup("علي بن حمشاذ العدل").entry.name.startswith("علي بن حمشاذ")
+    # GUARDS: a leading kunya before a PATRONYMIC «بن…» is NOT peeled, a bare kunya name is untouched,
+    # and an ordinary name is unaffected (no spurious strip).
+    assert _honorific_strip_query("أبو بكر بن إسحاق") == []           # kunya + father, not ism → left alone
+    assert _honorific_strip_query("أبو هريرة") == []
+    assert rij.lookup("أبو بكر الصديق").entry.name == "أبو بكر الصديق"
 
 
 def test_descriptor_shuhra_redirects_mawla_and_kunya_nisba_famous_men():

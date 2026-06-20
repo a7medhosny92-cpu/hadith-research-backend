@@ -75,6 +75,32 @@ def _al_strip_query(name: str) -> str | None:
     return None
 
 
+# A LEADING honorific kunya (folded forms) and a TRAILING status word that aren't part of the man's
+# ism-nasab — the late محدّثون (al-Ḥākim/al-Bayhaqī's شيوخ) are cited with one but stored without it.
+_LEAD_KUNYA = {"ابو", "ابا", "ابي", "ام"}
+_TRAIL_HONORIFIC = {"العدل", "الحافظ", "الفقيه", "القاضي", "الزاهد", "العابد", "المقرئ",
+                    "الامام", "الثقة", "الحجة", "الورع", "الاديب", "الصدوق"}
+
+
+def _honorific_strip_query(name: str) -> list[str]:
+    """Fallback retries (used in :meth:`lookup` ONLY when the literal query MISSES, so they can never
+    regress a working match) for the late محدّثون the chains cite with an honorific the base entry lacks:
+    a LEADING kunya «أبو بكر محمد بن أحمد بن بالويه» (the base stores «محمد بن أحمد بن بالويه … أبو بكر»)
+    or a TRAILING status word «علي بن حمشاذ العدل» (the base stores «علي بن حمشاذ بن سختويه …»). Returns the
+    citation with the honorific PEELED — multi-token, the ism+nasab still identifying the man (an ambiguous
+    remainder is then held «مشترك», never a wrong confident match); the leading kunya is peeled only before
+    a real ISM (not a patronymic «بن…»), so «أبو بكر بن إسحاق» (kunya + father) is left untouched."""
+    out: list[str] = []
+    toks = (name or "").split()
+    if len(toks) >= 4 and normalize_for_search(toks[0]) in _LEAD_KUNYA and toks[2] not in ("بن", "ابن"):
+        rest = toks[2:]                                   # drop «أبو فلان», keep from the ism
+        if "بن" in rest or "ابن" in rest:                 # …and only when a real nasab follows
+            out.append(" ".join(rest))
+    if len(toks) >= 3 and normalize_for_search(toks[-1]) in _TRAIL_HONORIFIC:
+        out.append(" ".join(toks[:-1]))
+    return out
+
+
 def _clean_seq(name: str) -> list[str]:
     """Folded name tokens **in order**, honorifics/connectors dropped. A token repeated NON-adjacently
     (a distant ancestor) is dropped, but an ADJACENT repeat is KEPT: «معاذ بن معاذ» (ism = father's
@@ -549,6 +575,10 @@ class RijalIndex:
             m = self._lookup(name, min_overlap=min_overlap)
             if m is None and (alt := _al_strip_query(name)) is not None:
                 m = self._lookup(alt, min_overlap=min_overlap)   # «المعتمر بن سليمان» → «معتمر بن سليمان»
+            if m is None:
+                for alt in _honorific_strip_query(name):         # «أبو بكر محمد بن أحمد بن بالويه» / «… العدل»
+                    if (m := self._lookup(alt, min_overlap=min_overlap)) is not None:
+                        break
             self._cache[key] = m
         return self._cache[key]
 
