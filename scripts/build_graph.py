@@ -25,6 +25,7 @@ from app.ingestion.catalog import RIJAL_PROSE_BOOKS
 from app.parsing.jarh_extract import parse_jarh_file
 from app.parsing.lisan_extract import LISAN_BOOK_ID, parse_lisan_file
 from app.parsing.sair_extract import SAIR_BOOK_ID, parse_sair_file
+from app.parsing.tarikh_islam_extract import TARIKH_ISLAM_BOOK_ID, parse_tarikh_islam_file
 from app.parsing.tahdhib_extract import parse_tahdhib_file
 from app.parsing.thiqat_extract import THIQAT_BOOK_ID, parse_thiqat_file
 from app.qa.isnad import analyze_isnad
@@ -41,7 +42,8 @@ from scripts._atomic import rebuild
 # stated company is the surest signal for disambiguating a «مشترك» name — so every prose source that
 # carries a network (تهذيب · الجرح · الثقات, and later لسان/الطبقات) feeds canon._pick here.
 _NETWORK_SOURCES = {3722: parse_tahdhib_file, 2170: parse_jarh_file, THIQAT_BOOK_ID: parse_thiqat_file,
-                    LISAN_BOOK_ID: parse_lisan_file, SAIR_BOOK_ID: parse_sair_file}
+                    LISAN_BOOK_ID: parse_lisan_file, SAIR_BOOK_ID: parse_sair_file,
+                    TARIKH_ISLAM_BOOK_ID: parse_tarikh_islam_file}
 
 
 def main() -> None:

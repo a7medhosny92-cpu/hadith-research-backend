@@ -92,6 +92,7 @@ RIJAL_PROSE_BOOKS: dict[int, str] = {
     1692: "ميزان الاعتدال (الذهبي)",
     36357: "لسان الميزان (ابن حجر)",
     10906: "سير أعلام النبلاء (الذهبي)",  # post-Six-Books محدّثون (الأصم-class) — the A.3 coverage gap
+    35100: "تاريخ الإسلام (الذهبي)",  # the COMPREHENSIVE late-narrator dictionary (طبقات to 700h) — الأصم-class
 }
 
 

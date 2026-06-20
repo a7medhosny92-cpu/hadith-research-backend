@@ -35,6 +35,7 @@ from app.parsing.rijal_extract import parse_rijal_file
 from app.parsing.tahdhib_extract import parse_tahdhib_file
 from app.parsing.lisan_extract import LISAN_BOOK_ID, parse_lisan_file
 from app.parsing.sair_extract import SAIR_BOOK_ID, parse_sair_file
+from app.parsing.tarikh_islam_extract import TARIKH_ISLAM_BOOK_ID, parse_tarikh_islam_file
 from app.parsing.thiqat_extract import THIQAT_BOOK_ID, parse_thiqat_file
 from app.rijal.dedup import CorpusCompany, collapse_duplicates
 from app.rijal.grades import classify
@@ -260,6 +261,13 @@ def main() -> None:
         result, added, _ = merge_source(result, parse_sair_file(sair_path), fill_gaps=False)
         print(f"  merged سير أعلام النبلاء: +{added} late narrators (الأصم-class)")
 
+    # تاريخ الإسلام (الذهبي) — the COMPREHENSIVE late-narrator dictionary (طبقات to 700h). ADD-ONLY, like سير:
+    # closes the residual الأصم-class coverage gap (al-Ḥākim/al-Bayhaqī's شيوخ). Network → build_graph.
+    ti_path = books_dir / f"{TARIKH_ISLAM_BOOK_ID}.json"
+    if ti_path.exists():
+        result, added, _ = merge_source(result, parse_tarikh_islam_file(ti_path), fill_gaps=False)
+        print(f"  merged تاريخ الإسلام: +{added} late narrators (الأصم-class)")
+
     # optional: fold in the LLM-extracted رجال (scripts.build_rijal_llm) — better grades and the
     # death/kunya the terse regex drops. Gated on the file, so the pipeline is unchanged without it.
     llm_rijal = settings.data_dir / "rijal_llm.jsonl"
@@ -294,8 +302,9 @@ def main() -> None:
     # AFTER the dedup so the appraisals land on the final, collapsed entries.
     _PROSE = {2170: (parse_jarh_file, "الجرح والتعديل"), 3722: (parse_tahdhib_file, "تهذيب الكمال"),
               THIQAT_BOOK_ID: (parse_thiqat_file, "الثقات"), LISAN_BOOK_ID: (parse_lisan_file, "لسان الميزان"),
-              SAIR_BOOK_ID: (parse_sair_file, "سير أعلام النبلاء")}
-    for book_id, (parser, book_name) in _PROSE.items():    # الجرح · تهذيب الكمال · الثقات · لسان · سير
+              SAIR_BOOK_ID: (parse_sair_file, "سير أعلام النبلاء"),
+              TARIKH_ISLAM_BOOK_ID: (parse_tarikh_islam_file, "تاريخ الإسلام")}
+    for book_id, (parser, book_name) in _PROSE.items():    # الجرح · تهذيب · الثقات · لسان · سير · تاريخ الإسلام
         bp = books_dir / f"{book_id}.json"
         if not bp.exists():
             continue

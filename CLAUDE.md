@@ -207,6 +207,24 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★★ (2026-06-20) تاريخ الإسلام (35100) EXTRACTOR BUILT — the comprehensive (A) الأصم-class source (user downloaded it).**
+The user downloaded تاريخ الإسلام (ت بشار, 44.9 MB) + تاريخ بغداد (736) + سير. Sampled both via `sample_source`: **تاريخ
+الإسلام is the right source** — same HEADING-based طبقات structure as سير (`indexes.headings` carry «N - full name», numbers
+restart each طبقة → page locates the body), body «سمع/روى عن» (شيوخ) · «وعنه/روى عنه» (تلاميذ) · «وكان ثقة» (al-Dhahabī's
+DIRECT grade) · «قال فلان: …» (attributed) · «توفي سنة». ✓ Confirmed الأصم (محمد بن يعقوب) is captured (cited as a تلميذ in
+the sampled tarjamas). **تاريخ بغداد is HARD** (report-isnad «أخبرنا [isnad] قال…», network buried like الطبقات) AND largely
+REDUNDANT (تاريخ الإسلام is universal, covers the بغداديون too) → DEFERRED. **Built `app/parsing/tarikh_islam_extract.py`**
+(reuses سير's heading-based `_segment` verbatim; own شيوخ/تلاميذ markers + a `_DIRECT` «كان ثقة» grade + a MUQADDIMA gate —
+the محقق's ~150-page study opens with «N - مشهد عروة»/«ابنته أمة العزيز» non-narrators, dropped by a junk-head list + a
+«require network OR verdict» gate). Grade = weakest cited جرح/تعديل else غير معروف (coverage, no default ثقة). **Wired ADD-ONLY**
+(build_rijal merge + `_PROSE` appraisals · build_graph `_NETWORK_SOURCES` · catalog `RIJAL_PROSE_BOOKS` so parse skips it). Built
+**`scripts.peek_tarikh_islam`** (measure-first, the سير lesson): tarjama count · graded vs غير معروف · LATE (death ≥300h) ·
+death-decade spread · sample + a `--find`. +4 tests, **557 green**. **WAITING ON THE USER: `python -m scripts.peek_tarikh_islam`**
+→ send the output (how many tarjamas, how many LATE الأصم-class, sample names) → if it catches the late men well, run
+`build_rijal --no-download` (merges تاريخ الإسلام add-only) + `build_graph` + `audit_coverage` → the (A) gap closes. If it
+undercatches (muqaddima/طبقات), I calibrate (like سير needed `peek_sair_coverage`). NB tests can't run on the 44 MB book here.
+
+
 **★★ (2026-06-20) FULL `update.bat` REBUILD MEASURED — W 923, but it's MOSTLY GENUINE + the «المختار الكذاب» scene-leak FIXED.**
 The user ran a full update (fresh graph 25399 + rijal 21009, collapsed 1308 dups, +2000 hadith parsed → 86784). **audit_isnad: W
 923 · S 265 · A 46168.** ✓✓ **عبد الله بن واقد GONE from the Ṣaḥīḥayn W** (the #284 قاعدة بالتلميذ worked — مسلم #28 clean). ✓
