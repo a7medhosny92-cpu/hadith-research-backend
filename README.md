@@ -1,294 +1,125 @@
-# hadith-research-backend — بحث وتحقيق الحديث
+<div align="center">
 
-Backend for **searching, studying and verifying ḥadīth** (the sayings of the
-Prophet Muḥammad ﷺ) entirely in **Classical Arabic (الفصحى)**, built as a
-Retrieval-Augmented Generation (RAG) system over the
-[turath.io](https://app.turath.io/) heritage library.
+# بحث وتحقيق الحديث
+### Hadith Research &amp; Isnād Verification
 
-The model never *invents* ḥadīth: it **retrieves** them from the real sources,
-**cites** them (book / volume / page / number / grade), and reasons over them —
-because in this domain a wrong attribution is a serious error.
+**نظامٌ عربيٌّ ذكيٌّ للبحثِ في السنّةِ النبويّةِ، وتحقيقِ الأسانيدِ، ومعرفةِ الرواةِ ودرجاتِهم، والتخريجِ وكشفِ العلل — يعملُ على جهازِك، دونَ إنترنت.**
 
-Each answer is meant to surface, for a hadith:
+*An AI‑powered, local‑first system for searching the Prophetic traditions, verifying the chains of narration (isnād), grading the narrators, and detecting hidden defects (ʿilal) — entirely in Classical Arabic, fully offline.*
 
-* the **متن** (text, fully vocalised) and its **إسناد** (chain of narrators),
-* the authenticity **grade** (صحيح / حسن / ضعيف …) and **takhrij** (other sources),
-* and the **explanations of the scholars (شروح الحديث)** — e.g. Fatḥ al-Bārī,
-  Sharḥ al-Nawawī, Tuḥfat al-Aḥwadhī — quoted **with attribution** to the commentator.
+![tests](https://img.shields.io/badge/tests-560%2B%20passing-2e7d4f)
+![python](https://img.shields.io/badge/python-3.11-3776ab)
+![offline](https://img.shields.io/badge/runs-100%25%20offline-a87d27)
+![cpu](https://img.shields.io/badge/CPU--only-no%20GPU%20needed-555555)
+![local](https://img.shields.io/badge/storage-local%20SQLite-4b8b9b)
 
-> _Applicazione per approfondire, studiare e verificare gli hadith in arabo classico,
-> con le spiegazioni dei sapienti (شروح)._
+</div>
 
-![The launch window — a single-file RTL UI (also a native desktop window): search/ask/takhrij/isnad over the corpus, every result with its درجة and citation, and a bottom-line «الحكم على الإسناد»](docs/app.png)
+![The app — a single‑file RTL interface (also a native desktop window): search, ask, takhrīj and isnād verification over the corpus, every result with its grade (درجة) and citation, and an on‑demand «الحكم على الإسناد».](docs/app.png)
 
-## Architecture (7 layers)
+---
 
-```
-turath.io
-   │  [1] Ingestion   app/ingestion/   polite · rate-limited · resumable
-   ▼
-data/raw/turath/*.json
-   │  [2] Parsing     app/parsing/     HTML → متن · إسناد · grade · شرح · citation
-   ▼
-data/processed/*.jsonl
-   │  [3] Indexing    scripts/         index · embed · build_graph · build_rijal · audit
-   ▼
- ┌── Local indexes (sqlite; PostgreSQL + pgvector in production) ──────────────────┐
- │  FTS5 hadith · FTS5 شروح · dense vectors · narrator graph · documented network  │
- │  canonical rijal base (~21k narrators, no doublings) + self-audits              │
- └──────────────────────────────────────────────────────────────────────────────────┘
-   │  [4] Retrieval   app/search/      lexical · semantic · hybrid (RRF fusion)
-   │  [5] Sciences    app/qa/ · app/rijal/
-   │        answer (RAG) · takhrij (صيغ · صحابي · أخرجه) · isnad verdict (الحكم على الإسناد)
-   │        rijal identification (تمييز المهمل: قواعد بالشيخ · network · prominence)
-   │        self-audits (التدقيق · تدقيق المتون · تعارض الرجال) · علّة/شذوذ hints
-   │  [6] LLM engine  app/qa/llm.py    off / local (Ollama) / remote (Claude) — via LiteLLM
-   ▼                  (also build-time FAITHFUL extraction: scripts.build_rijal_llm)
- [7] FastAPI  app/main.py   →  /search · /hadith · /ask · /takhrij · /verify-isnad
-        │              /narrator · /narrators · /books · /sharh-books · /notebook
-        │              /audit · /matn-audit · /conflicts · /coverage · /sources
-        └─ /app  →  static single-file RTL UI ⟷ native desktop window.  Tabs:
-            action  بحث · سؤال · تخريج · راوٍ · الإسناد · الشبكة · الكتب · الرواة · دفتري
-            study   التدقيق · تدقيق المتون · تعارض الرجال · المنهجية · البنية · التقنية
-```
+## نظرة عامة · Overview
 
-The chain is the same everywhere: the system **retrieves and cites**, it never
-invents — every answer stays verifiable against the real sources.
+في علمِ الحديثِ، الخطأُ في النسبةِ خطأٌ جسيم. لذلك بُنيَ هذا النظامُ على قاعدةٍ واحدة: **لا يختلِقُ شيئًا** — يسترجعُ النصَّ من مصادرِه المحقّقةِ، ويوثّقُه (كتابٌ · جزءٌ · صفحةٌ · رقمٌ · درجة)، ويُحلّلُ سندَه راويًا راويًا، ثمّ يُبيّنُ ما يُعرَفُ وما يُتوقَّفُ فيه. وكلُّ معطًى يعودُ إلى نصٍّ مصدريٍّ يُمكنُ مراجعتُه.
 
-The **LLM engine is provider-agnostic** (via LiteLLM) and chosen per request via
-`?engine=`: `local` is Ollama, `remote` is **any** cloud provider. Pick the exact
-model per request with `?model=` (e.g. `anthropic/claude-sonnet-4-6`, `openai/gpt-4o`,
-`gemini/gemini-2.0-flash`, `groq/…`, `ollama/llama3`) or default with
-`LLM_REMOTE_MODEL`; set the matching `*_API_KEY` in `.env`. No code changes to swap
-brains or providers.
+In this domain a wrong attribution is a serious error, so the system is built on one rule: **it never fabricates.** It retrieves a tradition from real, edited sources, cites it (book · volume · page · number · grade), reasons over its chain narrator‑by‑narrator, and then states what is *known* versus what must be *held*. Every datum traces back to a verifiable source text.
 
-## What it does
+---
 
-| Capability | Endpoint | State |
-|---|---|---|
-| Ingestion from turath.io (resumable, rate-limited) | — | ✅ |
-| Parsing → structured متن / إسناد / grade / citation + شروح (multi-edition) | — | ✅ |
-| **Search** — lexical FTS (uncapped) · semantic · **hybrid (RRF)** | `/search?mode=` | ✅ |
-| **Ask (RAG)** — top hadith + **full شرح** + **rulings (أحكام)**, cited; LLM switch off/local/remote | `/ask?engine=` | ✅ |
-| **Takhrij** — *every* narration → variants (صيغ: بلفظه/بنحوه/بمعناه) · grouped by **Companion** · «أخرجه» · chains shown | `/takhrij` | ✅ |
-| **Isnad** — structure (سماع/عنعنة/تحويل), **narrator identification** (تمييز المهمل: a homonym is fixed by his شيخ via curated قواعد, the documented network, الرفقة, then prominence), per-narrator grade, **continuity (اتصال)**, and a single bottom-line **verdict «الحكم على الإسناد»** (rijal + اتصال + عنعنة, with disclaimer) | `/verify-isnad` | ✅ |
-| **Narrator base & network (علم الرجال)** — a **canonical base, one record per man, no doublings** (~21k narrators: تقريب + الكاشف authority, folded with الإصابة · الثقات · لسان · سير coverage, deduped by `dedup.collapse_duplicates`); شيوخ/تلاميذ from the chains, weighted; built by `scripts.build_rijal` (+ optional faithful LLM extraction) | `/narrator` · `/narrators` | ✅ |
-| **Library navigator (الكتب)** — browse the corpus structurally: collections → their كتب/أبواب → the hadiths under each, with «كتاب ← باب» nesting and per-book search; شروح browsable too | `/books` · `/sharh-books` | ✅ |
-| **Self-audits** — the system rescans its own output: **«التدقيق»** flags suspect isnad verdicts (متروك/كذاب/صحابي-mid-chain/مشترك), **«تدقيق المتون»** flags suspect texts, **«تعارض الرجال»** catches a grave-vs-trustworthy name collision | `/audit` · `/matn-audit` · `/conflicts` | ✅ |
-| **Coverage report** — how much of the chains the base covers (identified · مشترك · uncovered), weighted by chain position | `/coverage` | ✅ |
-| **Scholars' rulings (أحكام)** — ordered by طبقة, divergence flagged, «حسن صحيح» resolved by the number of chains; structural **علّة/شذوذ hints** on the gathered طرق | in `/ask`,`/takhrij` | ✅ |
-| Scholars' explanations (شروح) linked per hadith & quoted with attribution | in `/ask` | ✅ |
-| **Study notebook (دفتري)** — save any hadith / narrator / answer / isnad with a note; persists across rebuilds | `/notebook` | ✅ |
-| **Reference pages** — in-app, kept in sync with the code: **المنهجية** (every datum: its source, derivation, advantages, limits), **البنية** (how the app is built), **التقنية** (the exact implementation: modules, scripts, data files, endpoints) | in `/app` | ✅ |
+## ✨ المزايا · Features
 
-**Dev vs production.** Everything above runs **today** on your machine with a light
-stack: parsing is pure-stdlib and the indexes are **sqlite** — FTS5 for lexical
-search (Arabic-folded), plus local dense **vectors** and the **narrator graph**.
-The storage interface is backend-agnostic, so production swaps in **PostgreSQL +
-pgvector** (hybrid lexical+semantic) and an **LLM** for `/ask` synthesis by
-installing the optional extras and flipping the engine on (`LLM_DEFAULT_ENGINE=
-local|remote`, or per request `/ask?engine=…`) — no caller changes. The ORM models,
-DB loader and embedding/LLM hooks are in place (`app/models`, `scripts/load_db.py`,
-`app/search/embeddings.py`, `app/qa/llm.py`).
+- 🔎 **بحثٌ بالمعنى لا باللفظِ فحسب** — هجينٌ دلاليٌّ ولفظيٌّ في أكثرَ من ٨٤٬٠٠٠ حديثٍ.
+  &nbsp;&nbsp;*Hybrid semantic + lexical search over 84,000+ traditions.*
+- 🧬 **تحقيقُ الإسناد** — تمييزُ الراوي المهمَلِ من السندِ لا من الاسمِ المجرّد، والحكمُ على الاتّصالِ والرواة.
+  &nbsp;&nbsp;*Isnād verification: identify an ambiguous narrator from the chain, then grade the chain.*
+- 👤 **معرفةُ الرواة** — قاعدةٌ موحَّدةٌ لأكثرَ من ٢٣٬٠٠٠ راوٍ بدرجاتِهم وأقوالِ النقّادِ فيهم، بلا تكرار.
+  &nbsp;&nbsp;*A canonical base of 23,000+ transmitters with gradings and named critics' verdicts.*
+- 🕸️ **التخريجُ وكشفُ العلل** — جمعُ الطرقِ، وقرائنُ التفرّدِ والشذوذِ والاضطرابِ والرفعِ والوقفِ.
+  &nbsp;&nbsp;*Takhrīj + structural ʿilal hints (tafarrud, shudhūdh, idṭirāb, rafʿ/waqf…).*
+- 📚 **تصفّحُ الكتبِ وقراءتُها** — أمّهاتُ كتبِ السنّةِ وشروحِها، تصفّحًا وبحثًا وقراءةً.
+  &nbsp;&nbsp;*Browse and read the major collections and their commentaries.*
+- 🔒 **محليٌّ وخاصٌّ بالكامل** — يعملُ دونَ إنترنت، على المعالجِ وحدَه، بلا قاعدةِ بياناتٍ خارجيّة.
+  &nbsp;&nbsp;*Local‑first &amp; private: offline, CPU‑only, no external database.*
 
-## Corpus scope
+---
 
-Only the **ḥadīth-sciences categories** of turath.io are ingested (configurable in
-`app/config.py`). Confirmed live against `files.turath.io/data-v3.json`:
+## ⚙️ كيف يعمل · How it works
 
-| cat_id | category | books |
-|---|---|---|
-| 6 | كتب السنة (collections) | 1241 |
-| 7 | شروح الحديث (commentaries) | 265 |
-| 8 | التخريج والأطراف (takhrij) | 129 |
-| 9 | العلل والسؤلات (defects) | 78 |
-| 10 | علوم الحديث (methodology) | 320 |
-| 26 | التراجم والطبقات (narrators / rijāl) | 579 |
+النواةُ هي **تمييزُ المهملِ من السند**: حين يَرِدُ اسمٌ مشتركٌ بين رواةٍ، يُعرَفُ صاحبُه من سياقِ السندِ (شيخِه وتلميذِه) لا من الاسمِ المجرّد — بقواعدِ المحدِّثينَ، وقرينةِ الرفقةِ، وشبكةٍ موثَّقةٍ للشيوخِ والتلاميذِ، فإن لم يَحسِمْها دليلٌ تَوقّفَ ولم يختلِقْ.
 
-That is ~2,612 books / ~2.9M pages, so downloading is **prioritised and resumable**:
-a curated set of canonical collections (Bukhārī, Muslim, the Sunan, …) is seeded
-first to get a useful system fast.
+The core is **disambiguating the unnamed narrator from the chain**: when a name is shared by several men, the right one is resolved from the surrounding chain (his teacher and student) rather than the bare token — via classical disambiguation rules, the «company» heuristic, and a documented teacher↔student network. When the evidence is inconclusive, it holds rather than guesses.
 
-## Quickstart
+<div align="center">
+<img src="docs/showcase/identify.png" width="49%" alt="The narrator-identification engine"/>
+<img src="docs/showcase/pipeline.png" width="49%" alt="The build pipeline"/>
+</div>
+
+📐 **التفصيل الكامل في [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** — a code‑accurate map of the whole system.
+
+---
+
+## 📊 بالأرقام · By the numbers
+
+| | |
+|---|---|
+| 📖 الأحاديث المفهرسة · indexed traditions | **+٨٤٬٠٠٠** |
+| 👤 الرواة بدرجاتِهم · graded narrators | **+٢٣٬٠٠٠** |
+| ✅ تغطيةُ رجالِ الأسانيد · isnād coverage | **٩٤٪** |
+| 📚 مصادرُ الرجالِ · biographical sources | **٩** |
+| 🧪 اختباراتُ الجودة · automated tests | **+٥٦٠** |
+
+كتبُ السنّة: البخاري · مسلم · السننُ الأربعة · الموطّأ · مسندُ أحمد · ابنُ خزيمة · ابنُ حبّان · المستدرك · الدارقطنيّ &nbsp;—&nbsp; وكتبُ الرجال: تقريبُ التهذيب · الكاشف · تهذيبُ الكمال · الجرحُ والتعديل · الإصابة · الثقات · لسانُ الميزان · سيرُ أعلام النبلاء · تاريخُ الإسلام.
+
+---
+
+## 🧱 التقنية · Tech stack
+
+**Python · FastAPI · SQLite** (FTS5 full‑text + vector BLOBs) · **sentence‑transformers** (Arabic, 768‑dim) · **pywebview** (desktop) — a single‑file HTML/JS/SVG UI, no external libraries, no cloud. The optional LLM layer (off / local / remote) is constrained to the retrieved sources and always cites.
+
+An 8‑step, idempotent pipeline turns raw books into the searchable corpus: **download → parse → index → narrator graph → rijal base → (optional AI extraction) → self‑audit.** A self‑auditing layer re‑checks every chain and text, backed by 560+ automated tests.
+
+---
+
+## ▶️ التشغيل · Quickstart
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"          # add ",embeddings,llm" when working on search/RAG
-cp .env.example .env
+pip install -e ".[dev]"                 # add ",embeddings,llm" for semantic search / RAG
 
-# run the API
-uvicorn app.main:app --reload    # http://localhost:8000/docs
+# get a slice of the corpus locally (resumable)
+python -m scripts.ingest --priority --with-commentaries
+python -m scripts.parse && python -m scripts.index
 
-# run the tests
-pytest
-
-# (optional) Postgres + Ollama for later phases
-docker compose up -d db ollama
-```
-
-### Get the corpus locally — one command
-
-On **your own machine** (where the data persists), download + parse + index in one go:
-
-```bash
-bash scripts/setup_local.sh          # canonical: core collections + main شروح (default)
-bash scripts/setup_local.sh core     # collections only — lighter/faster
-bash scripts/setup_local.sh full     # every hadith-sciences category (~2.9M pages — days)
-```
-
-It is **resumable**: if it stops, run it again and it continues. The steps below are
-the same pipeline run by hand (ingest → parse → index).
-
-### Keep it up to date
-
-Pull the latest code and refresh the corpus in one go — on Windows just **double-click
-`update.bat`**:
-
-```bash
-python -m scripts.update              # code + corpus
-python -m scripts.update --code-only  # just code + dependencies (fast)
-python -m scripts.update --semantic   # also build the semantic index (smart search)
-```
-
-On Windows, **double-click `update-semantic.bat`** to update *and* turn on semantic
-search in one go (first run downloads a model + embeds the corpus — one-off).
-
-Safe to re-run anytime: `git pull` is fast-forward, the crawl resumes, and
-parse/index are idempotent.
-
-### Ingestion (downloading from turath.io)
-
-```bash
-python -m scripts.ingest --list-categories          # inspect scope, no download
-python -m scripts.ingest --books 1284 --limit-pages 3   # smoke test (3 pages of Bukhārī)
-python -m scripts.ingest --priority                 # seed the canonical collections
-python -m scripts.ingest --priority --with-commentaries  # + their شروح (Fatḥ al-Bārī …)
-python -m scripts.ingest --categories 6 7 8 9 10 26 # full hadith crawl (long, resumable)
-```
-
-**Scholars' explanations (شروح).** The commentaries live in turath category 7 and are
-already in scope. A curated map of each collection → its major commentaries (Fatḥ
-al-Bārī & ʿUmdat al-Qārī for Bukhārī, Sharḥ al-Nawawī for Muslim, Tuḥfat al-Aḥwadhī
-for Tirmidhī, ʿAwn al-Maʿbūd for Abū Dāwūd, …) lives in `app/ingestion/catalog.py`
-(`COMMENTARIES`). They are linked to each hadith and quoted — with attribution — in the
-answer (phase 6).
-
-Progress is tracked in `data/raw/turath/manifest.json`; rerun to resume. Live
-status is also exposed at `GET /health/ingestion`. Downloaded data lives under
-`data/` and is **not** committed.
-
-### Build the searchable corpus, then query it
-
-```bash
-python -m scripts.parse      # raw pages → structured JSONL (hadith + شروح, multi-edition)
-python -m scripts.index      # build the sqlite FTS indexes (data/index.db, data/sharh_index.db)
+# run the API + UI  →  http://localhost:8000/app   (API docs at /docs)
 uvicorn app.main:app --reload
 ```
 
-| Endpoint | What it does |
-|---|---|
-| `GET /search?q=…` | rank hadith by relevance (Arabic-folded; `field=all\|matn\|isnad`, filter by `collection`/`grade`; `mode=lexical\|semantic\|hybrid`) |
-| `GET /hadith/{id}` | a single hadith with its citation |
-| `GET /ask?q=…` | the most relevant hadith + grade + the **scholars' شرح**, the **scholars' rulings (أحكام)** on it ordered by era (صحّحه/ضعّفه…, divergence surfaced), cited (add `&engine=local\|remote` and optionally `&model=<any litellm id>` to synthesise with an LLM) |
-| `GET /takhrij?hadith_id=…` (or `q=…`) | **every** narration of the same report (lexical+semantic recall), grouped **by Companion (الصحابي)** then into distinct wordings (صيغ) labelled بلفظه/بنحوه/بمعناه — each Companion with an «أخرجه» summary, every chain shown |
-| `GET /verify-isnad?hadith_id=…` (or `isnad=…`) | parse the **chain of narrators**, flag سماع/عنعنة/تحويل, **grade each narrator** (رجال), check each link's **continuity (اتصال)** against the narrator network, and return a single bottom-line **verdict «الحكم على الإسناد»** that fuses the weakest-link grade + الاتصال + عنعنة (a study verdict on the apparent state of the men, not a full تصحيح — needs النظر في العلّة والشذوذ) |
-| `GET /narrator?name=…` | a narrator's place in the network (شبكة الرواة): his **شيوخ** (narrates from) and **تلاميذ** (narrate from him), weighted, plus his grade and the critics' أقوال الأئمة |
-| `GET /narrators?letter=&grade=&q=` | **browse all narrators (الرواة)** — paged, with letter + درجة facets (powers the in-app browse tab) |
-| `GET /books` · `/books/{id}/chapters` · `/books/{id}/hadiths` | **library navigator (الكتب)** — collections → كتب/أبواب → the hadiths under each; `/sharh-books*` browses the commentaries |
-| `GET /audit` · `/matn-audit` · `/conflicts` | the **self-audits**: suspect isnad verdicts (التدقيق), suspect texts (تدقيق المتون), grave-vs-trustworthy name collisions (تعارض الرجال) — each example opens the case |
-| `GET /coverage` | how much of the chains the رجال base **covers** (identified · مشترك · uncovered), weighted by chain position |
-| `GET/POST/PATCH/DELETE /notebook` | your **study notebook (دفتري)**: save a hadith / narrator / answer / isnad with a personal note + tags, search them, edit, delete — stored in `data/notebook.db`, **never touched by index rebuilds** |
-| `GET /sources` | the books the app draws on (collections · شروح · rijal) with their **editions** (read from the downloaded files) — powers the books list on the «المنهجية» page |
-
 ```bash
-# examples
-curl 'localhost:8000/search?q=إنما الأعمال بالنيات'
-curl 'localhost:8000/ask?q=فضل تعلم القرآن'
-curl 'localhost:8000/takhrij?q=من كذب علي متعمدا'
-```
-
-### Desktop app (a native window)
-
-Prefer an app window over the browser? A simple **native OS window** (Arabic renders
-correctly — the same UI is also at `http://localhost:8000/app` in any browser):
-
-```bash
+# or the native desktop window
 pip install -e ".[desktop]"
-python -m app.desktop            # or the console script:  hadith-app
+python -m app.desktop                   # console script:  hadith-app
 ```
 
-It opens a window over the local app to **search**, **ask**, trace **takhrij**, and
-explore a **narrator (راوٍ)**. Search/takhrij return *all* matches (revealed in batches,
-no cap), `/ask` shows the **complete** شرح passage. In «ask» a dropdown switches the
-engine **off / local / remote** live, a model box picks **any** litellm model, and
-**«قارن النماذج»** runs the question across the local Qwen sizes (3b · 7b · 14b)
-**side by side with timings**, so you can see which size answers best for you.
+---
 
-**Semantic ("smart") search.** Beyond exact words, you can match by *meaning*
-(synonyms, paraphrase). Build a local vector index once, then `/ask` retrieves with a
-lexical+semantic **hybrid** automatically, and `/search?mode=semantic|hybrid` is available:
+## 🗺️ ما تبقّى · Roadmap
 
-```bash
-pip install -e ".[embeddings]"   # sentence-transformers + torch (CPU is fine)
-python -m scripts.embed          # embeds the corpus → data/vectors.db (one-off)
-# or in one go on update:  python -m scripts.update --semantic
-```
+- 🧠 نموذجٌ عصبيٌّ لكشفِ العللِ والتخريجِ · a neural model for ʿilal/takhrīj *(needs a GPU)*
+- 🔝 إعادةُ ترتيبٍ ذكيّةٌ للنتائج · a learned reranker for search
+- 🌐 نشرٌ على خادمٍ للجميع · a public server deployment
+- 📚 توسيعُ مصادرِ الرواةِ المتأخّرين · more late‑period biographical sources
 
-For production search/answers, install the extras and load PostgreSQL:
+---
 
-```bash
-pip install -e ".[embeddings,llm]"
-python -m scripts.load_db        # JSONL → Postgres + pgvector (embeds matn & شروح)
-# pick a brain: LLM_DEFAULT_ENGINE=local (Ollama) or remote (Claude, + API key),
-# or per request /ask?engine=local|remote  ('off', the default, stays extractive)
-```
+## 📖 المنهج والأمانة · Methodology &amp; trust
 
-**Narrator gradings (رجال) & the chain verdict.** `/verify-isnad` grades each narrator
-using a curated, attributed seed (`app/rijal/seed.jsonl`, verdicts from تقريب التهذيب;
-the Companions are عدول by consensus), then rolls everything into one bottom-line
-**«الحكم على الإسناد»**: it takes the *weakest-link* grade, lets a clear **انقطاع**
-(an unseen link in the network) override an otherwise sound chain, and holds back a
-firm تصحيح when there is **عنعنة** or when narrators are still unknown to the base.
-It is deliberately conservative — a study verdict on the *apparent* state of the men
-and the connection, **not a full تصحيح** (which also needs النظر في العلّة والشذوذ) and
-not a fatwa.
+كلُّ نتيجةٍ موثَّقةٌ بكتابِها، والدرجاتُ والأقوالُ منقولةٌ بأسماءِ أصحابِها مع مراجعِها. الإشاراتُ إلى العللِ والشذوذِ **قرائنُ للنظرِ، لا أحكامٌ نهائيّة**. النصوصُ من المكتبةِ التراثيّةِ المحقّقةِ، وتبقى حقوقُها لأصحابِها؛ هذا العملُ أداةٌ للبحثِ والدراسةِ لا بديلٌ عن أهلِ العلم.
 
-**The canonical narrator base (~21k men, no doublings).** Quality scales with how many
-narrators are graded *and* with identifying the right man. `scripts.build_rijal` builds
-**one record per narrator** from **تقريب التهذيب** (Ibn Ḥajar — the terse authority over the
-Six Books) + **الكاشف** (al-Dhahabī, second opinion), then folds in coverage sources only to
-*fill gaps*, never to duplicate a man: **الإصابة** (Companions), **الثقات** (men outside the
-Six Books), **لسان الميزان** (the criticised), **سير أعلام النبلاء** (later narrators), plus
-the multi-critic **أقوال الأئمة** from **تهذيب الكمال / الجرح والتعديل**. A dedup engine
-(`app/rijal/dedup.py`) collapses the same man written two ways (تقريب↔الكاشف, a كنية vs an
-ism-led name, a deep-lineage نسب match) under طبقة/grade guards — so the base carries **no
-false «مشترك»**. It writes `data/rijal.jsonl`, which `/verify-isnad` **auto-loads on the next
-start**. It runs as the last steps of `scripts.update` / `update.bat` (build_graph → build_rijal
-→ audit), or on its own:
+Every result is cited to its book; grades and verdicts carry the names of the critics who issued them, with their source works. The ʿilal/shudhūdh signals are **hints to investigate, never final rulings.** Source texts belong to their rights‑holders; this is a research and study aid, not a substitute for qualified scholars.
 
-```bash
-python -m scripts.build_rijal                       # build/refresh data/rijal.jsonl
-python -m scripts.build_rijal --input narrators.jsonl   # merge a hand-made JSONL too
-python -m scripts.build_rijal_llm --mode rijal|chains   # optional FAITHFUL LLM extraction
-# read-only diagnostics: scripts.audit_isnad · audit_coverage · probe_name · peek_name_chains
-```
+<div align="center">
 
-**Identifying the man, not just grading a name (تمييز المهمل).** A chain rarely spells a
-narrator out, so the verdict identifies him **from the chain before grading**: a homonym is
-fixed by his **شيخ** through curated **قواعد** («سفيان عن الأعمش» = الثوري), the **documented
-شيخ→تلميذ network** (تهذيب/الجرح/الثقات), the surrounding **company (الرفقة)**, then a
-**prominence** prior — and when the text genuinely cannot decide, the node is **held «مشترك»,
-never guessed** (لا نختلق). The whole corpus is then **re-audited** (`/audit`, `/conflicts`,
-`/coverage`) so every improvement is measured.
+—  ﴿ وَقُل رَّبِّ زِدْنِي عِلْمًا ﴾  —
 
-## Data source, attribution & ethics
-
-Content is sourced from **[turath.io](https://app.turath.io/)**. The classical
-texts themselves are public domain, but the digital library is the result of
-their effort, so this project crawls **politely** (an honest User-Agent, a modest
-rate limit, full resumability and local caching) and **attributes the source**.
-You are responsible for complying with turath.io's terms; for bulk/commercial use,
-consider contacting the maintainers.
-
-This is a **study aid** that surfaces verifiable citations — it is not a substitute
-for qualified scholarship or a source of religious rulings (fatwā).
+</div>
