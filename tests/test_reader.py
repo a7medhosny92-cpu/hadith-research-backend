@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.parsing.book_pdf import render_book_pdf
+from app.parsing.book_pdf import _MissingDeps, render_book_pdf
 
 
 def test_reader_books_lists_downloaded_books(tmp_path, monkeypatch):
@@ -27,6 +28,9 @@ def test_reader_books_lists_downloaded_books(tmp_path, monkeypatch):
 
 def test_render_book_pdf_produces_a_pdf_for_the_page_range():
     pages = [{"pg": i, "text": f"هذه صفحةٌ رقم {i} فيها نصٌّ عربيٌّ مشكول."} for i in range(1, 30)]
-    pdf = render_book_pdf("صحيح البخاري", pages, start=5, count=3)
+    try:                                  # the renderer needs fpdf2/uharfbuzz + the Noto Naskh font
+        pdf = render_book_pdf("صحيح البخاري", pages, start=5, count=3)
+    except _MissingDeps as exc:           # absent in a bare CI runner — the endpoint returns 503 there
+        pytest.skip(f"book PDF deps/font absent: {exc}")
     assert pdf[:4] == b"%PDF"            # a real PDF
     assert len(pdf) > 1000
