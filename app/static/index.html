@@ -1167,8 +1167,8 @@ async function renderBooks(){
              + `<div class="rawi-col">${shr}</div>` : "");
 }
 
-// ── «قراءة الكتب»: read a downloaded raw book as an inline PDF (page ranges) ─────────────────────
-let readerState = {id:null, title:"", pages:0, start:1, count:12};
+// ── «قراءة الكتب»: read a downloaded raw book in-app — native RTL text + search + PDF of the range ─
+let readerState = {id:null, title:"", pages:0, start:1, count:8};
 async function renderReader(){
   if(readerState.id){ drawReader(); return; }
   results.innerHTML = `<div class="state">… جارٍ تحميل قائمة الكتب</div>`;
@@ -1179,33 +1179,77 @@ async function renderReader(){
   const items = books.map(b =>
     `<div class="rawi-item rd-pick" data-id="${b.id}" data-title="${esc(b.title)}" data-pages="${b.pages}" role="button" tabindex="0">`
     + `<span>${esc(b.title)}</span><span class="simbadge">${b.pages} صفحة</span></div>`).join("");
-  results.innerHTML = `<div class="note">اقرأ الكتبَ المنزَّلة صفحةً صفحةً (يُعرَض كلُّ نطاقٍ ملفًّا PDF داخلَ التطبيق). اختَر كتابًا.</div>`
+  results.innerHTML = `<div class="note">اقرأ الكتبَ المنزَّلة صفحةً صفحةً داخلَ التطبيق، وابحثْ داخلَ الكتاب، وحمِّلْ نطاقًا ملفًّا PDF. اختَر كتابًا.</div>`
     + `<div class="rawi-col">${items || '<div class="note">لا كتبَ منزَّلةٌ بعد — نزِّل كتابًا أولًا.</div>'}</div>`;
   results.querySelectorAll(".rd-pick").forEach(el => el.addEventListener("click", () => {
-    readerState = {id:+el.dataset.id, title:el.dataset.title, pages:+el.dataset.pages || 0, start:1, count:12};
+    readerState = {id:+el.dataset.id, title:el.dataset.title, pages:+el.dataset.pages || 0, start:1, count:8};
     drawReader();
   }));
 }
 function drawReader(){
   const s = readerState;
   const last = s.pages ? Math.min(s.start + s.count - 1, s.pages) : s.start + s.count - 1;
-  const src = `/reader/books/${s.id}.pdf?start=${s.start}&count=${s.count}`;
   results.innerHTML =
     `<div class="rawi-crumbs"><span class="bk-crumb rd-back" role="button" tabindex="0">الكتب</span>`
     + ` <span>${esc(s.title)}</span></div>`
-    + `<div class="rd-nav" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0 12px">`
+    + `<div class="rd-nav" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 10px">`
     + `<button class="btn rd-prev">السابق ⟶</button>`
     + `<span class="note" style="margin:0">الصفحات ${s.start}–${last}${s.pages ? " من "+s.pages : ""}</span>`
     + `<button class="btn rd-next">⟵ التالي</button>`
-    + `<input class="rd-jump" type="number" min="1" ${s.pages ? `max="${s.pages}"` : ""} value="${s.start}" style="width:90px">`
+    + `<input class="rd-jump" type="number" min="1" ${s.pages ? `max="${s.pages}"` : ""} value="${s.start}" style="width:84px" aria-label="رقم الصفحة">`
     + `<button class="btn rd-go">اذهب</button>`
+    + `<button class="btn rd-pdf">تنزيل PDF</button>`
     + `</div>`
-    + `<iframe class="rd-frame" src="${src}" title="${esc(s.title)}" style="width:100%;height:78vh;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>`;
+    + `<div class="rd-search" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px">`
+    + `<input class="rd-q" type="search" placeholder="ابحث في هذا الكتاب…" style="flex:1;min-width:180px">`
+    + `<button class="btn rd-find">بحث</button></div>`
+    + `<div class="rd-content"><div class="state">… جارٍ تحميل الصفحات</div></div>`;
   const go = st => { readerState.start = Math.max(1, s.pages ? Math.min(st, s.pages) : st); drawReader(); };
   results.querySelector(".rd-back").addEventListener("click", () => { readerState.id = null; renderReader(); });
   results.querySelector(".rd-prev").addEventListener("click", () => go(s.start - s.count));
   results.querySelector(".rd-next").addEventListener("click", () => go(s.start + s.count));
   results.querySelector(".rd-go").addEventListener("click", () => go(parseInt(results.querySelector(".rd-jump").value, 10) || 1));
+  results.querySelector(".rd-pdf").addEventListener("click", () =>
+    window.open(`/reader/books/${s.id}.pdf?start=${s.start}&count=${s.count}`, "_blank", "noopener"));
+  const find = () => readerSearch(results.querySelector(".rd-q").value.trim());
+  results.querySelector(".rd-find").addEventListener("click", find);
+  results.querySelector(".rd-q").addEventListener("keydown", e => { if(e.key === "Enter") find(); });
+  loadReaderPages();
+}
+async function loadReaderPages(){
+  const box = results.querySelector(".rd-content");
+  if(!box) return;
+  const id = readerState.id, start = readerState.start, count = readerState.count;
+  let d;
+  try { d = await getJSON(`/reader/books/${id}/pages?start=${start}&count=${count}`); }
+  catch(e){ box.innerHTML = `<div class="state">${esc(e.message || "تعذّر التحميل")}</div>`; return; }
+  if(id !== readerState.id || start !== readerState.start) return;     // a newer view already took over
+  const pgs = d.pages || [];
+  box.innerHTML = pgs.length ? pgs.map(p =>
+      `<div class="rd-page" style="border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:0 0 12px;background:#fff">`
+      + `<div style="color:#1f7a52;font-weight:700;margin-bottom:8px">صفحة ${p.pg}${p.vol ? " · ج "+p.vol : ""}</div>`
+      + `<div dir="rtl" style="white-space:pre-wrap;line-height:1.95;text-align:justify">${esc(p.text) || '<span class="note">(صفحةٌ فارغة)</span>'}</div></div>`
+    ).join("") : `<div class="state">لا صفحاتٌ في هذا النطاق.</div>`;
+}
+async function readerSearch(q){
+  const box = results.querySelector(".rd-content");
+  if(!box) return;
+  if(!q || q.length < 2){ loadReaderPages(); return; }
+  box.innerHTML = `<div class="state">… جارٍ البحث في الكتاب</div>`;
+  const id = readerState.id;
+  let d;
+  try { d = await getJSON(`/reader/books/${id}/search?q=${encodeURIComponent(q)}`); }
+  catch(e){ box.innerHTML = `<div class="state">${esc(e.message || "تعذّر البحث")}</div>`; return; }
+  if(id !== readerState.id) return;
+  const m = d.matches || [];
+  box.innerHTML = `<div class="note">${m.length ? "نتائجُ البحث ("+d.count+") — اضغطْ صفحةً للانتقال إليها:" : "لا نتائج."}</div>`
+    + m.map(x =>
+        `<div class="rawi-item rd-hit" data-pg="${x.pg}" role="button" tabindex="0">`
+        + `<span class="simbadge">صفحة ${x.pg}${x.vol ? " · ج "+x.vol : ""}</span>`
+        + `<span style="margin-inline-start:8px">${esc(x.snippet)}</span></div>`).join("");
+  box.querySelectorAll(".rd-hit").forEach(el => el.addEventListener("click", () => {
+    readerState.start = +el.dataset.pg || 1; drawReader();
+  }));
 }
 
 function booksCrumb(){
@@ -1849,7 +1893,7 @@ const ARCHITECTURE = [
   {h:"٦) المحرّك اللغوي (اختياري)", p:[
     "مفتاحٌ بثلاثة أوضاع: «بدون ذكاء اصطناعي» (استخراجيّ، الأأمن)، أو «محلّي» (Ollama)، أو «سحابيّ» (أيّ مزوّد). وهو مُلزَمٌ بالاستشهاد من المصادر المسترجَعة فقط وعدمِ الاختلاق."]},
   {h:"٧) الواجهة", p:[
-    "خادمُ FastAPI (بحث، سؤال، تخريج، تحقيق إسناد، راوٍ، الرواة [فهرسٌ قابلٌ للتصفّح بالحرف والدرجة لكلّ الرواة دون بحث]، الكتب [تصفّحُ المكتبة ببنيتها: كتابٌ ← أبوابه ← أحاديثه، دون بحث]، شبكةٌ بيانيّة، دفتر، وألسنةُ المراجعة الذاتية: التدقيق وتدقيق المتون وتعارض الرجال) ونافذةٌ مكتبية بالعربية مع هذه الألسنة."]},
+    "خادمُ FastAPI (بحث، سؤال، تخريج، تحقيق إسناد، راوٍ، الرواة [فهرسٌ قابلٌ للتصفّح بالحرف والدرجة لكلّ الرواة دون بحث]، الكتب [تصفّحُ المكتبة ببنيتها: كتابٌ ← أبوابه ← أحاديثه، دون بحث]، قراءة الكتب [قراءةُ كتابٍ منزَّلٍ نصًّا في التطبيق، مع البحثِ في الكتاب وتنزيلِ نطاقِ صفحاتٍ ملفًّا PDF]، شبكةٌ بيانيّة، دفتر، وألسنةُ المراجعة الذاتية: التدقيق وتدقيق المتون وتعارض الرجال) ونافذةٌ مكتبية بالعربية مع هذه الألسنة."]},
   {h:"المبدأ الحاكم", p:[
     "يَسترجع ويُوثّق ولا يَختلق؛ ويُميَّز دائمًا المنقولُ (نصُّ المصدر ونسبتُه = موثوق) عن التحليليّ (الفصلُ والمطابقةُ والحكم = اجتهاديٌّ يُراجَع) — كما تُفصّله صفحة «المنهجية»."]},
   {h:"أين يمكن أن يتحسّن", p:[
@@ -1887,7 +1931,7 @@ const TECH = [
     "app/rijal — narrators: index (RijalIndex: matching), graph (NarratorGraph: the network), canon (Canonicalizer: unification), grades (classify + RANKS), and a curated seed.jsonl.",
     "app/qa — hadith sciences: isnad, rulings (verdicts and ʿilal), takhrij, answer (grounded answering), dossier (aggregated cards), intent, llm.",
     "app/search — retrieval: index (HadithIndex/SharhIndex over FTS5), vectors (VectorIndex), embeddings (Embedder), hybrid (HybridSearcher: RRF fusion), grouping (report clustering).",
-    "app/routers — endpoints; app/main + app/config (settings); scripts/ — build tools; tests/ — ~550 tests."]},
+    "app/routers — endpoints; app/main + app/config (settings); scripts/ — build tools; tests/ — ~560 tests."]},
   {h:"Processing pipeline — scripts", p:[
     "scripts.ingest: download books from turath.io (rate limit, retry, resume via manifest.json) → data/raw/turath/{id}.json.",
     "scripts.parse: parse pages into structured JSONL (matn/isnad/grade/bab + sharh linking) → data/processed/*.jsonl and sharh/.",
@@ -1952,9 +1996,10 @@ const TECH = [
     "litellm as a unified interface. Three modes: off (extractive from the sources, the safest), local (Ollama), remote (any provider); selected with ?engine= and ?model=.",
     "In every mode the engine is constrained to rely only on the retrieved sources, to cite, and not to fabricate; the sources are always returned so the answer stays verifiable."]},
   {h:"API — app/routers/", p:[
-    "GET /search?q=&mode=&field=&group=&collection=&grade= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /narrators?letter=&grade=&q=&offset=&limit= (browse the رجال — the «الرواة» tab) · GET /books, /books/{id}/chapters, /books/{id}/hadiths?chapter=&offset=&limit= and GET /sharh-books, /sharh-books/{id}/chapters, /sharh-books/{id}/passages?chapter=, plus GET /books/{id}/search?q= and /sharh-books/{id}/search?q= (in-book word search over the whole book's content — the «الكتب» tab) · GET /verify-isnad?isnad=|hadith_id= · GET /audit (isnad review) · GET /conflicts (rijal grave↔trustworthy collisions) · GET /matn-audit (matn review) · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
+    "GET /search?q=&mode=&field=&group=&collection=&grade= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /narrators?letter=&grade=&q=&offset=&limit= (browse the رجال — the «الرواة» tab) · GET /books, /books/{id}/chapters, /books/{id}/hadiths?chapter=&offset=&limit= and GET /sharh-books, /sharh-books/{id}/chapters, /sharh-books/{id}/passages?chapter=, plus GET /books/{id}/search?q= and /sharh-books/{id}/search?q= (in-book word search over the whole book's content — the «الكتب» tab) · GET /reader/books, /reader/books/{id}/pages?start=&count=, /reader/books/{id}/search?q= and /reader/books/{id}.pdf?start=&count= (read a downloaded raw book — the «قراءة الكتب» tab) · GET /verify-isnad?isnad=|hadith_id= · GET /audit (isnad review) · GET /conflicts (rijal grave↔trustworthy collisions) · GET /matn-audit (matn review) · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
     "Browse — the «الرواة» tab (GET /narrators, RijalIndex.browse_rows): a paged, letter-and-درجة-faceted index of every graded narrator (each facet's counts respect the other active filters), so the user can scroll the رجال without searching; a click opens that man's راوٍ card. Names are de-duplicated by exact form.",
     "Library — the «الكتب» tab (app/routers/books.py + HadithIndex.collections/chapters/chapter_hadiths over the same index.db): navigate the corpus by its OWN structure instead of searching — collections (GET /books) → a collection's كتب/أبواب in book order (GET /books/{id}/chapters) → the hadiths under a chapter, paged (GET /books/{id}/hadiths?chapter=) — a three-view drill-down with a breadcrumb and a client-side chapter filter; the leaf reuses the full hadith card. The chapter is built from the book's indexes.headings as a hierarchical «كتاب ← باب» (so untitled «بَابٌ» in different كتب stay distinct, no fusion). أبواب whose body is only a تعليق/أثر — no numbered hadith (common in صحيح البخاري) — are recovered by a parse-time post-pass as «taliq» entries so the whole book is browsable; they carry an empty isnad and kind='taliq', so they show in the library (ordered in book place via a sort key) but are excluded from search, the narrator graph, and the isnad/matn audits. The same tab also browses the شروح (the separate sharh_index.db): GET /sharh-books → each شرح with the collection it explains and its passage count → /sharh-books/{id}/chapters → /sharh-books/{id}/passages?chapter= (one card per passage, its chunks rejoined to the full commentary) — SharhIndex.collections/chapters/chapter_passages. The leaf has «السابق»/«التالي» buttons that step to the previous/next باب in book order (over booksState.chapters) so the user flips through the أبواب without returning to the list. The chapters view also has an in-book WORD search over the whole book's content (beside the باب-title filter): GET /books/{id}/search?q= (HadithIndex.search collection_id-scoped) and GET /sharh-books/{id}/search?q= (SharhIndex.search_in_book) → ranked matches, each with its باب (clickable to open it).",
+    "Book reader — the «قراءة الكتب» tab (app/routers/reader.py): read a DOWNLOADED raw book (the source page-text JSON, e.g. تاريخ الإسلام = 15,404 pages) directly in the app, a page slice at a time so a huge book is never served whole. GET /reader/books lists the books on disk; GET /reader/books/{id}/pages?start=&count= returns the cleaned page TEXT for native RTL reading (the default — instant, no PDF to generate); GET /reader/books/{id}/search?q= finds a word across the WHOLE book (diacritic/hamza-folded via normalize_for_search) and returns the matching pages + a snippet (click to jump); and GET /reader/books/{id}.pdf?start=&count= renders the same slice to a real Arabic PDF (app/parsing/book_pdf, fpdf2 + HarfBuzz + Noto Naskh) for inline view / download — 503 if the font/deps are absent. The loaded book is cached (lru_cache) so turning pages is instant.",
     "Notebook: GET/POST /notebook and PATCH/DELETE /notebook/{id}. Maintenance: POST /admin/reload (clears the provider caches). Health: GET /health and /health/ingestion."]},
   {h:"Settings — app/config.py (.env)", p:[
     "pydantic-settings. The main ones: data_dir (=data), rijal_path (a larger rijal base), embedding_model/embedding_dim (768); the data file paths are properties derived from data_dir.",
@@ -1962,7 +2007,7 @@ const TECH = [
     "Fetching: turath_rate_per_sec (4), turath_max_retries (4), hadith_category_ids (6,7,8,9,10,26)."]},
   {h:"Build and tests", p:[
     "scripts.update: 1) checkout main 2) pull 3) deps 4) ingest 5) parse 6) index 7) build_graph 8) build_rijal — then folds in the optional LLM extraction (build_rijal_llm, gated on a configured engine) and runs the three review reports (audit_isnad, audit_matn, audit_conflicts) plus the incremental embedding. Every step is idempotent and resumable, and a build replaces the file atomically.",
-    "Testing: python -m pytest (~550 tests). CI: pytest + a UI syntax check (node --check) via GitHub Actions."]},
+    "Testing: python -m pytest (~560 tests). CI: pytest + a UI syntax check (node --check) via GitHub Actions."]},
   {h:"Maintaining the reference pages", p:[
     "Three pages stay in sync with the code on every update: «Methodology» (where each datum comes from and why it is trustworthy), «Architecture» (the overview), and «Technical» (this one — the full implementation detail).",
     "Rule: any change in behaviour or structure is accompanied by updating whatever these pages need, so they stay a living reference that never goes stale."]},
