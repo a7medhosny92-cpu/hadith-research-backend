@@ -48,8 +48,11 @@ def main() -> None:
 
     threading.Thread(target=_serve, daemon=True).start()
     _wait_until_up()
+    # text_select=True: let the user select & copy text with the mouse. pywebview defaults it to
+    # False (which disables selection window-wide, overriding the page's user-select:text CSS); the
+    # CSS then keeps only the interactive chrome (buttons/chips) unselectable.
     webview.create_window(
-        "بحث وتحقيق الحديث — Hadith Research", UI_URL, width=1024, height=760
+        "بحث وتحقيق الحديث — Hadith Research", UI_URL, width=1024, height=760, text_select=True
     )
     webview.start()
 

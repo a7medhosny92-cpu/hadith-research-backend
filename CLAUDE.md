@@ -207,6 +207,17 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★ (2026-06-20) TWO DESKTOP-UI FIXES (user screenshots).** ① **The «قراءة الكتب» tab was BROKEN** — clicking it showed the
+search empty-state with an «undefined» placeholder. ROOT: `reader` was missing from the nav handler's `info` list, so it fell to
+the query-tab `else` branch (and `PLACEHOLDER`/`LABELS` have no `reader` key). FIX: add `reader` to `info` (opens immediately, no
+top query box, like «الكتب»); entering the tab resets `readerState.id=null` → always the fresh list; the list now shows a count +
+a title filter + a **«تحديث»** button (the `/reader/books` endpoint already globs the folder each call, so a newly downloaded book
+appears with no restart — verified). ② **Text wasn't selectable with the mouse** — ROOT: pywebview `create_window` defaults
+`text_select=False`, which disables selection window-wide and OVERRIDES the page's `user-select:text` CSS (the CSS band-aid never
+worked in the desktop window). FIX: `app/desktop.py` → `create_window(..., text_select=True)` (pywebview>=5.0 is pinned, so the
+param is safe); the CSS keeps only the interactive chrome (buttons/chips, line 23-24) unselectable → text selectable across the
+whole app. 564 green, التقنية reader card synced. NB takes effect on the user's next `git pull` + app restart (desktop.py).
+
 **★★ (2026-06-20) ṢAḤĪḤAYN W DIAGNOSED → 2 corrupted-grade DUPLICATES FIXED (live, no rebuild), 1 genuine homonym + 1 DANGEROUS
 left for a probe (564 green).** The user ran `audit_conflicts` (DANGEROUS **1** · held 164 · ok 23) + `probe_name` on the 3 البخاري
 W names. **Two classes:** ① **CORRUPTED-GRADE DUPLICATES** — «معاذ بن معاذ ... العنبري» has a ثقة copy (ت196) AND a متروك copy (a leak,

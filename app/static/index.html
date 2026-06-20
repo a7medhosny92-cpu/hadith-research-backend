@@ -537,14 +537,15 @@ engineSel.addEventListener("change", syncEngineUI);
 document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
   closeReadingMode();                       // leave the full-screen reading overlay if it is open
   mode = b.dataset.mode;
+  if(mode === "reader") readerState.id = null;   // entering «قراءة الكتب» shows the (fresh) book list
   navStack = [];                            // switching tabs starts a fresh view → no «رجوع» trail
   document.querySelectorAll(".modes button").forEach(x => x.classList.toggle("active", x === b));
   go.textContent = LABELS[mode];
   q.placeholder = PLACEHOLDER[mode];
   syncEngineUI();
-  // «المنهجية» / «البنية» / «التقنية» / «التدقيق» / «الرواة» are self-contained pages with no top
-  // query box — they open immediately and carry their own controls.
-  const info = mode === "method" || mode === "arch" || mode === "tech" || mode === "audit" || mode === "conflicts" || mode === "matn" || mode === "browse" || mode === "books";
+  // «المنهجية» / «البنية» / «التقنية» / «التدقيق» / «الرواة» / «الكتب» / «قراءة الكتب» are self-contained
+  // pages with no top query box — they open immediately and carry their own controls.
+  const info = mode === "method" || mode === "arch" || mode === "tech" || mode === "audit" || mode === "conflicts" || mode === "matn" || mode === "browse" || mode === "books" || mode === "reader";
   q.style.display = info ? "none" : "";
   go.style.display = info ? "none" : "";
   if(mode === "notebook" || info){
@@ -1191,14 +1192,25 @@ async function renderReader(){
   catch(e){ results.innerHTML = `<div class="state">${esc(e.message || "تعذّر التحميل")}</div>`; return; }
   const books = d.books || [];
   const items = books.map(b =>
-    `<div class="rawi-item rd-pick" data-id="${b.id}" data-title="${esc(b.title)}" data-pages="${b.pages}" role="button" tabindex="0">`
+    `<div class="rawi-item rd-pick" data-id="${b.id}" data-title="${esc(b.title)}" data-pages="${b.pages}" data-filter="${esc(b.title)}" role="button" tabindex="0">`
     + `<span>${esc(b.title)}</span><span class="simbadge">${b.pages} صفحة</span></div>`).join("");
   results.innerHTML = `<div class="note">اقرأ الكتبَ المنزَّلة صفحةً صفحةً داخلَ التطبيق، وابحثْ داخلَ الكتاب، وحمِّلْ نطاقًا ملفًّا PDF. اختَر كتابًا.</div>`
-    + `<div class="rawi-col">${items || '<div class="note">لا كتبَ منزَّلةٌ بعد — نزِّل كتابًا أولًا.</div>'}</div>`;
+    + `<div class="rd-list-bar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px">`
+    + `<span class="simbadge">${books.length} كتابًا</span>`
+    + `<input class="rd-filter" type="search" placeholder="تصفية بالعنوان…" style="flex:1;min-width:180px">`
+    + `<button class="btn rd-refresh" title="إعادة قراءة قائمة الكتب من القرص">↻ تحديث</button></div>`
+    + `<div class="rawi-col" id="rd-books">${items || '<div class="note">لا كتبَ منزَّلةٌ بعد — نزِّل كتابًا أولًا.</div>'}</div>`;
   results.querySelectorAll(".rd-pick").forEach(el => el.addEventListener("click", () => {
     readerState = {id:+el.dataset.id, title:el.dataset.title, pages:+el.dataset.pages || 0, start:1, count:8};
     drawReader();
   }));
+  results.querySelector(".rd-refresh").addEventListener("click", () => { readerState.id = null; renderReader(); });
+  const flt = results.querySelector(".rd-filter");
+  flt.addEventListener("input", () => {
+    const ql = _bkNorm(flt.value.trim());
+    results.querySelectorAll("#rd-books .rd-pick").forEach(el =>
+      el.style.display = (!ql || _bkNorm(el.dataset.filter).includes(ql)) ? "" : "none");
+  });
 }
 function drawReader(){
   const s = readerState;
@@ -2075,7 +2087,7 @@ const TECH = [
     "GET /search?q=&mode=&field=&group=&collection=&grade= · GET /ask?q=&engine=&model= · GET /takhrij?q= · GET /narrator?name=&limit= · GET /narrators?letter=&grade=&q=&offset=&limit= (browse the رجال — the «الرواة» tab) · GET /books, /books/{id}/chapters, /books/{id}/hadiths?chapter=&offset=&limit= and GET /sharh-books, /sharh-books/{id}/chapters, /sharh-books/{id}/passages?chapter=, plus GET /books/{id}/search?q= and /sharh-books/{id}/search?q= (in-book word search over the whole book's content — the «الكتب» tab) · GET /reader/books, /reader/books/{id}/pages?start=&count=, /reader/books/{id}/search?q= and /reader/books/{id}.pdf?start=&count= (read a downloaded raw book — the «قراءة الكتب» tab) · GET /verify-isnad?isnad=|hadith_id= · GET /audit (isnad review) · GET /conflicts (rijal grave↔trustworthy collisions) · GET /matn-audit (matn review) · GET /dossier?q=|hadith_id= · GET /hadith/{id} · GET /sources.",
     "Browse — the «الرواة» tab (GET /narrators, RijalIndex.browse_rows): a paged, letter-and-درجة-faceted index of every graded narrator (each facet's counts respect the other active filters), so the user can scroll the رجال without searching; a click opens that man's راوٍ card. Names are de-duplicated by exact form.",
     "Library — the «الكتب» tab (app/routers/books.py + HadithIndex.collections/chapters/chapter_hadiths over the same index.db): navigate the corpus by its OWN structure instead of searching — collections (GET /books) → a collection's كتب/أبواب in book order (GET /books/{id}/chapters) → the hadiths under a chapter, paged (GET /books/{id}/hadiths?chapter=) — a three-view drill-down with a breadcrumb and a client-side chapter filter; the leaf reuses the full hadith card. The chapter is built from the book's indexes.headings as a hierarchical «كتاب ← باب» (so untitled «بَابٌ» in different كتب stay distinct, no fusion). أبواب whose body is only a تعليق/أثر — no numbered hadith (common in صحيح البخاري) — are recovered by a parse-time post-pass as «taliq» entries so the whole book is browsable; they carry an empty isnad and kind='taliq', so they show in the library (ordered in book place via a sort key) but are excluded from search, the narrator graph, and the isnad/matn audits. The same tab also browses the شروح (the separate sharh_index.db): GET /sharh-books → each شرح with the collection it explains and its passage count → /sharh-books/{id}/chapters → /sharh-books/{id}/passages?chapter= (one card per passage, its chunks rejoined to the full commentary) — SharhIndex.collections/chapters/chapter_passages. The leaf has «السابق»/«التالي» buttons that step to the previous/next باب in book order (over booksState.chapters) so the user flips through the أبواب without returning to the list. The chapters view also has an in-book WORD search over the whole book's content (beside the باب-title filter): GET /books/{id}/search?q= (HadithIndex.search collection_id-scoped) and GET /sharh-books/{id}/search?q= (SharhIndex.search_in_book) → ranked matches, each with its باب (clickable to open it).",
-    "Book reader — the «قراءة الكتب» tab (app/routers/reader.py): read a DOWNLOADED raw book (the source page-text JSON, e.g. تاريخ الإسلام = 15,404 pages) directly in the app, a page slice at a time so a huge book is never served whole. GET /reader/books lists the books on disk; GET /reader/books/{id}/pages?start=&count= returns the cleaned page TEXT for native RTL reading (the default — instant, no PDF to generate); GET /reader/books/{id}/search?q= finds a word across the WHOLE book (diacritic/hamza-folded via normalize_for_search) and returns the matching pages + a snippet (click to jump); and GET /reader/books/{id}.pdf?start=&count= renders the same slice to a real Arabic PDF (app/parsing/book_pdf, fpdf2 + HarfBuzz + Noto Naskh) for inline view / download — 503 if the font/deps are absent. The loaded book is cached (lru_cache) so turning pages is instant.",
+    "Book reader — the «قراءة الكتب» tab (app/routers/reader.py): read a DOWNLOADED raw book (the source page-text JSON, e.g. تاريخ الإسلام = 15,404 pages) directly in the app, a page slice at a time so a huge book is never served whole. GET /reader/books lists the books on disk; GET /reader/books/{id}/pages?start=&count= returns the cleaned page TEXT for native RTL reading (the default — instant, no PDF to generate); GET /reader/books/{id}/search?q= finds a word across the WHOLE book (diacritic/hamza-folded via normalize_for_search) and returns the matching pages + a snippet (click to jump); and GET /reader/books/{id}.pdf?start=&count= renders the same slice to a real Arabic PDF (app/parsing/book_pdf, fpdf2 + HarfBuzz + Noto Naskh) for inline view / download — 503 if the font/deps are absent. The loaded book is cached (lru_cache) so turning pages is instant. The «قراءة الكتب» tab is a self-contained page (opens immediately, no top query box): the book list shows the count, a title filter, and a «تحديث» button that re-reads the books folder so a newly downloaded book appears without restarting; entering the tab always shows the (fresh) list. (Text is selectable with the mouse across the whole app — the desktop window is created with pywebview text_select=True, the CSS keeping only the interactive chrome unselectable.)",
     "Reading mode (frontend, no backend): the «وضع القراءة» button opens a distraction-free FULL-SCREEN reading view of the current range — a wide centred column, a large adjustable Arabic font (أ−/أ+), page nav (Esc/arrows), built on the same /pages endpoint.",
     "Notebook: GET/POST /notebook and PATCH/DELETE /notebook/{id}. Maintenance: POST /admin/reload (clears the provider caches). Health: GET /health and /health/ingestion."]},
   {h:"Settings — app/config.py (.env)", p:[
