@@ -12,6 +12,7 @@
 ![offline](https://img.shields.io/badge/runs-100%25%20offline-a87d27)
 ![cpu](https://img.shields.io/badge/CPU--only-no%20GPU%20needed-555555)
 ![local](https://img.shields.io/badge/storage-local%20SQLite-4b8b9b)
+![license](https://img.shields.io/badge/license-MIT-blue)
 
 </div>
 
@@ -130,7 +131,15 @@ Already installed? `python -m scripts.update` pulls the latest code **and** refr
 
 كلُّ نتيجةٍ موثَّقةٌ بكتابِها، والدرجاتُ والأقوالُ منقولةٌ بأسماءِ أصحابِها مع مراجعِها. الإشاراتُ إلى العللِ والشذوذِ **قرائنُ للنظرِ، لا أحكامٌ نهائيّة**. النصوصُ من المكتبةِ التراثيّةِ المحقّقةِ، وتبقى حقوقُها لأصحابِها؛ هذا العملُ أداةٌ للبحثِ والدراسةِ لا بديلٌ عن أهلِ العلم.
 
-Every result is cited to its book; grades and verdicts carry the names of the critics who issued them, with their source works. The ʿilal/shudhūdh signals are **hints to investigate, never final rulings.** Source texts belong to their rights‑holders; this is a research and study aid, not a substitute for qualified scholars.
+Every result is cited to its book; grades and verdicts carry the names of the critics who issued them, with their source works. The ʿilal/shudhūdh signals are **hints to investigate, never final rulings.** This is a research and study aid, not a substitute for qualified scholars.
+
+---
+
+## ⚖️ الترخيص · License
+
+الكودُ مرخَّصٌ برخصةِ **MIT** — حرٌّ للاستخدامِ والتطويرِ والنشر. أمّا **نصوصُ التراثِ** (المتونُ والشروحُ من المكتبةِ التراثيّةِ) فتبقى حقوقُها لأصحابِها ومحقِّقيها، وهي ليست جزءًا من هذا الترخيص.
+
+The **code** is released under the **MIT License** — see [`LICENSE`](LICENSE). The **heritage texts** (matns and commentaries from the source library) remain the property of their respective rights‑holders and editors, and are **not** covered by this license.
 
 <div align="center">
 
