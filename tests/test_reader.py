@@ -11,19 +11,49 @@ from app.main import app
 from app.parsing.book_pdf import _MissingDeps, render_book_pdf
 
 
-def test_reader_books_lists_downloaded_books(tmp_path, monkeypatch):
+def _seed_book(tmp_path, monkeypatch):
+    """A tiny on-disk book + the reader pointed at it (returns the books dir)."""
     books = tmp_path / "books"
     books.mkdir()
     (books / "1284.json").write_text(json.dumps(
         {"book_id": 1284, "name": "صحيح البخاري", "page_count": 3,
-         "pages": [{"pg": 1, "text": "نصٌّ"}]}), encoding="utf-8")
-
+         "pages": [
+             {"pg": 1, "text": "إنَّما الأعمالُ بالنِّيّاتِ"},
+             {"pg": 2, "text": "حدَّثنا الحُمَيديُّ عبدُ اللهِ بنُ الزُّبَيرِ"},
+             {"pg": 3, "text": ""},
+         ]}), encoding="utf-8")
     from app.routers import reader
     monkeypatch.setattr(reader, "_books_dir", lambda: books)
     reader._load_book.cache_clear()
+    return books
+
+
+def test_reader_books_lists_downloaded_books(tmp_path, monkeypatch):
+    _seed_book(tmp_path, monkeypatch)
     body = TestClient(app).get("/reader/books").json()
     assert body["count"] == 1
     assert body["books"][0] == {"id": 1284, "title": "صحيح البخاري", "pages": 3}
+
+
+def test_reader_pages_returns_cleaned_text_for_native_reading(tmp_path, monkeypatch):
+    _seed_book(tmp_path, monkeypatch)
+    body = TestClient(app).get("/reader/books/1284/pages?start=1&count=2").json()
+    assert body["title"] == "صحيح البخاري"
+    assert [p["pg"] for p in body["pages"]] == [1, 2]
+    assert "الأعمال" in body["pages"][0]["text"]
+
+
+def test_reader_search_finds_a_word_across_the_book_diacritic_folded(tmp_path, monkeypatch):
+    _seed_book(tmp_path, monkeypatch)
+    # «الزبير» (unvocalised) must match the vocalised «الزُّبَيرِ» on page 2
+    body = TestClient(app).get("/reader/books/1284/search?q=الزبير").json()
+    assert body["count"] == 1
+    assert body["matches"][0]["pg"] == 2
+
+
+def test_reader_pages_404_for_an_absent_book(tmp_path, monkeypatch):
+    _seed_book(tmp_path, monkeypatch)
+    assert TestClient(app).get("/reader/books/9999/pages").status_code == 404
 
 
 def test_render_book_pdf_produces_a_pdf_for_the_page_range():
