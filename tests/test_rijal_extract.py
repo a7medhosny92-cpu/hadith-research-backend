@@ -103,6 +103,19 @@ def test_name_does_not_swallow_the_biography():
     assert _trim_name("مالك بن أنس") == "مالك بن أنس"
 
 
+def test_name_drops_fathers_name_clarification_and_kin_tail():
+    # «واسم أبيه X» (his father's actual name) and a relational kin tail («ابن أخت X»، «أخو X») are bio,
+    # not the subject's name — they break matching + dedup if kept (real over-captured تقريب names).
+    assert _trim_name("إياس بن أبي تميمة أبو مخلد البصري واسم أبيه فيروز") \
+        == "إياس بن أبي تميمة أبو مخلد البصري"
+    assert _trim_name("الحارث بن النعمان بن سالم الليثي الكوفي ابن أخت سعيد بن جبير") \
+        == "الحارث بن النعمان بن سالم الليثي الكوفي"
+    assert _trim_name("سيف بن محمد الثوري أخو عمار") == "سيف بن محمد الثوري"
+    # the «وب…» ضبط prefix is stripped too («وبمهملتين» = و+ب+مهملتين, the gap the loop missed)
+    from app.parsing.rijal_extract import _NOISE
+    assert "وبمهملتين" not in _NOISE.sub(" ", "حبيب بن أبي حبيب الخرططي وبمهملتين المروزي")
+
+
 def test_companion_entry_name_is_trimmed():
     # via the full pipeline: a Companion entry's name stops before the biography.
     page = "١- أم سليم بنت ملحان الأنصارية والدة أنس ابن مالك صحابية لها أحاديث ع"
