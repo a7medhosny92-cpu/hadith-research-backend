@@ -27,6 +27,15 @@ def test_held_when_not_a_discriminator_or_not_bare():
     assert resolve_qaida("مالك", "نافع") is None              # no qā'ida for this name
 
 
+def test_ismail_ibn_aban_is_the_warraq_thiqa_by_bukhari_shaykh():
+    # الورّاق الأزدي (ثقة، شيخ البخاري) vs الغنوي الخياط (متروك). البخاري only used الورّاق →
+    # «إسماعيل بن أبان عن ابن الغسيل/عيسى بن يونس/ابن المبارك/أبي الأحوص» = الورّاق.
+    for shaykh in ("ابن الغسيل", "عيسى بن يونس", "ابن المبارك", "أبو الأحوص", "أبي الأحوص"):
+        assert resolve_qaida("إسماعيل بن أبان", shaykh) == "إسماعيل بن أبان الوراق الأزدي"
+    assert resolve_qaida("إسماعيل بن أبان", "جعفر الأحمر") is None   # not a الورّاق marker → held
+    assert resolve_qaida("اسماعيل", "الشعبي") == "إسماعيل بن أبي خالد"   # the bare «اسماعيل» qā'ida intact
+
+
 def test_yahya_sulayman_khalid():
     assert resolve_qaida("يحيى بن سعيد", "شعبة") == "يحيى بن سعيد القطان"
     assert resolve_qaida("يحيى بن سعيد", "عبيد الله بن عمر") == "يحيى بن سعيد القطان"

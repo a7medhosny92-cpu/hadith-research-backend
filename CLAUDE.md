@@ -207,6 +207,21 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★★ (2026-06-20) THE 3 REMAINING ṢAḤĪḤAYN W — ALL CLOSED (peek/probe-driven, live, no rebuild, 565 green).** The user ran
+`peek_name_chains "إسماعيل بن أبان"` + `probe_name "مروان بن الحكم" "سفيان بن حسين"`. **Two more corrupted-grade duplicates →
+`RELIABLE_DESPITE_GRAVE` (#300 mechanism):** **مروان بن الحكم** (كذاب·محسوم, 1 candidate — but روى له الجماعة; the «كذاب» is his
+POLITICAL reputation leaked, not a روائي جرح → ثقة) · **سفيان بن حسين** (2 candidates, BOTH الواسطي ~ت156 = ONE man; the «متروك» copy
+a corruption of the ثقة في غير الزهري → ثقة). **The GENUINE homonym → a قاعدة بالشيخ (`qaida.py`):** `peek_name_chains` proved البخاري
+cites ONLY الورّاق الأزدي (ثقة شيخه), at أول السند + عن ابن الغسيل/عيسى بن يونس/ابن المبارك/أبي الأحوص (#937·#4699·#5702·#6539·#6735);
+الغنوي الخيّاط (متروك) is a DIFFERENT man → keyed `_f("إسماعيل بن أبان")` → الورّاق for those distinctive شيوخ, an unencoded شيخ (جعفر
+الأحمر…) left «مشترك» (لا نختلق). Verified e2e (a Bukhārī chain «إسماعيل بن أبان ... ابن الغسيل» → الورّاق ثقة) + the bare «اسماعيل»
+قاعدة (ابن أبي خالد) intact + الواقدي untouched. +2 tests. **LIVE on the next `audit_isnad` (anchor+qaida at load/analyze, no rebuild)**
+→ the البخاري W on مروان(×3)/إسماعيل(×6)/سفيان bن حسين should clear. So with #300 (معاذ/حريز) the **Ṣaḥīḥayn W is now fully addressed**;
+residual W = the honest post-Six-Books متروك/كذاب review queue + al-Mustadrak/Ibn-Māja graves (genuine). NB the `audit_conflicts`
+DANGEROUS 1 «منصور محمد» is low-freq (a كذاب bن محمد بن عبد الله shadowing the trustworthy bن محمد بن محمد الطيب — different lineage
+depth the grave-hold misses); probe if it ever surfaces in chains. **WAITING ON THE USER: `git pull` → `audit_isnad`** (confirm
+W drops, the البخاري filter is clean) — no rebuild needed.
+
 **★ (2026-06-20) TWO DESKTOP-UI FIXES (user screenshots).** ① **The «قراءة الكتب» tab was BROKEN** — clicking it showed the
 search empty-state with an «undefined» placeholder. ROOT: `reader` was missing from the nav handler's `info` list, so it fell to
 the query-tab `else` branch (and `PLACEHOLDER`/`LABELS` have no `reader` key). FIX: add `reader` to `info` (opens immediately, no
