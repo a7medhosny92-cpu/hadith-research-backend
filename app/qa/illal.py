@@ -18,6 +18,32 @@ Consumes the dict :func:`app.qa.takhrij.analyze_narrations` returns.
 from __future__ import annotations
 
 from app.qa.isnad import analyze_isnad
+from app.rijal.grades import RANKS
+
+
+def _route_weakest(text: str) -> tuple[int, str] | None:
+    """(rank, grade-word) of the WEAKEST identified non-Prophet narrator on a route — its weakest link —
+    or ``None`` when no narrator on it is graded. A weaker راوٍ has a LOWER rank on the RANKS scale."""
+    pairs: list[tuple[int, str]] = []
+    for n in analyze_isnad(text).narrators:
+        if n.get("is_prophet"):
+            continue
+        grade = (n.get("rijal") or {}).get("grade")
+        rank = RANKS.get(grade)
+        if rank is not None:
+            pairs.append((rank, grade))
+    return min(pairs, key=lambda p: p[0]) if pairs else None
+
+
+def _variant_weakest(variant: dict) -> tuple[int, str] | None:
+    """The STRONGEST of a variant's routes, scored by its weakest link — (rank, grade) or ``None``."""
+    best: tuple[int, str] | None = None
+    for n in variant.get("narrations", []) or []:
+        text = f"{n.get('isnad', '') or ''} {n.get('matn', '') or ''}".strip()
+        w = _route_weakest(text) if text else None
+        if w is not None and (best is None or w[0] > best[0]):
+            best = w
+    return best
 
 
 def detect_structural_illal(takhrij: dict, *, check_raf_waqf: bool = True) -> list[dict]:
@@ -40,16 +66,29 @@ def detect_structural_illal(takhrij: dict, *, check_raf_waqf: bool = True) -> li
                               f"صحابيٌّ غيره؛ يُنظر في تفرّده."})
 
     # 2) شذوذ في المتن — a lone wording (one route, «بمعناه») against a well-attested one (≥3) from the
-    #    SAME Companion: the odd wording may be a راوٍ's error (مخالفة الأوثق/الأكثر).
+    #    SAME Companion: the odd wording may be a راوٍ's error (مخالفة الأوثق/الأكثر). When allowed to parse
+    #    the routes (check_raf_waqf), it is WEIGHED BY GRADE — a lone wording carried by a راوٍ weaker than
+    #    the well-attested routes is a clearer شذوذ (مخالفة الأوثق *والأكثر*), and the درجة is named.
     for g in named:
         variants = g.get("variants", []) or []
         if len(variants) < 2:
             continue
         dominant = max((v.get("count", 0) for v in variants), default=0)
-        if dominant >= 3 and any(v.get("count") == 1 and v.get("label") == "بمعناه" for v in variants):
-            hints.append({"type": "شذوذ", "severity": "warn",
-                          "note": f"لفظٌ تفرّد به راوٍ عن {g['companion']} يخالف روايةَ الأكثر "
-                                  f"({dominant} طرق متقاربة) — يُنظر في شذوذه."})
+        lone = next((v for v in variants if v.get("count") == 1 and v.get("label") == "بمعناه"), None)
+        if dominant < 3 or lone is None:
+            continue
+        note = (f"لفظٌ تفرّد به راوٍ عن {g['companion']} يخالف روايةَ الأكثر "
+                f"({dominant} طرق متقاربة) — يُنظر في شذوذه.")
+        if check_raf_waqf:                                    # parse the routes to weigh «الأوثق»
+            lone_w = _variant_weakest(lone)
+            dom_ws = [w for v in variants if v is not lone for w in (_variant_weakest(v),) if w is not None]
+            dom_w = max(dom_ws, key=lambda x: x[0]) if dom_ws else None
+            if lone_w is not None:
+                weaker = dom_w is not None and lone_w[0] < dom_w[0]
+                note = (f"لفظٌ تفرّد به راوٍ ({lone_w[1]}) عن {g['companion']} يخالف روايةَ "
+                        f"{'الأوثقِ و' if weaker else ''}الأكثر ({dominant} طرق متقاربة) — "
+                        f"{'شذوذٌ ظاهرٌ يُرجَّح طرحُه.' if weaker else 'يُنظر في شذوذه.'}")
+        hints.append({"type": "شذوذ", "severity": "warn", "note": note})
 
     # 3) اضطراب — ≥3 wordings from one مخرج, none close to the source (all «بمعناه»): no راجح lafẓ.
     for g in named:
