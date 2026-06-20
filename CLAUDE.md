@@ -207,7 +207,20 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
-**★★ (2026-06-20) تاريخ الإسلام (35100) EXTRACTOR BUILT — the comprehensive (A) الأصم-class source (user downloaded it).**
+**★★ (2026-06-20) تاريخ الإسلام (35100) EXTRACTOR — REWRITTEN & VALIDATED: 11,012 narrators, 917 LATE الأصم-class.**
+v1 (سير «N - name» heading reuse) undercaught → 18 records (the محقق's numbered study sections). `peek_headings 35100` revealed
+why: تاريخ الإسلام has NO per-tarjama number (`indexes.numbers` empty) — the real narrators are the **LEVEL-3 headings** (≈30,864,
+the bulk; famous Companions are level-2 «ترجمة فلان»), a bare full NAME past the محقق's study (**page ≥ 343**); the early طبقات are
+سيرة/مغازي EVENTS. **REWROTE `_tarjama_heads`/`_segment` level-based** (level-2 «ترجمة» + level-3 names, page ≥ 343, drop events by
+a stop-list, map to body by page like سير; added `--level/--from/--grep` to peek_headings). **★ MEASURED (user ran `peek_tarikh_islam`):
+11,012 tarjamas · 10,854 with network · 4,414 graded · **917 LATE (death ≥ 300h, the الأصم-class)** · death-spread 0–450h · grades
+ثقة 2327/صدوق 1074/ضعيف 519/متروك 203/كذاب 153…** — clean names, the (A) source WORKS. Residual noise (inert): ~6,598 «غير معروف»
+(late men held conservatively) + a few non-narrators (women/officials — تاريخ الإسلام is a general dictionary; they don't appear in
+chains). **NEXT (user GO given): `build_rijal --no-download` (merges تاريخ الإسلام add-only → «+N» the new الأصم-class men) →
+`build_graph` (the network resolves الأصم via documented company) → `audit_coverage` (the (A) gap closes).** +4 tests, 557 green.
+NB تاريخ بغداد (736) stays deferred (report-isnad, redundant). +1-line each: catalog/build_rijal/build_graph already wired (#288).
+
+
 The user downloaded تاريخ الإسلام (ت بشار, 44.9 MB) + تاريخ بغداد (736) + سير. Sampled both via `sample_source`: **تاريخ
 الإسلام is the right source** — same HEADING-based طبقات structure as سير (`indexes.headings` carry «N - full name», numbers
 restart each طبقة → page locates the body), body «سمع/روى عن» (شيوخ) · «وعنه/روى عنه» (تلاميذ) · «وكان ثقة» (al-Dhahabī's
