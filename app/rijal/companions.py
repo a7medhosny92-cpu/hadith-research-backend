@@ -58,3 +58,14 @@ MAJOR_TABIIN: list[str] = [
     "الحكم بن عتيبة", "حماد بن أبي سليمان", "أبو إسحاق السبيعي", "منصور بن المعتمر",
     "قيس بن أبي حازم",
 ]
+
+# Famous ثقات (في الصحيحين، ثقة بالإجماع) whose رجال base sometimes carries a DUPLICATE entry with a
+# CORRUPTED grave grade — a متروك/كذاب leaked from a story or another man in a prose source (سير/تاريخ
+# الإسلام), split from the sound entry by the grade conflict (so dedup will not merge them). There is no
+# OTHER man of the name, so the grave grade is provably the corruption: an entry whose SUBJECT is one of
+# these is corrected متروك/كذاب → ثقة at load (see index._anchor_grade / RijalIndex.add). CLOSED, hand-
+# verified, documentary — only men with a single famous referent and NO genuine متروك namesake.
+RELIABLE_DESPITE_GRAVE: list[str] = [
+    "معاذ بن معاذ العنبري",   # قاضي البصرة، ت١٩٦ — ثقة بالإجماع (شيخ أحمد وابن المديني)
+    "حريز بن عثمان",          # الرحبي الحمصي، ت١٦٣ — ثقة ثبت في صحيح البخاري (رُمي بالنصب لا بالكذب)
+]

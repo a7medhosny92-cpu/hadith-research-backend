@@ -207,6 +207,21 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
+**★★ (2026-06-20) ṢAḤĪḤAYN W DIAGNOSED → 2 corrupted-grade DUPLICATES FIXED (live, no rebuild), 1 genuine homonym + 1 DANGEROUS
+left for a probe (564 green).** The user ran `audit_conflicts` (DANGEROUS **1** · held 164 · ok 23) + `probe_name` on the 3 البخاري
+W names. **Two classes:** ① **CORRUPTED-GRADE DUPLICATES** — «معاذ بن معاذ ... العنبري» has a ثقة copy (ت196) AND a متروك copy (a leak,
+no death), «حريز بن عثمان» a ثقة copy (الرحبي ت163) AND a كذاب copy — the SAME man split by the grade conflict (dedup can't merge a
+ثقة+grave), the grave provably a سير/تاريخ-الإسلام prose leak (no other معاذ بن معاذ / حريز بن عثمان exists). **FIX:** `companions.RELIABLE_DESPITE_GRAVE`
+(CLOSED, hand-verified) + an `add` branch corrects متروك/كذاب → ثقة when the name identifies one of these → the chain can't pick the
+grave. Verified in-container (معاذ/حريز→ثقة; إسماعيل/الواقدي untouched). +1 test, **LIVE on the next `audit_isnad` (anchor runs at load,
+no rebuild)** → the معاذ/حريز البخاري W clear. ② **GENUINE HOMONYM** — «إسماعيل بن أبان»: الغنوي (متروك ت210) vs الوراق (ثقة ت216) are
+TWO real men; البخاري uses الوراق but the chain resolves to الغنوي (متروك) → W. NOT a grade-correction (الغنوي IS متروك) → needs a قاعدة
+بالشيخ/تلميذ. **WAITING ON THE USER: `peek_name_chains "إسماعيل بن أبان"`** (dump التلميذ→[name]→شيخ contexts → I write the قاعدة) +
+**probe «مروان بن الحكم»** (البخاري W ×3, not yet diagnosed — likely a leaked grade or a namesake). ③ **DANGEROUS 1** = «منصور محمد» →
+[كذاب] منصور بن محمد بن عبد الله shadowing the trustworthy منصور بن محمد بن محمد بن الطيب (the grave-hold guard misses it — different
+lineage depth); low-freq, probe to confirm if it appears in chains. **Also still open: «سفيان بن حسين» 30× (#1 W)** = build-time grade
+corruption (ثقة في غير الزهري, not متروك — needs the source).
+
 **★★ (2026-06-20) #297 MEASURED (live, no rebuild) → COVERAGE WIN, الأصم RESOLVED, STRIP SAFE.** The user re-ran the audits at
 `2d06404`. **`audit_coverage`: uncovered 7.2%→5.9% (−6,337 positions), covered 94.1%** (identified 85.3% + ambiguous 8.8%); by
 distinct narrator identified 34.6%→39.5% (+1,223). **★ الأصم (the 1242× prize) RESOLVED:** `probe_name` showed the `_SHUHRA` target

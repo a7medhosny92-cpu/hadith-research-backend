@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Iterable, Iterator
 
 from app.parsing.normalize import fold_kunya, normalize_for_search
-from app.rijal.companions import MAJOR_COMPANIONS, MAJOR_TABIIN
+from app.rijal.companions import MAJOR_COMPANIONS, MAJOR_TABIIN, RELIABLE_DESPITE_GRAVE
 from app.rijal.grades import RANKS, classify
 
 # Honorific ligatures (ﷺ ﵁ …), Quranic/honorific marks, and spelled-out eulogies.
@@ -130,6 +130,7 @@ def _clean_tokens(name: str) -> set[str]:
 # nasab. See app/rijal/companions.py.
 _COMPANION_SEQS = [s for s in (_clean_seq(c) for c in MAJOR_COMPANIONS) if len(s) >= 2]
 _TABII_SEQS = [s for s in (_clean_seq(c) for c in MAJOR_TABIIN) if len(s) >= 2]
+_RELIABLE_SEQS = [s for s in (_clean_seq(c) for c in RELIABLE_DESPITE_GRAVE) if len(s) >= 2]
 
 
 def _contiguous(sub: list[str], full: list[str]) -> bool:
@@ -496,6 +497,13 @@ class RijalIndex:
                 anchor = _anchor_grade(raw["name"])
                 if anchor and anchor[0] == "ثقة":
                     category, rank = anchor
+            # A famous ثقة (في الصحيحين) whose entry carries a CORRUPTED grave grade — a متروك/كذاب leaked
+            # from a prose source onto a DUPLICATE the grade conflict kept un-merged (معاذ بن معاذ العنبري
+            # «متروك» beside the ثقة ت196؛ حريز بن عثمان «كذاب» beside the ثقة الرحبي). There is no genuine
+            # متروك namesake, so the grave is provably the leak → correct it to ثقة, else the chain
+            # resolution picks the grave and a صحيح البخاري chain reads متروك/كذاب (a W). CLOSED, documentary.
+            elif category in ("متروك", "كذاب") and _form_identifies(_clean_seq(raw["name"]), _RELIABLE_SEQS):
+                category, rank = "ثقة", RANKS["ثقة"]
             # A Companion's bio («أحد العشرة أسلم قديمًا …») sometimes leaks into his NAME, not the grade,
             # so a major صحابي (عبد الرحمن بن عوف) is mis-graded «مجهول» → a chain through him reads «راوٍ
             # مجهول». Recover صحابي from his own name when the grade is silent (only ever PROMOTES).

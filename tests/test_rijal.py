@@ -127,6 +127,24 @@ def test_al_article_query_matches_a_base_entry_without_the_article_multitoken_on
     assert rij.lookup("معتمر بن سليمان").entry.name.startswith("معتمر")
 
 
+def test_corrupted_grave_grade_on_a_sahih_thiqa_duplicate_is_corrected():
+    # A famous ثقة (في الصحيحين) sometimes has a DUPLICATE entry carrying a corrupted grave grade leaked
+    # from a prose bio — معاذ بن معاذ العنبري «متروك» beside the ثقة ت196، حريز بن عثمان «كذاب» beside the
+    # ثقة الرحبي. There is no genuine متروك namesake, so the grave is corrected to ثقة at load.
+    rij = RijalIndex([
+        {"name": "معاذ بن معاذ بن نصر بن حسان أبو المثنى العنبري البصري", "grade": "متروك"},
+        {"name": "حريز بن عثمان بن جبر", "grade": "كذاب"},
+        # a GENUINE homonym pair must be UNTOUCHED: الغنوي is really متروك, الوراق really ثقة → held
+        {"name": "إسماعيل بن أبان الغنوي الكوفي", "grade": "متروك"},
+        {"name": "إسماعيل بن أبان الوراق الأزدي", "grade": "ثقة"},
+        {"name": "محمد بن عمر الواقدي", "grade": "متروك"},   # a real متروك of another name — unaffected
+    ])
+    assert rij.lookup("معاذ بن معاذ").entry.category == "ثقة"
+    assert rij.lookup("حريز بن عثمان").entry.category == "ثقة"
+    assert rij.lookup("إسماعيل بن أبان الغنوي الكوفي").entry.category == "متروك"   # NOT corrected
+    assert rij.lookup("محمد بن عمر الواقدي").entry.category == "متروك"             # NOT corrected
+
+
 def test_honorific_strip_recovers_late_shaykhs_cited_with_a_kunya_or_a_status_word():
     # The late محدّثون (al-Ḥākim/al-Bayhaqī's شيوخ) are cited with a LEADING kunya «أبو بكر محمد بن أحمد
     # بن بالويه» or a TRAILING status word «علي بن حمشاذ العدل», but the base stores the ism-nasab («… أبو
