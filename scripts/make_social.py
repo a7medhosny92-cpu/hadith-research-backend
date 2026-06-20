@@ -280,13 +280,9 @@ def card5_cta():
         ("عملٌ مستقلٌّ خالصٌ", "دعمُكم يُسرّعُ إكمالَه ويُبقيه حُرًّا"),
     ], gap=20)
     box_t = y + 12
-    d.rounded_rectangle((110, box_t, W - 110, box_t + 214), radius=28, fill=GREEN, outline=GOLD, width=3)
-    center(d, W // 2, box_t + 40, "كُنْ شريكًا في الأجرِ", F(KUFI_B, 56), CREAM2)
-    lbl = "للدعمِ والتواصلِ"
-    fl = F(NASKH_B, 40)
-    right(d, W - 150, box_t + 132, lbl, fl, (245, 238, 222))
-    lw = tlen(d, lbl, fl)
-    d.line((150, box_t + 178, int(W - 150 - lw - 28), box_t + 178), fill=(214, 198, 150), width=3)
+    d.rounded_rectangle((110, box_t, W - 110, box_t + 210), radius=28, fill=GREEN, outline=GOLD, width=3)
+    center(d, W // 2, box_t + 52, "كُنْ شريكًا في الأجرِ", F(KUFI_B, 58), CREAM2)
+    center(d, W // 2, box_t + 142, "والدالُّ على الخيرِ كفاعلِه", F(NASKH_B, 40), (240, 233, 216))
     footer(d, "جزى اللهُ خيرًا كلَّ مَن دعمَ أو نشرَ")
     return save(img, "5_support")
 
