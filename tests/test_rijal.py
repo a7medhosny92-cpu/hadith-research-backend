@@ -134,6 +134,8 @@ def test_corrupted_grave_grade_on_a_sahih_thiqa_duplicate_is_corrected():
     rij = RijalIndex([
         {"name": "معاذ بن معاذ بن نصر بن حسان أبو المثنى العنبري البصري", "grade": "متروك"},
         {"name": "حريز بن عثمان بن جبر", "grade": "كذاب"},
+        {"name": "مروان بن الحكم بن أبي العاص بن أمية", "grade": "كذاب"},    # روى له الجماعة (سياسيّ لا روائيّ)
+        {"name": "سفيان بن حسين بن الحسن الواسطي", "grade": "متروك"},        # = الواسطي الثقة (نسخة مُفسَدة)
         # a GENUINE homonym pair must be UNTOUCHED: الغنوي is really متروك, الوراق really ثقة → held
         {"name": "إسماعيل بن أبان الغنوي الكوفي", "grade": "متروك"},
         {"name": "إسماعيل بن أبان الوراق الأزدي", "grade": "ثقة"},
@@ -141,6 +143,8 @@ def test_corrupted_grave_grade_on_a_sahih_thiqa_duplicate_is_corrected():
     ])
     assert rij.lookup("معاذ بن معاذ").entry.category == "ثقة"
     assert rij.lookup("حريز بن عثمان").entry.category == "ثقة"
+    assert rij.lookup("مروان بن الحكم").entry.category == "ثقة"
+    assert rij.lookup("سفيان بن حسين").entry.category == "ثقة"
     assert rij.lookup("إسماعيل بن أبان الغنوي الكوفي").entry.category == "متروك"   # NOT corrected
     assert rij.lookup("محمد بن عمر الواقدي").entry.category == "متروك"             # NOT corrected
 
