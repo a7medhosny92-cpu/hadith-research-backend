@@ -281,6 +281,7 @@
     <button data-mode="narrator">راوٍ</button>
     <button data-mode="browse">الرواة</button>
     <button data-mode="books">الكتب</button>
+    <button data-mode="reader">قراءة الكتب</button>
     <button data-mode="network">الشبكة</button>
     <button data-mode="isnad">الإسناد</button>
     <button data-mode="notebook">دفتري</button>
@@ -789,6 +790,7 @@ async function run(){
   if(mode === "conflicts"){ renderConflicts(); return; }    // rijal grave↔trustworthy collisions
   if(mode === "browse"){ renderBrowse(); return; }          // browse every narrator (no search)
   if(mode === "books"){ renderBooks(); return; }            // navigate the corpus: كتب → أبواب → أحاديث
+  if(mode === "reader"){ renderReader(); return; }          // read a downloaded raw book as PDF, in-app
   if(!query && mode !== "notebook") return;   // notebook lists everything when empty
   results.innerHTML = `<div class="state">… جارٍ التنفيذ</div>`;
   try{
@@ -1163,6 +1165,47 @@ async function renderBooks(){
     + `<div class="rawi-col">${items || '<div class="note">لا كتب بعد — ابنِ الفهرس (index.db) أولًا.</div>'}</div>`
     + (shr ? `<div class="note" style="margin-top:18px"><b>شروح الحديث</b> — اختَر شرحًا لتصفّح أبوابه ونصوصه.</div>`
              + `<div class="rawi-col">${shr}</div>` : "");
+}
+
+// ── «قراءة الكتب»: read a downloaded raw book as an inline PDF (page ranges) ─────────────────────
+let readerState = {id:null, title:"", pages:0, start:1, count:12};
+async function renderReader(){
+  if(readerState.id){ drawReader(); return; }
+  results.innerHTML = `<div class="state">… جارٍ تحميل قائمة الكتب</div>`;
+  let d;
+  try { d = await getJSON("/reader/books"); }
+  catch(e){ results.innerHTML = `<div class="state">${esc(e.message || "تعذّر التحميل")}</div>`; return; }
+  const books = d.books || [];
+  const items = books.map(b =>
+    `<div class="rawi-item rd-pick" data-id="${b.id}" data-title="${esc(b.title)}" data-pages="${b.pages}" role="button" tabindex="0">`
+    + `<span>${esc(b.title)}</span><span class="simbadge">${b.pages} صفحة</span></div>`).join("");
+  results.innerHTML = `<div class="note">اقرأ الكتبَ المنزَّلة صفحةً صفحةً (يُعرَض كلُّ نطاقٍ ملفًّا PDF داخلَ التطبيق). اختَر كتابًا.</div>`
+    + `<div class="rawi-col">${items || '<div class="note">لا كتبَ منزَّلةٌ بعد — نزِّل كتابًا أولًا.</div>'}</div>`;
+  results.querySelectorAll(".rd-pick").forEach(el => el.addEventListener("click", () => {
+    readerState = {id:+el.dataset.id, title:el.dataset.title, pages:+el.dataset.pages || 0, start:1, count:12};
+    drawReader();
+  }));
+}
+function drawReader(){
+  const s = readerState;
+  const last = s.pages ? Math.min(s.start + s.count - 1, s.pages) : s.start + s.count - 1;
+  const src = `/reader/books/${s.id}.pdf?start=${s.start}&count=${s.count}`;
+  results.innerHTML =
+    `<div class="rawi-crumbs"><span class="bk-crumb rd-back" role="button" tabindex="0">الكتب</span>`
+    + ` <span>${esc(s.title)}</span></div>`
+    + `<div class="rd-nav" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0 12px">`
+    + `<button class="btn rd-prev">السابق ⟶</button>`
+    + `<span class="note" style="margin:0">الصفحات ${s.start}–${last}${s.pages ? " من "+s.pages : ""}</span>`
+    + `<button class="btn rd-next">⟵ التالي</button>`
+    + `<input class="rd-jump" type="number" min="1" ${s.pages ? `max="${s.pages}"` : ""} value="${s.start}" style="width:90px">`
+    + `<button class="btn rd-go">اذهب</button>`
+    + `</div>`
+    + `<iframe class="rd-frame" src="${src}" title="${esc(s.title)}" style="width:100%;height:78vh;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>`;
+  const go = st => { readerState.start = Math.max(1, s.pages ? Math.min(st, s.pages) : st); drawReader(); };
+  results.querySelector(".rd-back").addEventListener("click", () => { readerState.id = null; renderReader(); });
+  results.querySelector(".rd-prev").addEventListener("click", () => go(s.start - s.count));
+  results.querySelector(".rd-next").addEventListener("click", () => go(s.start + s.count));
+  results.querySelector(".rd-go").addEventListener("click", () => go(parseInt(results.querySelector(".rd-jump").value, 10) || 1));
 }
 
 function booksCrumb(){
