@@ -22,6 +22,11 @@ Depth docs (NOT auto-loaded — open when relevant):
 - `README.md` — overview & how to run.
 
 ## How it runs (operational — I got this wrong once; get it right from the file)
+- **`setup.sh` / `setup.bat`** (NEW, for a public/fresh clone) → one-command first-time install: makes
+  the venv, `pip install -e .[dev,desktop]`, then `scripts.update --no-git` to **download the books from
+  turath.io and build the whole corpus** — so a stranger who clones the repo is self-contained, NO need
+  for the user's Drive. `scripts.update --no-git` = the build steps (3-8 + audits) WITHOUT the git
+  checkout/pull (steps 1-2), for a fresh clone or an offline rebuild.
 - **`update.bat`** (double-click) → `python -m scripts.update`: an **8-step pipeline, not just git
   pull** — checkout main → `git pull --ff-only` → deps → **download books** → parse → index → build
   narrator graph → **build_rijal** → **audit** (regenerates `data/audit.json`, the «التدقيق» tab).

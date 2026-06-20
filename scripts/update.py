@@ -4,9 +4,13 @@ Pulls the latest code, refreshes dependencies, and (by default) brings the corpu
 up to date: download new/updated books -> parse -> rebuild the search indexes.
 
     python -m scripts.update              # code + corpus (full sync)
+    python -m scripts.update --no-git     # FRESH CLONE / offline: skip git, just download + build
     python -m scripts.update --code-only  # just pull code + refresh deps (fast)
     python -m scripts.update --full       # refresh the FULL corpus, not just canonical
     python -m scripts.update --llm-rijal  # also run the optional (marginal) LLM رجال grade pass
+
+For a brand-new clone, prefer the one-command ``./setup.sh`` (Windows: ``setup.bat``) — it makes the
+venv, installs the app, then runs this with ``--no-git`` to download the books and build everything.
 
 When an LLM engine is configured (``LLM_DEFAULT_ENGINE=local``), every update also runs a
 faithful, cached LLM pass that re-segments the few chains the regex mis-splits — the recovered
@@ -48,6 +52,9 @@ def step(title: str, cmd: list[str], *, fatal: bool = True) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Update the local install from GitHub.")
+    ap.add_argument("--no-git", action="store_true",
+                    help="skip the git checkout/pull — build the corpus from the code as-is "
+                         "(for a FRESH CLONE / first-time setup, or an offline rebuild)")
     ap.add_argument("--code-only", action="store_true",
                     help="only pull code + refresh dependencies (skip the corpus rebuild)")
     ap.add_argument("--full", action="store_true",
@@ -78,8 +85,10 @@ def main() -> None:
     # Always update from main, even if a previous session left the checkout on another
     # branch — otherwise `git pull` would fast-forward the wrong branch and silently miss
     # the latest code. (Local data lives under data/, which is gitignored, so switching is safe.)
-    step("1/8  Switch to the main branch", ["git", "checkout", "main"])
-    step("2/8  Pull the latest code from GitHub", ["git", "pull", "--ff-only"])
+    # --no-git skips this: a fresh clone (or an offline machine) just builds the code as-is.
+    if not args.no_git:
+        step("1/8  Switch to the main branch", ["git", "checkout", "main"])
+        step("2/8  Pull the latest code from GitHub", ["git", "pull", "--ff-only"])
     # Include the desktop window (pywebview) and the LLM switch (litellm) so the app
     # and the local/remote «brain» work out of the box after an update; add the
     # embeddings stack too when semantic search is in use.

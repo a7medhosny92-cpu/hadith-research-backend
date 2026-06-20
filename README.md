@@ -83,23 +83,37 @@ An 8‑step, idempotent pipeline turns raw books into the searchable corpus: **d
 
 ## ▶️ التشغيل · Quickstart
 
+### ⚡ بأمرٍ واحد · One command
+
+```bash
+git clone https://github.com/a7medhosny92-cpu/hadith-research-backend
+cd hadith-research-backend
+./setup.sh                 # Windows: double‑click setup.bat
+```
+
+`setup.sh` is **self‑contained**: it creates a virtual environment, installs the app, **downloads the books from [turath.io](https://app.turath.io/), and builds the entire corpus** (parse → index → narrator graph → rijal base → self‑audits). It is resumable — safe to re‑run. *Add `--semantic` for «smart» semantic search (downloads a model).*
+
+Then start it:
+
+```bash
+source .venv/bin/activate
+uvicorn app.main:app                    # → http://localhost:8000/app   (API docs at /docs)
+# …or the native desktop window:
+python -m app.desktop                   # console script: hadith-app
+```
+
+<details><summary>أو خطوةً خطوة · Or step by step</summary>
+
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"                 # add ",embeddings,llm" for semantic search / RAG
-
-# get a slice of the corpus locally (resumable)
-python -m scripts.ingest --priority --with-commentaries
-python -m scripts.parse && python -m scripts.index
-
-# run the API + UI  →  http://localhost:8000/app   (API docs at /docs)
-uvicorn app.main:app --reload
+pip install -e ".[dev,desktop]"         # add ",embeddings,llm" for semantic search / RAG
+python -m scripts.update --no-git       # download the books + build the whole corpus
+# (the stages, if you prefer: scripts.ingest → parse → index → build_graph → build_rijal)
+uvicorn app.main:app
 ```
 
-```bash
-# or the native desktop window
-pip install -e ".[desktop]"
-python -m app.desktop                   # console script:  hadith-app
-```
+Already installed? `python -m scripts.update` pulls the latest code **and** refreshes the corpus.
+</details>
 
 ---
 
