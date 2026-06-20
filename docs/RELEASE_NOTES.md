@@ -1,3 +1,5 @@
+[العربية](RELEASE_NOTES.ar.md) · 🌐 **English**
+
 # v0.1.0 — بحث وتحقيق الحديث · First public release
 
 **An AI‑powered, local‑first system for searching the Prophetic traditions, verifying the chains of narration (isnād), grading the narrators, and detecting hidden defects (ʿilal) — entirely in Classical Arabic, fully offline.**
