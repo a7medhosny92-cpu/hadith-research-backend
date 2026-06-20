@@ -207,20 +207,41 @@ Identify the narrator **from the chain before the bare name** (تمييز الم
   A (مشترك). Grade-agreement gates S/W.
 
 ## Current work — KEEP UPDATED
-**★★ (2026-06-20) READ-ALOUD (TTS) + FULL-SCREEN READING MODE — SHIPPED (PR #295 squash-merged, branch realigned to main
-`4c7206b`, 562 green).** The user asked for «la funzione di lettura in arabo» → confirmed via AskUserQuestion = **«Entrambe»**
-(audio + visiva). BOTH built, **entirely client-side** (frontend-only, no backend, no new dependency; reuse `/reader/.../pages`):
-- **Read-aloud «استماع»** — recites the Arabic text via the browser **Web Speech API** (`speechSynthesis`) with a **system Arabic
-  voice** (offline, works in the pywebview desktop window when Windows has an Arabic voice). A `TTS` controller object + a `listenBtn(text)`
-  helper (rendered only where `speechSynthesis` is supported); wired into each **search-result matn** (`hadithCard` + the تعليق card),
-  each **reader page** (`loadReaderPages`), and the **reading-mode** range. Long text is **chunked by sentence** (so it isn't cut off by
-  the ~15 s utterance limit) and queued; clicking the button again **stops** (`TTS.toggle` tracks the active button). A delegated
-  `.tts-btn` handler in `results` covers the in-`results` buttons; the overlay's listen button (on `document.body`) is wired explicitly.
-- **«وضع القراءة»** — a distraction-free **full-screen** reading overlay (`.rd-overlay` on `document.body`, z-index 60) of the current
-  book range: wide centred column, **large adjustable Arabic font** (أ−/أ+, remembered in `reading.fs` across opens), page nav by
-  buttons / **Esc** / arrow keys; built on the same `/pages` endpoint (`openReadingMode`/`drawReadingMode`/`closeReadingMode`). Closed
-  on tab switch. TTS logic verified with node stubs (Arabic-voice pick, sentence chunking, play/stop toggle, empty-text guard).
-  Reference pages synced (البنية tab list, التقنية reader card). NB this is the THIRD reader increment: #293 native text+search, this = audio+reading-mode.
+**★★ (2026-06-20) FULL REBUILD MEASURED (تاريخ الإسلام + سير IN) → COVERAGE 92.8% · the (A) الأصم RESIDUAL DIAGNOSED + a
+MATCHING FIX (#297 squash-merged, main `5623ea9`, 563 green).** The user ran the WHOLE pipeline: `build_rijal --no-download`
+(rijal **23,025** — تقريب 8655 + الكاشف 6959 + الإصابة +5564 + الثقات +4759 + **سير +1519** + **تاريخ الإسلام +2442** + لسان +72,
+collapsed 1670 dups) → `build_graph` (24,779 nodes, 7039s, **documented network 11,021 شيوخ**) → `audit_coverage`. **★ COVERAGE
+by POSITION: identified 84.1% + ambiguous 8.7% = 92.8% covered, uncovered 7.2%** (was 91.4%/8.6% pre-تاريخ الإسلام → −1.4pt,
+تاريخ الإسلام/سير WORKED). **BUT the top uncovered is STILL the late الأصم-class** (أبو العباس محمد بن يعقوب=الأصم 1242× · علي بن
+حمشاذ العدل 387 · ابن بالويه 255 · ابن إسحاق الفقيه 214 · القطيعي 170 · إسماعيل بن إسحاق القاضي 152 …). **★ DIAGNOSED (against the
+uploaded `narrators.db` + in-container `lookup` tests): NOT an extraction gap — a MATCHING-FORM gap.** The men ARE in the base (proof:
+the full-nasab node «علي بن حمشاذ بن سختويه بن نصر النيسابوري» 84× is COVERED, not in uncovered_top), but the chains ALSO cite them
+with an honorific the base entry lacks: a **LEADING kunya** «أبو بكر محمد بن أحمد بن بالويه» (base «محمد بن أحمد بن بالويه … أبو بكر»)
+or a **TRAILING status word** «علي بن حمشاذ العدل» (base «… بن سختويه …») → the literal lookup misses. **★ FIX (#297, `index.py`):
+two `lookup` fallbacks with the EXACT «ال»-strip (#280) guarantee — fire ONLY on a literal miss, MULTI-token only → NEVER regress.**
+`_honorific_strip_query`: peel a leading kunya before a REAL ism (a patronymic «أبو بكر بن إسحاق» left alone), drop a trailing status
+word (`_TRAIL_HONORIFIC` = العدل/الحافظ/الفقيه/القاضي/الزاهد/العابد/المقرئ/الإمام/الثقة/الحجة/الورع/الأديب/الصدوق); an ambiguous
+remainder is held «مشترك». Verified in-container: بالويه/حمشاذ/العنبري recover; «أبو هريرة»/«النبي»/سفيان-ambiguous untouched. +1 test,
+**LIVE on the next `audit_coverage`/`audit_isnad` (no rebuild — it's in the live matcher).** **WAITING ON THE USER (2 commands, no
+rebuild): `git pull` → (1) `audit_coverage`** → expect uncovered to DROP (حمشاذ 387 · بالويه 255 · العنبري 129+111 · الثقفي 91+72 ·
+المحبوبي 112 … recover; الأصم 1242 may go uncovered→ambiguous via the kunya-strip «محمد بن يعقوب» leading-run) **(2) `audit_isnad`**
+→ confirm W/S FLAT (these are post-Six-Books ثقة, the fallback can't make a متروك). **★ ALSO PROBE الأصم** (the 1242× prize): `probe_name
+"محمد بن يعقوب الأصم" "أبو العباس محمد بن يعقوب"` — if «محمد بن يعقوب الأصم» (the `_SHUHRA` target, index.py:205) has NO candidates →
+تاريخ الإسلام extracted الأصم WITHOUT the «الأصم» laqab (fix: change the redirect target to «محمد بن يعقوب بن يوسف», his stable nasab);
+if it HAS candidates → the redirect already works and the residual is just the kunya-strip's ambiguity. NB also found 2 tiny matching
+gaps (held, low value): «زيد بن حباب» ↔ base «زيد بن الحباب» (the «ال» on an INTERNAL nasab token, `_al_variant` only does the lead) ·
+«أبو سلمة الخزاعي» = منصور بن سلمة (kunya+nisba shuhra, needs a `_SHUHRA`).
+
+**★★ (2026-06-20) FULL-SCREEN READING MODE «وضع القراءة» — SHIPPED (PR #295). ★ Read-aloud (TTS) was ALSO shipped then REMOVED
+at the user's request («la modalità di lettura ad alta voce è da togliere, non mi serve più») — only the VISUAL reading mode remains.**
+The user first asked for «la funzione di lettura in arabo» → AskUserQuestion = «Entrambe» (audio + visiva), so #295 built both client-side
+(no backend, reuse `/reader/.../pages`); then the user dropped the audio. **KEPT: «وضع القراءة»** — a distraction-free **full-screen**
+reading overlay (`.rd-overlay` on `document.body`, z-index 60) of the current book range: wide centred column, **large adjustable Arabic
+font** (أ−/أ+, remembered in `reading.fs` across opens), page nav by buttons / **Esc** / arrow keys; built on the `/pages` endpoint
+(`openReadingMode`/`drawReadingMode`/`closeReadingMode`), closed on tab switch. **REMOVED: the TTS read-aloud** — the `TTS` Web-Speech
+controller, the `listenBtn`/`.tts-btn` buttons on each matn/reader-page/overlay, the delegated handler, and its CSS/docs are all gone
+(grep-clean). Reference pages re-synced (البنية tab list, التقنية reader card — no more «استماع»). NB reader increments: #293 native
+text+search, #295 reading-mode (audio reverted).
 
 **★★ (2026-06-20) THE ARABIC DOCUMENTARY + THE IN-APP BOOK READER — BOTH SHIPPED (PRs #292, #293 squash-merged, branch
 realigned to main `29c6402`, 562 green).** Two user-requested deliverables this session, beside the تاريخ الإسلام work below:

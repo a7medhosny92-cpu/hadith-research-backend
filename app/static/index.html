@@ -265,7 +265,6 @@
   .net-legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:.85rem;align-items:center}
   .net-legend span{display:flex;gap:5px;align-items:center}
   .net-legend i{width:12px;height:12px;border-radius:50%;display:inline-block}
-  .tts-btn.on{color:var(--accent);border-color:var(--accent);background:#eaf5ef}
   /* «وضع القراءة» — a distraction-free full-screen Arabic reading view */
   .rd-overlay{position:fixed;inset:0;z-index:60;background:var(--bg);
     background-image:radial-gradient(circle at 1px 1px, rgba(168,125,39,.055) 1px, transparent 0);
@@ -633,49 +632,6 @@ function shareTools(text){
     + `<button class="tool share-btn" data-text="${esc(text)}" title="مشاركة">↗ مشاركة</button>`;
 }
 
-// ── Read-aloud (TTS): recite the Arabic text via the browser Web Speech API (system voices, offline,
-//    no dependency). Works in the desktop window when an Arabic voice is installed. ────────────────
-const TTS = {
-  voice: null, btn: null, on: false,
-  supported(){ return typeof window !== "undefined" && "speechSynthesis" in window; },
-  _pick(){
-    if(this.voice) return this.voice;
-    const vs = speechSynthesis.getVoices() || [];
-    this.voice = vs.find(v => /^ar/i.test(v.lang)) || null;     // any Arabic system voice
-    return this.voice;
-  },
-  stop(){
-    if(this.supported()) speechSynthesis.cancel();
-    if(this.btn){ this.btn.classList.remove("on");
-      this.btn.textContent = this.btn.dataset.idle || "🔊 استماع"; }
-    this.btn = null; this.on = false;
-  },
-  toggle(text, btn){
-    if(!this.supported()) return;
-    const wasThis = this.btn === btn && this.on;
-    this.stop();                                                // clicking the speaking button = stop
-    if(wasThis || !text || !text.trim()) return;
-    // chunk by sentence so a long page isn't truncated by the ~15s utterance limit, then queue them
-    const chunks = text.match(/[^.؟!\n]+[.؟!\n]*/g) || [text];
-    const v = this._pick();
-    chunks.forEach((c, i) => {
-      const u = new SpeechSynthesisUtterance(c);
-      u.lang = (v && v.lang) || "ar-SA"; if(v) u.voice = v; u.rate = .9;
-      if(i === chunks.length - 1) u.onend = () => { if(this.btn === btn) this.stop(); };
-      u.onerror = () => { if(this.btn === btn) this.stop(); };
-      speechSynthesis.speak(u);
-    });
-    this.btn = btn; this.on = true;
-    btn.dataset.idle = btn.dataset.idle || btn.textContent;
-    btn.textContent = "⏹ إيقاف"; btn.classList.add("on");
-  }
-};
-if(TTS.supported()) speechSynthesis.onvoiceschanged = () => { TTS.voice = null; };
-// A «استماع» button reading `text` aloud — rendered only where speech is supported and there is text.
-function listenBtn(text){
-  if(!TTS.supported() || !text || !text.trim()) return "";
-  return `<button class="tool tts-btn" data-text="${esc(text)}" title="استماع">🔊 استماع</button>`;
-}
 // A citation «collection · رقم N · ج V · ص P». The volume matters: many turath books are
 // multi-volume and restart the printed page at 1 each volume, so «ص» alone is ambiguous.
 function citeOf(x){
@@ -704,7 +660,7 @@ function hadithCard(h, n){
     return `<div class="card taliq">${num}
       <div class="cite"><span class="taliq-badge">تعليق / أثر</span><span>${esc(cite)}</span></div>
       <div class="matn">${hlMatn(h.matn)}</div>
-      <div class="actions">${listenBtn(h.matn)}${shareTools(h.matn + "\n— " + cite)}</div></div>`;
+      <div class="actions">${shareTools(h.matn + "\n— " + cite)}</div></div>`;
   }
   const grade = h.grade ? `<span class="grade ${gradeClass(h.grade)}">${esc(h.grade)}</span>` : "";
   const save = saveChip({kind:"hadith", title:cite, body:h.matn,
@@ -721,7 +677,7 @@ function hadithCard(h, n){
   const num = n ? `<span class="r-num">${n}</span>` : "";
   return `<div class="card">${num}<div class="matn">${hlMatn(h.matn)}</div>
     <div class="cite">${grade}<span>${esc(cite)}</span>${save}</div>
-    <div class="actions">${trace}${listenBtn(h.matn)}${shareTools(txt)}</div>${rulingsHtml(h.rulings)}${chainBlock(h)}${variants}</div>`;
+    <div class="actions">${trace}${shareTools(txt)}</div>${rulingsHtml(h.rulings)}${chainBlock(h)}${variants}</div>`;
 }
 
 // Reveal long result lists in batches so the window stays responsive even with
@@ -1287,8 +1243,7 @@ async function loadReaderPages(){
   const pgs = d.pages || [];
   box.innerHTML = pgs.length ? pgs.map(p =>
       `<div class="rd-page" style="border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:0 0 12px;background:#fff">`
-      + `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">`
-      + `<span style="color:#1f7a52;font-weight:700">صفحة ${p.pg}${p.vol ? " · ج "+p.vol : ""}</span>${listenBtn(p.text)}</div>`
+      + `<div style="color:#1f7a52;font-weight:700;margin-bottom:8px">صفحة ${p.pg}${p.vol ? " · ج "+p.vol : ""}</div>`
       + `<div dir="rtl" style="white-space:pre-wrap;line-height:1.95;text-align:justify">${esc(p.text) || '<span class="note">(صفحةٌ فارغة)</span>'}</div></div>`
     ).join("") : `<div class="state">لا صفحاتٌ في هذا النطاق.</div>`;
 }
@@ -1314,12 +1269,11 @@ async function readerSearch(q){
 }
 
 // «وضع القراءة» — a distraction-free full-screen reading view of the current book range, with a
-// large adjustable Arabic font and read-aloud. Reuses readerState + the /pages endpoint.
-const reading = { fs: 26, el: null, key: null, text: "" };
+// large adjustable Arabic font. Reuses readerState + the /pages endpoint.
+const reading = { fs: 26, el: null, key: null };
 function closeReadingMode(){
   if(reading.el){ reading.el.remove(); reading.el = null; }
   if(reading.key){ document.removeEventListener("keydown", reading.key); reading.key = null; }
-  TTS.stop();
 }
 function openReadingMode(){
   if(!readerState.id) return;
@@ -1333,7 +1287,6 @@ function openReadingMode(){
     + `<button class="btn rd-ov-next">⟵ التالي</button>`
     + `<button class="tool rd-ov-smaller" title="تصغير الخط">أ−</button>`
     + `<button class="tool rd-ov-bigger" title="تكبير الخط">أ+</button>`
-    + (TTS.supported() ? `<button class="tool tts-btn rd-ov-listen" title="استماع">🔊 استماع</button>` : "")
     + `<button class="btn rd-ov-close">إغلاق ✕</button></div>`
     + `<div class="rd-ov-body"><div class="rd-ov-col"><div class="state">… جارٍ التحميل</div></div></div>`;
   document.body.appendChild(ov);
@@ -1347,8 +1300,6 @@ function openReadingMode(){
   ov.querySelector(".rd-ov-close").addEventListener("click", exit);
   ov.querySelector(".rd-ov-smaller").addEventListener("click", () => { reading.fs = Math.max(16, reading.fs - 2); col.style.fontSize = reading.fs + "px"; });
   ov.querySelector(".rd-ov-bigger").addEventListener("click", () => { reading.fs = Math.min(48, reading.fs + 2); col.style.fontSize = reading.fs + "px"; });
-  const listen = ov.querySelector(".rd-ov-listen");
-  if(listen) listen.addEventListener("click", () => TTS.toggle(reading.text || "", listen));
   reading.key = e => {
     if(e.key === "Escape") exit();
     else if(e.key === "ArrowRight") go(readerState.start - readerState.count);   // RTL: → = previous
@@ -1361,14 +1312,12 @@ async function drawReadingMode(){
   const ov = reading.el; if(!ov) return;
   const col = ov.querySelector(".rd-ov-col");
   col.innerHTML = `<div class="state">… جارٍ التحميل</div>`;
-  TTS.stop();
   const id = readerState.id, start = readerState.start, count = readerState.count;
   let d;
   try { d = await getJSON(`/reader/books/${id}/pages?start=${start}&count=${count}`); }
   catch(e){ if(reading.el) col.innerHTML = `<div class="state">${esc(e.message || "تعذّر التحميل")}</div>`; return; }
   if(!reading.el || id !== readerState.id || start !== readerState.start) return;
   const pgs = d.pages || [];
-  reading.text = pgs.map(p => p.text || "").join("\n");
   const last = readerState.pages ? Math.min(start + count - 1, readerState.pages) : start + count - 1;
   const range = ov.querySelector(".rd-ov-range");
   if(range) range.textContent = `الصفحات ${start}–${last}${readerState.pages ? " من " + readerState.pages : ""}`;
@@ -2020,7 +1969,7 @@ const ARCHITECTURE = [
   {h:"٦) المحرّك اللغوي (اختياري)", p:[
     "مفتاحٌ بثلاثة أوضاع: «بدون ذكاء اصطناعي» (استخراجيّ، الأأمن)، أو «محلّي» (Ollama)، أو «سحابيّ» (أيّ مزوّد). وهو مُلزَمٌ بالاستشهاد من المصادر المسترجَعة فقط وعدمِ الاختلاق."]},
   {h:"٧) الواجهة", p:[
-    "خادمُ FastAPI (بحث، سؤال، تخريج، تحقيق إسناد، راوٍ، الرواة [فهرسٌ قابلٌ للتصفّح بالحرف والدرجة لكلّ الرواة دون بحث]، الكتب [تصفّحُ المكتبة ببنيتها: كتابٌ ← أبوابه ← أحاديثه، دون بحث]، قراءة الكتب [قراءةُ كتابٍ منزَّلٍ نصًّا في التطبيق، مع البحثِ في الكتاب، ووضعِ قراءةٍ بملءِ الشاشة بخطٍّ كبيرٍ قابلِ التكبير، والاستماعِ إلى النصّ بصوتٍ عربيٍّ من النظام، وتنزيلِ نطاقِ صفحاتٍ ملفًّا PDF]، شبكةٌ بيانيّة، دفتر، وألسنةُ المراجعة الذاتية: التدقيق وتدقيق المتون وتعارض الرجال) ونافذةٌ مكتبية بالعربية مع هذه الألسنة. ويُقرأُ كلُّ متنٍ في نتائج البحث بصوتٍ مسموعٍ بزِرِّ «استماع»."]},
+    "خادمُ FastAPI (بحث، سؤال، تخريج، تحقيق إسناد، راوٍ، الرواة [فهرسٌ قابلٌ للتصفّح بالحرف والدرجة لكلّ الرواة دون بحث]، الكتب [تصفّحُ المكتبة ببنيتها: كتابٌ ← أبوابه ← أحاديثه، دون بحث]، قراءة الكتب [قراءةُ كتابٍ منزَّلٍ نصًّا في التطبيق، مع البحثِ في الكتاب، ووضعِ قراءةٍ بملءِ الشاشة بخطٍّ كبيرٍ قابلِ التكبير، وتنزيلِ نطاقِ صفحاتٍ ملفًّا PDF]، شبكةٌ بيانيّة، دفتر، وألسنةُ المراجعة الذاتية: التدقيق وتدقيق المتون وتعارض الرجال) ونافذةٌ مكتبية بالعربية مع هذه الألسنة."]},
   {h:"المبدأ الحاكم", p:[
     "يَسترجع ويُوثّق ولا يَختلق؛ ويُميَّز دائمًا المنقولُ (نصُّ المصدر ونسبتُه = موثوق) عن التحليليّ (الفصلُ والمطابقةُ والحكم = اجتهاديٌّ يُراجَع) — كما تُفصّله صفحة «المنهجية»."]},
   {h:"أين يمكن أن يتحسّن", p:[
@@ -2127,7 +2076,7 @@ const TECH = [
     "Browse — the «الرواة» tab (GET /narrators, RijalIndex.browse_rows): a paged, letter-and-درجة-faceted index of every graded narrator (each facet's counts respect the other active filters), so the user can scroll the رجال without searching; a click opens that man's راوٍ card. Names are de-duplicated by exact form.",
     "Library — the «الكتب» tab (app/routers/books.py + HadithIndex.collections/chapters/chapter_hadiths over the same index.db): navigate the corpus by its OWN structure instead of searching — collections (GET /books) → a collection's كتب/أبواب in book order (GET /books/{id}/chapters) → the hadiths under a chapter, paged (GET /books/{id}/hadiths?chapter=) — a three-view drill-down with a breadcrumb and a client-side chapter filter; the leaf reuses the full hadith card. The chapter is built from the book's indexes.headings as a hierarchical «كتاب ← باب» (so untitled «بَابٌ» in different كتب stay distinct, no fusion). أبواب whose body is only a تعليق/أثر — no numbered hadith (common in صحيح البخاري) — are recovered by a parse-time post-pass as «taliq» entries so the whole book is browsable; they carry an empty isnad and kind='taliq', so they show in the library (ordered in book place via a sort key) but are excluded from search, the narrator graph, and the isnad/matn audits. The same tab also browses the شروح (the separate sharh_index.db): GET /sharh-books → each شرح with the collection it explains and its passage count → /sharh-books/{id}/chapters → /sharh-books/{id}/passages?chapter= (one card per passage, its chunks rejoined to the full commentary) — SharhIndex.collections/chapters/chapter_passages. The leaf has «السابق»/«التالي» buttons that step to the previous/next باب in book order (over booksState.chapters) so the user flips through the أبواب without returning to the list. The chapters view also has an in-book WORD search over the whole book's content (beside the باب-title filter): GET /books/{id}/search?q= (HadithIndex.search collection_id-scoped) and GET /sharh-books/{id}/search?q= (SharhIndex.search_in_book) → ranked matches, each with its باب (clickable to open it).",
     "Book reader — the «قراءة الكتب» tab (app/routers/reader.py): read a DOWNLOADED raw book (the source page-text JSON, e.g. تاريخ الإسلام = 15,404 pages) directly in the app, a page slice at a time so a huge book is never served whole. GET /reader/books lists the books on disk; GET /reader/books/{id}/pages?start=&count= returns the cleaned page TEXT for native RTL reading (the default — instant, no PDF to generate); GET /reader/books/{id}/search?q= finds a word across the WHOLE book (diacritic/hamza-folded via normalize_for_search) and returns the matching pages + a snippet (click to jump); and GET /reader/books/{id}.pdf?start=&count= renders the same slice to a real Arabic PDF (app/parsing/book_pdf, fpdf2 + HarfBuzz + Noto Naskh) for inline view / download — 503 if the font/deps are absent. The loaded book is cached (lru_cache) so turning pages is instant.",
-    "Reading aloud + reading mode (frontend, no backend): the «وضع القراءة» button opens a distraction-free FULL-SCREEN reading view of the current range — a wide centred column, a large adjustable Arabic font (أ−/أ+), page nav (Esc/arrows), built on the same /pages endpoint. Read-aloud (TTS) uses the browser Web Speech API (speechSynthesis) with a system Arabic voice — entirely client-side, offline, no dependency, working in the desktop window when an Arabic voice is installed: a «استماع» button recites each reader page, each search-result matn, and the reading-mode range (long text is chunked by sentence so it isn't cut off, and clicking the button again stops). The button renders only where speech is supported.",
+    "Reading mode (frontend, no backend): the «وضع القراءة» button opens a distraction-free FULL-SCREEN reading view of the current range — a wide centred column, a large adjustable Arabic font (أ−/أ+), page nav (Esc/arrows), built on the same /pages endpoint.",
     "Notebook: GET/POST /notebook and PATCH/DELETE /notebook/{id}. Maintenance: POST /admin/reload (clears the provider caches). Health: GET /health and /health/ingestion."]},
   {h:"Settings — app/config.py (.env)", p:[
     "pydantic-settings. The main ones: data_dir (=data), rijal_path (a larger rijal base), embedding_model/embedding_dim (768); the data file paths are properties derived from data_dir.",
@@ -2489,12 +2438,6 @@ results.addEventListener("click", e => {
     if(box){ const open = box.classList.toggle("show");
       vt.textContent = vt.textContent.replace(/[▾▴]\s*$/, open ? "▴" : "▾"); }
   }
-});
-
-// Read a matn/page aloud (the «استماع» button); clicking it again stops.
-results.addEventListener("click", e => {
-  const b = e.target.closest(".tts-btn");
-  if(b) TTS.toggle(b.dataset.text || "", b);
 });
 
 // Copy / share a hadith (matn + citation). Works offline; share falls back to copy,
