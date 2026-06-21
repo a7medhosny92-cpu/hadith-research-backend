@@ -155,6 +155,22 @@ def test_reaches_prophet_is_false_for_mawquf_mentioning_prophet():
     assert not a.reaches_prophet
 
 
+def test_reaches_prophet_via_marfu_saying_attribution_in_matn():
+    # «عن [صحابيّ] قال: قال رسول الله ﷺ …» — the report IS مرفوع though ﷺ sits in the matn opener, not a
+    # chain node. Recognising it lets the terminal-صحابي promotion fire, so a Companion who mis-resolves
+    # to a ثقة namesake is corrected: صحيح البخاري #8 «بُنِيَ الإسلام على خمس» was held «يُتوقَّف» because
+    # «ابن عمر» matched «نافع مولى ابن عمر» and the promotion (gated on reaching the Prophet ﷺ) never fired.
+    from app.rijal.index import RijalIndex
+    rij = RijalIndex([
+        {"name": "نافع مولى ابن عمر", "grade": "ثقة"},                       # the wrong match (مولى = servant)
+        {"name": "عبد الله بن عمر بن الخطاب العدوي أبو عبد الرحمن", "grade": "صحابي"},
+    ])
+    a = analyze_isnad("حدثنا فلان عن عكرمة عن ابن عمر قال قال رسول الله ﷺ بني الإسلام على خمس", rijal=rij)
+    assert a.reaches_prophet
+    assert a.narrators[-1]["rijal"]["name"].startswith("عبد الله بن عمر بن الخطاب")  # the Companion, not نافع
+    assert a.narrators[-1]["rijal"]["grade"] == "صحابي"
+
+
 # ── overall ruling (الحكم على الإسناد) ───────────────────────────────────────
 def test_ruling_all_thiqat_connected_is_sahih():
     r = overall_ruling(_analysis(9), {"total": 5, "seen": 5})
