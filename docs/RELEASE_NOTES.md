@@ -1,4 +1,4 @@
-[العربية](RELEASE_NOTES.ar.md) · 🌐 **English**
+[العربية](https://github.com/a7medhosny92-cpu/hadith-research-backend/blob/main/docs/RELEASE_NOTES.ar.md) · 🌐 **English**
 
 # v0.1.0 — بحث وتحقيق الحديث · First public release
 
