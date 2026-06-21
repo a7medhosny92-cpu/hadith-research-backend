@@ -149,6 +149,18 @@ def test_corrupted_grave_grade_on_a_sahih_thiqa_duplicate_is_corrected():
     assert rij.lookup("محمد بن عمر الواقدي").entry.category == "متروك"             # NOT corrected
 
 
+def test_reliable_grave_correction_matches_the_bare_cited_form():
+    # The chain cites «معاذ بن معاذ» (no nisba) and the corrupted DUPLICATE is the bare form too. The
+    # RELIABLE key used to be «معاذ بن معاذ العنبري» (3 tokens) → it missed the bare 2-token entry, so a
+    # صحيح البخاري chain through him stayed flagged W. The key is now the bare cited form «معاذ بن معاذ».
+    rij = RijalIndex([
+        {"name": "معاذ بن معاذ", "grade": "متروك"},      # the bare entry the chain actually resolves to
+        {"name": "معاذ بن هشام", "grade": "متروك"},      # a DIFFERENT معاذ — must stay متروك
+    ])
+    assert rij.lookup("معاذ بن معاذ").entry.category == "ثقة"
+    assert rij.lookup("معاذ بن هشام").entry.category == "متروك"
+
+
 def test_honorific_strip_recovers_late_shaykhs_cited_with_a_kunya_or_a_status_word():
     # The late محدّثون (al-Ḥākim/al-Bayhaqī's شيوخ) are cited with a LEADING kunya «أبو بكر محمد بن أحمد
     # بن بالويه» or a TRAILING status word «علي بن حمشاذ العدل», but the base stores the ism-nasab («… أبو
