@@ -407,7 +407,7 @@ def analyze_isnad(
             if is_prophet(nar.name) or _is_mubham(nar.name):
                 cand_lists.append([]); anchors.append(None); continue
             m = rijal.lookup(nar.name)
-            if m is not None and m.score >= 1.0 and not m.ambiguous:   # a confident identity → anchor
+            if m is not None and m.score >= 0.8 and not m.ambiguous:   # a confident identity → anchor (0.8 for prefix partials, 1.0 for contained)
                 anchors.append(m.entry.name); cand_lists.append([m.entry.name])
             else:
                 anchors.append(None)

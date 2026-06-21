@@ -638,6 +638,7 @@ class RijalIndex:
                 extra += [e for _c, _p, _ln, e in partial if e.category not in _GRAVE]
             alternatives = [e.name for e in extra]
             agreed = all(e.category == best_e.category for e in (best_e, *extra))
+            # score = 1.0: the entry's name is FULLY contained in the query (specific, strong match)
             return RijalMatch(best_e, 1.0, bool(alternatives), alternatives[:3], grade_agreed=agreed)
 
         if partial:
@@ -655,7 +656,10 @@ class RijalIndex:
             best_e = group[0]
             alternatives = [e.name for e in group if e.name != best_e.name]
             agreed = all(e.category == best_e.category for e in group)
-            return RijalMatch(best_e, 1.0, bool(alternatives), alternatives[:3], grade_agreed=agreed)
+            # score: prefix partial = 0.8, non-prefix partial = 0.5
+            # Distinguishes between a strong partial (ism+nasab prefix) and a weak partial
+            score = 0.8 if top_pref else 0.5
+            return RijalMatch(best_e, score, bool(alternatives), alternatives[:3], grade_agreed=agreed)
 
         return None
 

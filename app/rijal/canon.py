@@ -50,7 +50,7 @@ class Canonicalizer:
         partial, or unknown) returns ``(None, ())`` so the surface form is kept.
         """
         match = self._rijal.lookup(surface)
-        if match is None or match.score < 1.0:
+        if match is None or match.score < 0.9:   # only CONTAINED matches (score=1.0) are confident
             return (None, ())
         if not match.ambiguous:
             return (match.entry.name, ())
