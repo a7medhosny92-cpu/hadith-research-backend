@@ -411,8 +411,10 @@ def from_coverage_source(entry: RijalEntry) -> bool:
 def _prefer_non_coverage(group: list[RijalEntry]) -> list[RijalEntry]:
     """Drop coverage-only men from a tied candidate group when a real (non-coverage) narrator is present —
     so an obscure الإصابة/الثقات namesake never makes a famous narrator «مشترك». Kept only when EVERY
-    candidate is coverage (a genuinely non-Six-Books citation, where the obscure man may be the referent)."""
-    real = [e for e in group if not from_coverage_source(e)]
+    candidate is coverage (a genuinely non-Six-Books citation, where the obscure man may be the referent).
+    Companions (صحابي) are ALWAYS kept — they are never 'obscure coverage-only' even when their only
+    source is الإصابة."""
+    real = [e for e in group if not from_coverage_source(e) or e.category == "صحابي"]
     return real if real else group
 
 
@@ -621,7 +623,7 @@ class RijalIndex:
                 partial.append((best[0], best[1], best[2], entry))
 
         if contained:
-            contained.sort(key=lambda pair: -pair[0])
+            contained.sort(key=lambda pair: (-pair[0], -pair[1].rank))
             top = contained[0][0]
             tied = [e for s, e in contained if s == top]
             group = self._keep_trust_over_grave(

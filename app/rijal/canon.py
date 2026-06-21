@@ -105,7 +105,11 @@ class Canonicalizer:
 
     def _pick(self, candidates: tuple[str, ...], context: frozenset[str]) -> str | None:
         """The candidate whose recorded company best overlaps the chain context — only
-        when there is a *strict* unique winner with real overlap; else ``None``."""
+        when there is a *strict* unique winner with real overlap; else ``None``.
+
+        Conservative: requires at least 2 shared tokens AND a clear margin over the runner-up
+        to avoid mis-identifying a namesake on a single coincidental token (e.g. a shared
+        «بن» or a common nisba)."""
         if not context:
             return None
         best, best_score, tie = None, 0, False
@@ -115,4 +119,4 @@ class Canonicalizer:
                 best, best_score, tie = cand, score, False
             elif score == best_score and score > 0:
                 tie = True
-        return best if best and best_score > 0 and not tie else None
+        return best if best and best_score >= 2 and not tie else None
