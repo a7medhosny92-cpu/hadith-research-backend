@@ -572,10 +572,25 @@ def analyze_isnad(
                 usable = match and (not match.ambiguous or match.grade_agreed
                                     or (i == terminal_idx and match.entry.category == "صحابي"))
                 matches.append(match if usable else None)
-            record["rijal"] = match.to_dict() if match else None
-            if match and match.ambiguous and record["rijal"] is not None:
-                # the ②b honest-doubt node: surface the few possible identities + their grades
-                record["rijal"]["candidates"] = _doubt_candidates(rijal, narrator.name, match)
+            # CRITICAL: if canon/joint did NOT disambiguate (name is still the surface form)
+            # and the lookup is ambiguous, we must NOT identify a specific person arbitrarily.
+            # The "best match" from the lookup is just the first by sorting, NOT evidence-based.
+            if match is not None and match.ambiguous and name == narrator.name:
+                # Canon and joint both failed. The narrator is NOT identified.
+                # Show only candidates, never a false "best match" identification.
+                candidates = _doubt_candidates(rijal, narrator.name, match)
+                record["rijal"] = {
+                    "candidates": candidates,
+                    "grade_agreed": match.grade_agreed,
+                    "ambiguous": True,
+                }
+                if match.grade_agreed and candidates:
+                    record["rijal"]["grade"] = candidates[0].get("grade")
+            else:
+                record["rijal"] = match.to_dict() if match else None
+                if match and match.ambiguous and record["rijal"] is not None:
+                    # the ②b honest-doubt node: surface the few possible identities + their grades
+                    record["rijal"]["candidates"] = _doubt_candidates(rijal, narrator.name, match)
         narrator_dicts.append(record)
 
     notes: list[str] = []
