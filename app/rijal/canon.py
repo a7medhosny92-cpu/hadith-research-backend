@@ -30,10 +30,17 @@ class Canonicalizer:
         self, rijal: RijalIndex, associations: dict[str, set[str]] | None = None
     ) -> None:
         self._rijal = rijal
-        self._assoc = associations or {}
         self._resolve_cache: dict[str, tuple[str | None, tuple[str, ...]]] = {}
         self._cand_cache: dict[str, tuple[str, ...]] = {}
         self._tok_cache: dict[str, frozenset[str]] = {}
+        # Convert neighbour names to tokens so _pick compares token→token (not string→token)
+        self._assoc: dict[str, frozenset[str]] = {}
+        if associations:
+            for name, neighbours in associations.items():
+                tok_set: set[str] = set()
+                for nb in neighbours:
+                    tok_set.update(self.tokens(nb))
+                self._assoc[name] = frozenset(tok_set)
 
     def tokens(self, name: str) -> frozenset[str]:
         """Cleaned name tokens (cached) — the token space the authority matches in."""
@@ -64,7 +71,7 @@ class Canonicalizer:
         cached = self._cand_cache.get(key)
         if cached is None:
             cached = self._cand_cache[key] = tuple(
-                dict.fromkeys(e.name for e in self._rijal.candidates(surface))
+                dict.fromkeys(e.name for e in self._rijal.candidates(surface, max_results=None))
             )
         return cached
 
